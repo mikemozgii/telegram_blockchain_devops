@@ -1,0 +1,87 @@
+<vue-template>
+    <div class="slider-container-component-id">
+        <input
+            type="range"
+            :min="minimum"
+            :max="maximum"
+            :step="step"
+            :value="content"
+            @input="contentChanged($event)"
+            :disabled="disable">
+    </div>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            value: {
+                type: Number,
+                default: _ => 0.5
+            },
+            disable: {
+                type: Boolean,
+                default: _ => false
+            },
+            minimum: {
+                type: Number,
+                default: _ => 0
+            },
+            maximum: {
+                type: Number,
+                default: _ => 1
+            },
+            step: {
+                type: Number,
+                default: _ => 0.1
+            }
+        },
+        data() {
+            return {
+                content: this.value
+            }
+        },
+        created() {
+            this.defaultValidateRules = {
+                'required': this.required
+            };
+
+            this.content = this.value;
+            this.validateValue();
+        },
+        methods: {
+            required(rule) {
+                const isNotValid = !this.content && this.content !== 0 && this.content !== "0";
+                if (isNotValid) this.validateMessage(rule, 'This field is required');
+                return !isNotValid;
+            },
+            contentChanged($event){
+                this.content = parseFloat($event.target.value);
+                this.$emit(`input`, this.content);
+                this.$emit(`changed`, this.content);
+
+                this.validateValue();
+            }
+        },
+        watch: {
+            value(newValue) {
+                this.content = newValue;
+
+                this.validateValue();
+            }
+        },
+        mixins: [validateMixin]
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    width: 100%;
+}
+.container-component-id input {
+    width: 100%;
+}
+</style>

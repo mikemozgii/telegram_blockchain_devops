@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TONBRAINS.TONOPS.Ffi": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

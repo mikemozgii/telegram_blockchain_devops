@@ -1,0 +1,124 @@
+<vue-template>
+    <div
+        style="width: auto">
+        <div
+             class="chip-component-id"
+            :style="{'width': currentProgress, 'background-color': progress && progress !== 100 ? 'whitesmoke' : '#e0e0e0'}">
+            <div
+                class="chip-content-component-id"
+                slot="content"
+                @click="chipClick()">
+                <font-awesome-icon
+                    class="file-icon-component-id"
+                    :icon="'fa-file'">
+                </font-awesome-icon>
+                <p class="file-name-component-id">{{progress !== 100 ? currentProgress : ''}} {{name}}</p>
+            </div>
+            <font-awesome-icon
+                v-show="!disable && progress === 100"
+                class="delete-icon-component-id"
+                :icon="'fa-times'"
+                @click.native="remove()">
+            </font-awesome-icon>
+        </div>
+    </div>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    return {
+        props: {
+            value: {
+                type: String,
+                default: String,
+                required: true
+            },
+            progress: {
+                type: Number,
+                default: _ => 100
+            },
+            name: {
+                type: String,
+                default: String,
+                required: true
+            },
+            disable: {
+                type: Boolean,
+                default: _ => false
+            }
+        },
+        methods: {
+            remove() {
+                this.$emit(`deleted`, this.value);
+            },
+            chipClick() {
+                this.$emit(`on-click`, this.value);
+            }
+        },
+        computed: {
+            currentProgress() {
+                return !this.progress ? `100%` : `${this.progress}%`;
+            }
+        },
+        components: {
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`),
+            ToolTipBox: staticBasicComponent(`ToolTipBox`),
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    justify-items: left;
+    background-color: transparent;
+    margin: 1px;
+    border-radius: 25px;
+    width: auto;
+    cursor: pointer;
+}
+.chip-component-id {
+    padding: 0 5px;
+    height: 25px;
+    font-size: 14px;
+    border-radius: 16px;
+    border: 1px solid lightgray;
+    display: flex;
+    width: 100%;
+    max-width: 560px;
+}
+.chip-component-id:hover {
+    display: flex;
+}
+.chip-content-component-id {
+    display: flex;
+    height: 20px;
+    margin-top: 2px;
+    width: auto;
+    max-width: 550px;
+}
+.delete-icon-component-id {
+    cursor: pointer;
+    flex-basis: 15px;
+    height: 12px;
+    font-size: 12px;
+    margin-top: 4px;
+    margin-left: 4px;
+}
+.delete-icon-component-id:hover {
+    color: red;
+}
+.file-icon-component-id {
+    margin-right: 2px;
+    flex-basis: 15px;
+    color: #ee1c29;
+}
+.file-name-component-id {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-basis: auto;
+}
+</style>

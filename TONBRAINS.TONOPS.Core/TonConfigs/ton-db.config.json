@@ -1,0 +1,91 @@
+{
+    "@type": "engine.validator.config",
+    "out_port": 3278,
+    "addrs": [
+        {
+            "@type": "engine.addr",
+            "ip": $udp_Ip,
+            "port": 30310,
+            "categories": [ 0, 1, 2, 3 ],
+            "priority_categories": []
+        }
+
+    ],
+    "adnl": [
+        {
+            "id": "${validator_id}",
+            "category": 0
+        },
+        {
+            "id": "${adnl_id}",
+            "category": 0
+        },
+
+        {
+            "@type": "engine.adnl",
+            "id": "${engine_dht}",
+            "category": 0
+        },
+        {
+
+            "@type": "engine.adnl",
+            "id": "${engine_adnl}",
+            "category": 1
+        }
+    ],
+
+    "dht": [
+        {
+            "@type": "engine.dht",
+            "id": "${engine_dht}"
+        }
+    ],
+    "validators": [
+        {
+            "id": "${server_id}",
+            "temp_keys": [
+                {
+                    "key": "${validator_id}",
+                    "expire_at": $expire_at
+                }
+            ],
+            "adnl_addrs": [
+                {
+                    "id": "${adnl_id}",
+                    "expire_at": $expire_at
+                }
+            ],
+            "expire_at": $expire_at
+        }
+
+    ],
+    "fullnode": "${engine_adnl}",
+    "fullnodeslaves": [
+    ],
+    "fullnodemasters": [],
+    "liteservers": [
+        {
+            "id": "${liteserver_id}",
+            "port": 3031
+        }
+
+    ],
+    "control": [
+        {
+            "id": "${server_id}",
+            "port": 3030,
+            "allowed": [
+                {
+                    "id": "${client_id}",
+                    "permissions": 15
+                }
+            ]
+        }
+    ],
+    "gc": {
+        "@type": "engine.gc",
+        "ids": []
+
+    }
+
+}

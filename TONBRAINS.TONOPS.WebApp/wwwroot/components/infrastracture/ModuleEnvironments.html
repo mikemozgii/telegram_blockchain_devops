@@ -1,0 +1,74 @@
+<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <short-text 
+            slot="descriptionslot"
+            slot-scope="{ item }"
+            :text="item.description">
+        </short-text>
+    </flat-data-grid>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            moduleId: {
+                type: String,
+                required: true
+            }
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Domain`, `domain`, { notFilterable: true }),
+                        this.addColumn(`Name`, `name`, { notFilterable: true }),
+                        this.addColumn(`Description`, `description`, { notFilterable: false, slot: `descriptionslot` })
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `/api/modules/moduleenvironments?moduleId=${this.moduleId}`
+                    },
+                    gridItemActions: [],
+                    addButtonText: ``,
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    expandable: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    hideToolbar: true,
+                    addButtonVisibilityHandler: this.isViewOnlyHandler,
+                    additionalOptions: {
+                        minimumLimitAllItems: 500,
+                        allDataAtOnce: true
+                    },
+                    actions: this
+                }
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            CheckBox: staticBasicComponent(`CheckBox`),
+            TrueFalse: staticBasicComponent(`TrueFalseMark`),
+            FormModal: staticBasicComponent(`FormModal`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`)
+        }
+    }
+}
+</script>

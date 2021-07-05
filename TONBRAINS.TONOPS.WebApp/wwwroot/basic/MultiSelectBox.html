@@ -1,0 +1,338 @@
+<vue-template>
+    <div
+        v-if="!disable"
+        class="select-box-component-id" 
+        @mouseenter="mouseEntersSelectBox($event)" 
+        @mouseleave="mouseLeavesSelectBox($event)">
+        <div class="select-textbox-component-id">
+            <slot name="resultcontent" :selected="selectedOptionsObjects">
+                <input type="text" :placeholder="title" :disabled="disable" :value="selectedOptionsName" @keydown.stop.prevent @click="toggleMenu()" />
+            </slot>
+
+            <clear-button-pop-up ref="clearButtonPopUp"
+                                    v-if="value && value.length && showClearButton"
+                                    :action="deleteAll">
+            </clear-button-pop-up>
+
+            <font-awesome-icon class="icon-component-id" :icon="'fa-chevron-down'" :icon4="'fa-angle-down'" @click.native="toggleMenu()">
+            </font-awesome-icon>
+        </div>
+    </div>
+    <div class="only-text-select-textbox-component-id" v-if="disable">
+        <span>{{ selectedOptionsName }}</span>
+    </div>
+    <transition name="popup-transition-component-id">
+        <popup-panel
+            class="select-popup-component-id"
+            :hide-header="true"
+            :hide-footer="true"
+            v-if="open"
+            :style="{ width: selectWidth }"
+            :common-styles="commonStyles"
+            :footer-styles="footerStyles"
+            :content-styles="contentStyles">
+            <div slot="content">
+                <div class="filter" v-if="false">
+                </div>
+                <div class="popup-options">
+                    <list-box :items="innerOptions || []" :multiple-select="true" v-model="selectedOptionsObjects" @selected="selectItem()">
+                        <div slot="item" slot-scope="{ item }" class="item-popup-component-id">
+                            <check-box class="not-active-check-box-component-id"
+                                        :value="checkSelected(item)"
+                                        :header="item.title">
+                            </check-box>
+                        </div>
+                    </list-box>
+                </div>
+            </div>
+        </popup-panel>
+    </transition>
+</vue-template>
+
+<script componentscope>
+module.exports = async function () {
+    const clickAway = await require(`globalMixins/clickAway`);
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            value: [Array],
+            title: String,
+            options: [Array],
+            disable: Boolean,
+            showValidateBox: {
+                type: Boolean,
+                default: () => true
+            },
+            firstShowValidateBox: {
+                type: Boolean,
+                default: () => false
+            },
+            clearLabel: {
+                type: String,
+                default: () => `Clear`
+            },
+            showClearButton: {
+                type: Boolean,
+                default: () => true
+            },
+        },
+        data: () => {
+            return {
+                open: false,            
+                selectedOptionsObjects: [],
+                innerShowValidateBox: this.firstShowValidateBox,
+                innerOptions: [],
+                selectWidth: 'inherit',
+                commonStyles: {
+                    "border-width": "1px 1px 3px 1px",
+                    "border-style": "solid",
+                    "border-color": "rgba(0,0,0,.125)",
+                    "background-color": "white"
+                },
+                footerStyles: {
+                    "padding-left": "0px",
+                    "padding-right": "0px",
+                    "padding-top": "0px",
+                    "padding-bottom": "0px",
+                    "background-color": "white"
+                },
+                contentStyles: {
+                    "padding-left": "0px",
+                    "padding-right": "0px",
+                    "padding-top": "0px",
+                    "padding-bottom": "0px",
+                    "background-color": "white"
+                }
+            }
+        },
+        created() {
+            this.innerOptions = this.options;
+            if (this.value && this.value.length > 0)
+                this.selectedOptionsObjects = this.innerOptions.filter(i => { return this.value.indexOf(i.id) > -1 });
+            else
+                this.selectedOptionsObjects = [];
+            this.defaultValidateRules = {
+                'required': this.required
+            };
+            this.innerShowValidateBox = this.firstShowValidateBox;
+            this.validateValue();            
+        },
+        mounted() {      
+            this.setupClickAway(`selectbox-component-id` + Math.random.toString(), this.clickaway);
+        },
+        methods: {
+            mouseEntersSelectBox(e) {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                let rect = e.target.getBoundingClientRect();
+                let position = {
+                    left: rect.right-38,
+                    top: rect.top + 8,
+                };
+                this.$refs.clearButtonPopUp.show(position);
+            },
+            mouseLeavesSelectBox(e) {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                this.$refs.clearButtonPopUp.hide();
+            },
+
+            deleteAll() {
+                if (this.disable) return;
+                this.selectedOptionsObjects = [];
+                this.validateValue();
+                const value = this.mapSelectedOptions();
+
+                this.$emit(`input`, value);
+                this.$emit(`selected`, value);
+                this.$emit(`click-selected`, value);
+            },
+            required(rule) {
+                if (!this.selectedOptionsObjects || this.selectedOptionsObjects.length === 0) {
+                    this.validateMessage(rule, 'This field is required');
+                    return false;
+                }
+
+                return true;
+            },
+            checkSelected(item) {                
+                return this.selectedOptionsObjects.find(a => a.id === item.id);
+            },
+            selectItem() {       
+                this.validateValue();
+                const value = this.mapSelectedOptions();
+
+                this.$emit(`input`, value);
+                this.$emit(`selected`, value);
+                this.$emit(`click-selected`, value);
+            },
+            mapSelectedOptions() {
+                return this.selectedOptionsObjects ? this.selectedOptionsObjects.map(i => { return i.id; }) : [];
+            },
+            toggleMenu() {
+                if (this.disable) return;
+                this.selectWidth = this.$el.getElementsByClassName("select-textbox-component-id")[0].clientWidth + 'px';
+                this.open = !this.open;
+            },
+            clickaway() {
+                this.open = false;
+            }
+        },
+        watch: {
+            value(newValue) {
+                if (!this.innerOptions) return;
+                this.selectedOptionsObjects = this.innerOptions.filter(i => { return newValue.indexOf(i.id) > -1 });
+                this.validateValue();
+            },
+            options(newValue) {
+                this.innerOptions = newValue;
+            },
+
+        },
+        computed: {
+            selectedOptionsName() {      
+                let names = ``;
+                if (!this.selectedOptionsObjects || this.selectedOptionsObjects.length === 0 || this.options.length === 0) return names;              
+
+                const ids = this.mapSelectedOptions();
+                ids.forEach(id => {
+                    const option = this.innerOptions.find(o => o.id === id);
+                    if (option) names += `${option.title}, `;
+                })
+
+                return names.substring(0, names.length - 2);
+            }
+        },
+        mixins: [clickAway, validateMixin],
+        components: {
+            PopupPanel: staticBasicComponent(`Panel`),
+            ListBox: staticBasicComponent(`ListBox`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`),
+            CheckBox: staticBasicComponent(`CheckBox`),
+            ClearButtonPopUp: staticBasicComponent(`ClearButtonPopUp`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    width: 100%;
+}
+.select-textbox-component-id {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.select-textbox-component-id input {
+    cursor: pointer;
+    border-width: 1px;
+    border-top-color: #bdc0c7;
+    box-shadow: none;
+    padding: 5px 12px;
+    padding-right: 30px;
+    font-size: 0.8rem;
+    transition: none;
+    display: block;
+    width: 100%;
+    line-height: 1.428571429;
+    color: #404040;
+    background-color: #fff;
+    border: 2px solid rgba(0, 0, 0, 0.08);
+    border-radius: 3px;
+    background-clip: padding-box;
+    overflow: visible;
+    box-sizing: border-box;
+}
+
+.select-textbox-component-id input:focus, input:active {
+    border-color: rgba(51, 204, 255, 0.30);
+    background-image: none;
+    outline: 0;
+}
+
+.only-text-select-textbox-component-id {
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.icon-component-id{
+    margin-left: -21px;
+}
+
+.select-popup-component-id {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    border-radius: 2px 2px 0 0;
+    box-shadow: 0 -2px 6px rgba(0,0,0,.12);
+    border-width: 0.07692rem;
+    border-color: #d5d8de;
+    background-color: #fff;
+    border: 1px solid #aaa;
+    z-index: 1;
+}
+.select-popup-component-id .popup-options {
+    max-height: 200px;
+    overflow-y: auto;
+}
+.item-popup-component-id {
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+@keyframes jump-show-animate-component-id {
+  0% {
+    opacity: 0;
+    transform: scale3d(0.1, 0.1, 0.1) translate3d(0, -10px, 0);
+    animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale3d(0.475, 0.475, 0.475) translate3d(0, 60px, 0);
+    animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1);
+  }
+}
+.separator-component-id {
+    flex: 1;
+}
+.popup-transition-component-id-enter-active {
+    animation-name: jump-show-animate-component-id;
+    animation-duration: .4s;
+}
+.popup-transition-component-id-leave-active {
+    animation-name: jump-show-animate-component-id;
+    animation-duration: .5s;
+    animation-direction: reverse;
+}
+.not-active-check-box-component-id {
+    margin-left:10px;
+    margin-right:5px;
+    pointer-events: none;
+}
+.select-box-component-id{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.icon-trash-down-component-id{
+    margin-left: -21px;
+    cursor: pointer;
+    font-size: .9rem;
+}
+.trash-component-id {
+    margin-left: 5px;
+    font-size: 14px;
+    color: #FF0624;
+}
+</style>
+

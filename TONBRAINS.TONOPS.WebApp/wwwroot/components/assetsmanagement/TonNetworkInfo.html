@@ -1,0 +1,380 @@
+﻿<vue-template>
+    <tabs-header
+        :items="tabsItems"
+        v-model="currentTab"
+        @selected="tabSelected($event)">
+    </tabs-header>
+    <div v-show="currentTab === `nodes`">
+        <flat-data-grid ref="grid"
+                        :settings="settings">
+            
+            <row-layout slot="nameslot"
+                        slot-scope="{ item }">
+                <span v-if="item.status && item.status !== `stop`" style="color:forestgreen; margin-right:5px"><i class="fas fa-plug"></i></span>
+                <short-text :text="item.name">
+            </short-text>
+            </row-layout>
+            <short-text slot="diskslot"
+                    slot-scope="{ item }"
+                        :text="`${item.diskavailible}GB(${(100-item.diskpercent)}%) / ${item.disktotal - item.diskavailible}GB(${item.diskpercent}%)/  ${item.disktotal}GB`">
+            </short-text>
+
+            <!--<short-text slot="diskpercentslot"
+                        slot-scope="{ item }"
+                        :text="`${item.diskavailible}GB (${(100 - item.diskpercent)}%)`">
+            </short-text>-->
+
+            <short-text slot="timediffslot"
+                        slot-scope="{ item }"
+                        :text="`${item.timediff}`">
+            </short-text>
+
+            <short-text slot="logsizeslot"
+                        slot-scope="{ item }"
+                        :is-link="true"
+                        :text="logSizeFormat(item.tonlogsize)"
+                        @clicked="showLog(item.id)">
+            </short-text>
+
+            <short-text slot="configslot"
+                        slot-scope="{ item }"
+                        :is-link="item.config && item.config.length > 0"
+                        text="Show"
+                        @clicked="showConfig(item.config)">
+            </short-text>
+
+            <short-text slot="validatorslot"
+                        slot-scope="{ item }"
+                        :text="item.validatorActive ? `Active` : `Not Active`">
+            </short-text>
+
+            <div slot="innerContent" slot-scope="{ item, expand }" v-if="item && expand">
+
+                <tabs-header
+                    :items="nodeTabsItems"
+                    v-model="currentNodeTab">
+                </tabs-header>
+                <host-nodes-metrics v-show="currentNodeTab === `metrics`" :node-id="item.id" :mode="`network`" @showconfig="showConfig($event)">
+
+                </host-nodes-metrics>
+
+                <terminal :node="item" v-if="currentNodeTab === `terminal`"></terminal>
+            
+            </div>
+
+             <menu-option slot="startmenuoption"
+                    slot-scope="{ item }"
+                    :title="item.title"
+                    :mode="'play'">
+            </menu-option>
+            <menu-option slot="stopmenuoption"
+                        slot-scope="{ item }"
+                        :title="item.title"
+                        :mode="'stop'">
+            </menu-option>
+            <menu-option slot="exploremenuoption"
+                        slot-scope="{ item }"
+                        :title="item.title"
+                        :mode="'browser'">
+            </menu-option>
+
+        </flat-data-grid>
+        
+    </div>
+    <div v-if="networkConfigs" v-show="currentTab === `config`"style="column-count: 4;">
+        <p v-for="(value, name) in networkConfigs" :key="name">
+            {{getPropTitle(name)}}: <b>{{value}}</b>
+        </p>
+    </div>
+
+    <div v-if="networkRawConfig" v-show="currentTab === `raw`" >
+        <p v-for="(row, index) of networkRawConfig" :key="index">
+            {{row}}
+        </p>
+    </div>
+
+    <div v-if="networrConfigModel" v-show="currentTab === `tonconfig`" >
+        <p v-for="(value, name) in networrConfigModel" :key="name">
+            {{getPropTitle(name)}}: <b>{{value}}</b>
+        </p>
+    </div>
+
+    <div v-if="currentTab === `accounts`" >
+        <ton-network-accounts-info :id="item.id" mode="network"></ton-network-accounts-info>
+    </div>
+
+    <form-modal
+        :title="`Log`"
+        ref="logModal"
+        min-width="700px">
+        <div slot="content">
+            <p v-for="(row, index) of nodeLog" :key="index">{{row}}</p>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :cancel="cancel"
+                :delete-visible="false"
+                :save-visible="false">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <form-modal
+        :title="`Explorer`"
+        ref="explorerModal"
+        min-width="700px">
+        <div slot="content" style="height: 750px;width: 1200px">
+             <iframe :src="explorerUrl" width="1200" height="750" align="left" style="border: none;">
+             </iframe>
+        </div>
+        <div slot="buttons">
+            <modal-control-buttons
+                :cancel="cancelExplorer"
+                :delete-visible="false"
+                :save-visible="false">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <form-modal
+        title="Config"
+        ref="configModal"
+        min-width="700px">
+        <div slot="content">
+            <div style="height: 750px;width: 900px;overflow-y: auto;">
+                <tabs-header
+                    :items="configTabsItems"
+                    v-model="currentConfigTab">
+                </tabs-header>
+                <p v-show="currentConfigTab === `config`" v-for="(value, name) in nodeConfig" :key="name">
+                    {{getPropTitle(name)}}: <b>{{value}}</b>
+                </p>
+                <div v-show="currentConfigTab === `raw`">
+                    <p v-for="(row, index) of rawConfig" :key="index">
+                        {{row}}
+                    </p>
+                </div>
+            </div>
+             
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :cancel="cancelConfig"
+                :delete-visible="false"
+                :save-visible="false">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+
+    return {
+        props: {
+            item: Object,
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { slot: `nameslot` }),
+                        this.addColumn(`Host`, `hostName`),
+                        this.addColumn(`Ip`, `ip`),
+                        this.addColumn(`Type`, `typeName`),
+                        this.addColumn(`Disk`, `disktotal`, { slot: `diskslot`, columnPoints: 'px', width: 300 }),
+                        //this.addColumn(`Disk Total`, `disk`, { slot: `diskslot` }),
+                        //this.addColumn(`Disk Free`, `diskpercent`, { slot: `diskpercentslot` }),
+                        this.addColumn(`Log`, `logsize`, { slot: `logsizeslot` }),                     
+                        this.addColumn(`Time Diff`, `timediff`, { slot: `timediffslot` }),     
+                        this.addColumn(`Actual Config`, `config`, { slot: `configslot` }),
+                        this.addColumn(`Validator`, `validator`, { slot: `validatorslot` }),   
+                    ],
+                    expandable: true,
+                    hideSearchBox: true,
+                    hideToolbar: true,
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Explorer`,
+                            id: `explore`,
+                            slot: `exploremenuoption`,
+                        },
+                        {
+                            title: `Stop`,
+                            id: `stop`,
+                            slot: `stopmenuoption`,
+                        },
+                        {
+                            title: `Start`,
+                            id: `start`,
+                            slot: `startmenuoption`,
+                        },
+
+                    ],
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                tabsItems: [
+                    { title: `Nodes`, id: `nodes` },
+                    { title: `Config`, id: `config` },
+                    { title: `Raw Config`, id: `raw` },
+                    { title: `Ton Config`, id: `tonconfig` },
+                    { title: `Accounts`, id: `accounts` },
+                ],
+                currentTab: `nodes`,
+                configTabsItems: [
+                    { title: `Config`, id: `config` },
+                    { title: `Raw Config`, id: `raw` },
+                ],
+                currentConfigTab: `config`,
+                nodeTabsItems: [
+                    { title: `Metrics`, id: `metrics` },
+                    { title: `Terminal`, id: `terminal` }
+                ],
+                currentNodeTab: `metrics`,
+                networkConfigs: null,
+                nodeLog: null,
+                nodeConfig: null,
+                rawConfig: null,
+                networkRawConfig: null,
+                networrConfigModel: null,
+                explorerUrl: null,
+                explorerId: null
+            }
+        },
+        async created() {
+            await this.loadData();
+        },
+        methods: {
+            async loadData() {
+                const { data: result } = await axios.get(`/api/tonnetworks/nodes?id=${this.item.id}`);
+                this.gridData = result;
+                const errors = [];
+                let diskSum = 0;
+                let diffSum = 0;
+                for (const item of result) {
+                    diskSum += 100 - item.diskpercent;
+                    diffSum += item.timediff;
+                    if (100 - item.diskpercent < 25 || item.timediff > 30) {
+                        errors.push({ disk: 100 - item.diskpercent, diskErr: 100 - item.diskpercent < 25, diff: item.timediff, difErr: item.timediff > 30, name: item.name });
+                    }
+                }
+                this.$emit(`node-error`, { errors, diskAvg: diskSum / result.length || 0, diffAvg: diffSum / result.length || 0, networkId: this.item.id});
+
+                setTimeout(() => {
+                    this.$refs.grid.reloadData()
+                });
+            },
+            logSizeFormat(tonlogsize) {
+                if (!tonlogsize) return ``;
+                if (tonlogsize > 1024) return `${Math.round(tonlogsize / 1024, 3)}Mb`;
+                if (tonlogsize > 1024 * 1024) return `${Math.round(tonlogsize / 1024 / 1024, 3)}Mb`;
+                return `${tonlogsize}kb`;
+            },
+            async tabSelected($event) {
+                if ($event.id === `config` && !this.networkConfigs) {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: model } = await axios.get(`/api/tonconfigurations/single`, { params: { id: this.item.configurationId } });
+                    this.networkConfigs = model;
+                    this.fireEvent(`globalBusy`, false);
+                }
+                if (($event.id === `raw` || $event.id === `tonconfig`)) {
+                    this.fireEvent(`globalBusy`, true);
+                    const config = this.gridData.filter(i => i.config)[0].config;
+                    this.networkRawConfig = config.split(`\n`);
+                    const { data: model } = await axios.post(`/api/tonnetworks/parseconfig`, { data: config });
+                    this.networrConfigModel = model;
+                    this.fireEvent(`globalBusy`, false);
+                }
+            },
+            async showLog(id) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/tonconfigurations/nodelog`, { params: { id: id} });
+                this.nodeLog = model;
+                this.fireEvent(`globalBusy`, false);
+                this.$refs.logModal.openModal();
+            },
+            async start({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                await axios.get(`/api/tonnetworks/runvalidatorengine`, { params: { nodeId: item.id } });
+                await this.loadData();
+                this.fireEvent(`globalBusy`, false);
+            },
+            async stop({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                await axios.get(`/api/tonnetworks/stopvalidatorengine`, { params: { nodeId: item.id } });
+                await this.loadData();
+                this.fireEvent(`globalBusy`, false);
+            },
+            async explore({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: result } = await axios.get(`/api/tonnetworks/runexplorer`, { params: { nodeId: item.id } });
+                console.log(result);
+                this.explorerUrl = result;
+                this.explorerId = item.id;
+                this.$refs.explorerModal.openModal();
+                this.fireEvent(`globalBusy`, false);
+            },
+            async cancelExplorer() {
+                await axios.get(`/api/tonnetworks/stopexplorer`, { params: { nodeId: this.explorerId} });
+                this.$refs.explorerModal.closeModal();
+                this.explorerUrl = null;
+                this.explorerId = null;
+            },
+            async showConfig(config) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.post(`/api/tonnetworks/parseconfig`, { data: config });
+                this.rawConfig = config.split(`\n`);
+                this.nodeConfig = model;
+                this.fireEvent(`globalBusy`, false);
+                this.$refs.configModal.openModal();
+            },
+            cancelConfig() {
+                this.$refs.configModal.closeModal();
+                this.rawConfig = null;
+                this.nodeConfig = null;
+            },
+            cancel() {
+                this.$refs.logModal.closeModal();
+            },
+            getPropTitle(prop) {
+               return (prop.charAt(0).toUpperCase() + prop.slice(1)).match(/[A-Z][a-z]+/g).join(` `);
+            },
+            getPropTitle(prop) {
+               return (prop.charAt(0).toUpperCase() + prop.slice(1)).match(/[A-Z][a-z]+/g).join(` `);
+            },
+        },
+        mixins: [gridHelperMixin, globalObserver],
+        components: {
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`),
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            LineChart: localStaticComponent(`/components/misc/LineChart.html`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            FormModal: staticBasicComponent(`FormModal`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            HostNodesMetrics: localStaticComponent(`/components/infrastracture/HostNodesMetrics.html`),
+            TonNetworkAccountsInfo: localStaticComponent(`/components/assetsmanagement/TonNetworkAccountsInfo.html`),
+            Terminal: localStaticComponent(`/components/infrastracture/Terminal.html`),
+        }
+    }
+}
+</script>

@@ -1,0 +1,214 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>TON BRAINS | QUANET MATRIX</title>
+    <script src="~/signalr.min.js"></script>
+    @*<link href="@(ViewBag.ComponentServerAddress)css/pdfviewer.css" rel="stylesheet">*@
+    <link href="@(ViewBag.ComponentServerAddress)css/font-awesome/css/all.min.css" rel="stylesheet" />
+    <link href="@(ViewBag.ComponentServerAddress)css/site.css" rel="stylesheet" />
+    <script src="@(ViewBag.ComponentServerAddress)corebundle.js"></script>
+    <environment names="Development">
+        <script src="@(ViewBag.ComponentServerAddress)corelibs/esprima.js"></script>
+    </environment>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+    <link href="//fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <link href="//fonts.googleapis.com/css?family=Nova+Mono" rel="stylesheet">
+
+    <link rel="apple-touch-icon" sizes="180x180" href="~/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="~/favicon-16x16.png">
+
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="apple-touch-icon" sizes="180x180" href="~/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="~/favicon-16x16.png">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+
+    <style>
+        body {
+            background-color: #fff;
+            margin: 0px;
+            font-family: "Poppins", Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            color: #677788;
+            font-weight: 400;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <boot></boot>
+    </div>
+    <script type="text/javascript">
+        window.env = {
+            cs: `@(ViewBag.ComponentServerAddress)`
+        };
+    </script>
+    <script type="text/javascript">
+        Vue.use(httpVueLoader);
+        dependency(`@(ViewBag.ComponentServerAddress)corelibs/vue-mask.js`);
+
+        function localComponent(path) {
+            return `url:/component/${path}`;
+        }
+
+        function localStaticComponent(path) {
+            return `url:${path}`;
+        }
+
+        function staticBasicComponent(path) {
+            return `url:${window.env.cs}basic/${path}.html`;
+        }
+
+        //ENVIRONMENTNAMES
+
+        function getLotusModules() {
+            return @(Html.Raw(ViewBag.ModuleTypes));
+        }
+
+        const routes = [
+            {
+                name: `home`,
+                path: `/`,
+                component: httpVueLoader(`/component/PageContainer`),
+                children: [
+                    {
+                        name: "dashboard",
+                        path: "/dashboard",
+                        alias: "/",
+                        component: httpVueLoader('/components/Dashboard.html')
+                    },
+                    {
+                        name: "environments",
+                        path: "/environments",
+                        component: httpVueLoader('/components/clients/Environment.html')
+                    },
+                    {
+                        name: "accounts",
+                        path: "/accounts",
+                        component: httpVueLoader('/components/administrations/Accounts.html')
+                    },
+                    {
+                        name: "securities",
+                        path: "/securities",
+                        component: httpVueLoader('/components/administrations/Security.html')
+                    },
+                    {
+                        name: "nodes",
+                        path: "/nodes",
+                        component: httpVueLoader('/components/infrastracture/GroupNodes.html')
+                    },
+                    {
+                        name: "moduleversions",
+                        path: "/moduleversions",
+                        component: httpVueLoader('/components/infrastracture/ModuleVersionTypes.html')
+                    },
+                    {
+                        name: `connectionstrings`,
+                        path: `/connectionstrings`,
+                        component: httpVueLoader('/components/configuration/ConnectionStrings.html')
+                    },
+                    {
+                        name: `configure`,
+                        path: `/configure`,
+                        component: httpVueLoader('/components/configuration/Configure.html')
+                    },
+                    {
+                        name: `cronrules`,
+                        path: `/cronrules`,
+                        component: httpVueLoader('/components/maintenance/CronRules.html')
+                    },
+                    {
+                        name: `services`,
+                        path: `/services`,
+                        component: httpVueLoader('/components/infrastracture/EcosystemModules.html')
+                    },
+                    {
+                        name: `ecosystems`,
+                        path: `/ecosystems`,
+                        component: httpVueLoader('/components/infrastracture/Ecosystems.html')
+                    },
+                    {
+                        name: `credentials`,
+                        path: `/credentials`,
+                        component: httpVueLoader('/components/infrastracture/Credentials.html')
+                    },
+                    {
+                        name: `groups`,
+                        path: `/groups`,
+                        component: httpVueLoader('/components/infrastracture/Groups.html')
+                    },
+                    {
+                        name: `moduletypes`,
+                        path: `/moduletypes`,
+                        component: httpVueLoader('/components/configuration/ModuleTypes.html')
+                    },
+                    {
+                        name: `configurationnginx`,
+                        path: `/configurationnginx`,
+                        component: httpVueLoader('/components/configuration/ConfigurationNginxNodes.html')
+                    },
+                    {
+                        name: `quantonconfigs`,
+                        path: `/quanton-configs`,
+                        component: httpVueLoader('/components/quanton-networks/quantonconfigs.html')
+                    },
+                    {
+                        name: `smartkeys`,
+                        path: `/assets-management/key`,
+                        component: httpVueLoader('/components/assetsmanagement/SmartKeys.html')
+                    },
+                    {
+                        name: `smartcontracts`,
+                        path: `/assets-management/smart-contracts`,
+                        component: httpVueLoader('/components/assetsmanagement/SmartContractsLibs.html')
+                    },
+                    {
+                        name: `smartaccounts`,
+                        path: `/assets-management/accounts`,
+                        component: httpVueLoader('/components/assetsmanagement/SmartAccounts.html')
+                    },
+                    {
+                        name: `tonconfigurations`,
+                        path: `/network-management/configs`,
+                        component: httpVueLoader('/components/assetsmanagement/TonConfigurations.html')
+                    },
+                    {
+                        name: `tonnetworks`,
+                        path: `/network-management/networks`,
+                        component: httpVueLoader('/components/assetsmanagement/TonNetworks.html')
+                    },
+                    {
+                        name: `hosts`,
+                        path: `/hosts`,
+                        component: httpVueLoader('/components/infrastracture/Hosts.html')
+                    },
+                ]
+            },
+            { name: `signin`, path: `/signin`, component: httpVueLoader(`/components/Signin.html`) },
+        ];
+
+        const router = new VueRouter({
+            mode: `history`,
+            routes
+        });
+
+        new Vue({
+            router,
+            el: `#app`,
+            components: {
+                Boot: `url:${window.env.cs}basic/Boot.html`
+            }
+        });
+    </script>
+
+</body>
+</html>

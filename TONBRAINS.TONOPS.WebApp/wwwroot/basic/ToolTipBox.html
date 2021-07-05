@@ -1,0 +1,205 @@
+<vue-template>
+    <slot></slot>
+    <div ref="tooltip" v-if="!hideTooltip" :class="{ 'tooltip-content-component-id': true, 
+        'bottom-tooltip-content-component-id': (!!bottom && !moveToTop), 
+        'top-tooltip-content-component-id': (!!top || moveToTop),
+        'left-tooltip-content-component-id': left, 
+        'right-tooltip-content-component-id': right,
+        'red-tooltip-component-id': backgroundColor === 'red',
+        'green-tooltip-component-id': backgroundColor === 'green',
+        'orange-tooltip-component-id': backgroundColor === 'orange',
+        'black-tooltip-component-id': backgroundColor === 'black'}"
+         v-bind:style="{width: widthTooltip, opacity: opacity, 'max-height': heightTooltip}"> 
+        <div slot="tooltip" class="tooltip-component-id"
+             v-bind:style="{'-webkit-line-clamp': numberRow}">
+            <span v-if="text">{{ text }}</span>
+            <slot name="tooltip"></slot>
+        </div>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        bottom: {
+            type: Boolean,
+            default: _ => false
+        },
+        left: {
+            type: Boolean,
+            default: _ => false
+        },
+        right: {
+            type: Boolean,
+            default: _ => false
+        },
+        top: {
+            type: Boolean,
+            default: _ => false
+        },
+        hideTooltip: {
+            type: Boolean,
+            default: _ => false
+        },
+        widthTooltip: {
+            type: String,
+            default: _ => 'auto'
+        },
+        backgroundColor: {
+            type: String,
+            default: _ => `black`
+        },
+        opacity: {
+            type: String,
+            default: _ => `1`
+        },
+        text: {
+            type: String,
+            default: _ => ``
+        }
+    },
+    data() {
+        return {
+            moveToTop: false,
+            heightTooltip: `auto`,
+            numberRow: 3
+        }
+    },
+    mounted() {
+        this.$el.addEventListener(`mouseenter`, this.onMouseEnter);
+    },
+    beforeDestroy() {
+        this.$el.removeEventListener(`mouseenter`, this.onMouseEnter);
+    },
+    methods: {
+        onMouseEnter() {
+            const rect = this.$el.getBoundingClientRect(),
+                docHeight = document.documentElement.clientHeight,
+                fitHeight = rect.bottom + 100 > docHeight;
+            this.moveToTop = this.bottom && fitHeight;
+
+            if (!!this.top || this.moveToTop) {
+                this.numberRow = Math.floor((rect.bottom - 135) / 14);
+                this.heightTooltip = `${this.numberRow * 14}px`;
+            }
+            else {
+                this.numberRow = Math.floor((document.documentElement.clientHeight - (this.$el.getBoundingClientRect().bottom + 70)) / 14);
+                this.heightTooltip = `${this.numberRow * 14}px`;
+            }    
+        }
+    }
+}
+</script>
+
+<style scoped>
+.tooltip-component-id {
+    font-size: 12px;
+    max-height: inherit;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    word-wrap: break-word;
+}
+.red-tooltip-component-id {
+    background: red;
+}
+
+.black-tooltip-component-id {
+    background: #616161;
+}
+
+.orange-tooltip-component-id {
+    background: orange;
+}
+
+.green-tooltip-component-id {
+    background: green;
+}
+.container-component-id {
+    position: relative;
+    transition: 0s visibility;
+}
+.container-component-id:hover {
+    z-index: 999;
+}
+.container-component-id:hover .tooltip-content-component-id {
+    visibility: visible;
+    transition-delay: 0.7s;
+}
+.tooltip-content-component-id {
+    border-radius: 2px;
+    color: #fff;
+    font-size: 12px;
+    display: inline-block;
+    padding: 5px 8px;
+    position: absolute;
+    text-transform: none;
+    box-shadow: 0 3px 1px -2px rgba(0,0,0,.2), 0 2px 2px 0 rgba(0,0,0,.14), 0 1px 5px 0 rgba(0,0,0,.12);
+    opacity: 0;
+    visibility: hidden;
+    z-index: 999; /* Sorry for it :( */
+    text-align: center;
+}
+.top-tooltip-content-component-id {
+    bottom: calc(100% + 25px);
+    left: 50%;
+    transform: translateX(-50%);
+}
+.top-tooltip-content-component-id::after {
+    content: " ";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #616161 transparent transparent transparent;
+}
+
+.bottom-tooltip-content-component-id {
+    /*for normal display of the tooltip high element*/
+    top: calc(100% + 15px);
+    left: 50%;
+    transform: translateX(-50%);
+}
+.bottom-tooltip-content-component-id::after {
+    content: " ";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #616161 transparent;
+}
+.left-tooltip-content-component-id {
+    right: calc(100% + 15px);
+    /*transform: translateY(-50%);*/
+    top: 10px;
+}
+.left-tooltip-content-component-id::after {
+    content: " ";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 100%;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent transparent #616161;
+}
+.right-tooltip-content-component-id {
+    left: calc(100% + 5px);
+    top: -5px;
+}
+.right-tooltip-content-component-id::after {
+    content: " ";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 100%;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent #616161 transparent transparent ;
+}
+</style>

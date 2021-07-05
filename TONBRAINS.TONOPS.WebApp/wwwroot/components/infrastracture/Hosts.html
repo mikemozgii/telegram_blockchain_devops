@@ -1,0 +1,514 @@
+﻿<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings">
+        <short-text slot="nameslot"
+                    slot-scope="{ item }"
+                    :text="item.name"
+                    :is-link="true"
+                    @clicked="editItem({ item: item })">
+        </short-text>
+
+        <div slot="innerContent" slot-scope="{ item, expand }">
+            <host-nodes v-if="item && expand" :host-id="item.id" :hosts="hosts" @updated="loadData">
+
+            </host-nodes>
+
+        </div>
+        
+        <menu-option slot="refreshmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'sync-alt'">
+        </menu-option>
+        <menu-option slot="installmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'laptop-medical'">
+        </menu-option>
+        <menu-option slot="editmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'edit'">
+        </menu-option>
+        <menu-option slot="deletemenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'delete'">
+        </menu-option>
+    </flat-data-grid>
+
+    <form-modal :title="modalTitle"
+                ref="formModal"
+                min-width="700px">
+        <div slot="content"
+             class="form-container-component-id local-size"
+             slot-scope="{ validation }">
+            <form-fields-layout :fields="fields">
+                <text-block-required slot="name"
+                                     :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box slot="nameinput"
+                          v-model="model.name"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block slot="description"
+                            :not-valid="true">
+                    Description
+                </text-block>
+                <multi-line slot="descriptioninput"
+                            v-model="model.description">
+                </multi-line>
+
+                <text-block-required slot="ubuntuCore2004Path"
+                                     :not-valid="ubuntuCore2004PathValidate">
+                    Ubuntu Core 2004 Path
+                </text-block-required>
+                <text-box slot="ubuntuCore2004Pathinput"
+                          v-model="model.ubuntuCore2004Path"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="ubuntuCore2004PathValidate = $event">
+                </text-box>
+
+                <text-block-required slot="ubuntuTonCore2004Path"
+                                     :not-valid="ubuntuTonCore2004PathValidate">
+                    Ubuntu Ton Core 2004 Path
+                </text-block-required>
+                <text-box slot="ubuntuTonCore2004Pathinput"
+                          v-model="model.ubuntuTonCore2004Path"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="ubuntuTonCore2004PathValidate = $event">
+                </text-box>
+
+                <text-block-required slot="hostTypeId"
+                                     :not-valid="hostTypeIdValidate">
+                    Host Type
+                </text-block-required>
+                <select-box slot="hostTypeIdinput"
+                            v-model="model.hostTypeId"
+                            :options="types"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="hostTypeIdValidate = $event">
+                </select-box>
+
+                <text-block-required slot="powershellCredentialId"
+                                     :not-valid="powershellCredentialIdValidate">
+                    Powershell Credential Id
+                </text-block-required>
+                <select-box slot="powershellCredentialIdinput"
+                            v-model="model.powershellCredentialId"
+                            :options="credentials"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="powershellCredentialIdValidate = $event">
+                </select-box>
+
+                <text-block-required slot="powershellPort"
+                                     :not-valid="powershellPortValidate">
+                    Powershell Port
+                </text-block-required>
+                <digit-text-box slot="powershellPortinput"
+                                v-model="model.powershellPort"
+                                :only-integer="true"
+                                :only-positive="true"
+                                :validate="[`required`]"
+                                :validatecontext="validation"
+                                @validate-changed="powershellPortValidate = $event">
+                </digit-text-box>
+
+                <text-block-required slot="nodeLocationPath"
+                                     :not-valid="nodeLocationPathValidate">
+                    Node Location Path
+                </text-block-required>
+                <text-box slot="nodeLocationPathinput"
+                          v-model="model.nodeLocationPath"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="nodeLocationPathValidate = $event">
+                </text-box>
+
+                <text-block-required slot="vCpuCores"
+                                     :not-valid="vCpuCoresValidate">
+                    vCpu Cores
+                </text-block-required>
+                <digit-text-box slot="vCpuCoresinput"
+                                v-model="model.vCpuCores"
+                                :only-integer="true"
+                                :only-positive="true"
+                                :validate="[`required`]"
+                                :validatecontext="validation"
+                                @validate-changed="vCpuCoresValidate = $event">
+                </digit-text-box>
+
+                <text-block-required slot="vMemoryGb"
+                                     :not-valid="vMemoryGbValidate">
+                    vMemory Gb
+                </text-block-required>
+                <digit-text-box slot="vMemoryGbinput"
+                                v-model="model.vMemoryGb"
+                                :only-integer="true"
+                                :only-positive="true"
+                                :validate="[`required`]"
+                                :validatecontext="validation"
+                                @validate-changed="vMemoryGbValidate = $event">
+                </digit-text-box>
+
+                <text-block-required slot="ip"
+                                     :not-valid="ipValidate">
+                    IP
+                </text-block-required>
+                <text-box slot="ipinput"
+                          v-model="model.ip"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="ipValidate = $event">
+                </text-box>
+
+                <text-block-required slot="sshCoreVmPort"
+                                     :not-valid="sshCoreVmPortValidate">
+                    Ssh Core Vm Port
+                </text-block-required>
+                <digit-text-box slot="sshCoreVmPortinput"
+                                v-model="model.sshCoreVmPort"
+                                :only-integer="true"
+                                :only-positive="true"
+                                :validate="[`required`]"
+                                :validatecontext="validation"
+                                @validate-changed="sshCoreVmPortValidate = $event">
+                </digit-text-box>
+
+                <text-block-required slot="ipSubset"
+                                     :not-valid="ipSubsetValidate">
+                    IP Subset
+                </text-block-required>
+                <text-box slot="ipSubsetinput"
+                          v-model="model.ipSubset"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="ipSubsetValidate = $event">
+                </text-box>
+
+                <text-block-required slot="VmCoreCredentialName"
+                                     :not-valid="VmCoreCredentialNameValidate">
+                    VM Core Credential
+                </text-block-required>
+                <select-box slot="VmCoreCredentialNameinput"
+                            v-model="model.vmCoreCredentialId"
+                            :options="credentials"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="VmCoreCredentialNameValidate = $event">
+                </select-box>
+
+            </form-fields-layout>
+        </div>
+        <div slot="buttons"
+             slot-scope="{ validation, summary }">
+            <modal-control-buttons :save="save"
+                                   :cancel="cancel"
+                                   :delete-action="deleteItem"
+                                   :delete-visible="model && model.id"
+                                   :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <form-modal title="Add Node"
+                ref="installModal"
+                min-width="700px">
+        <div slot="content"
+             class="form-container-component-id local-size"
+             slot-scope="{ validation }">
+            <form-fields-layout v-if="installModel" :fields="installFields">
+                <text-block-required slot="indexstart"
+                                     :not-valid="indexStartValidate">
+                    Index
+                </text-block-required>
+                <digit-text-box slot="indexstartinput"
+                                v-model="installModel.index"
+                                :only-integer="true"
+                                :only-positive="true"
+                                :validate="[`required`]"
+                                :validatecontext="validation"
+                                @validate-changed="indexStartValidate = $event">
+                </digit-text-box>
+
+                <text-block-required slot="indexlast"
+                                     :not-valid="indexLastValidate">
+                    Last Index
+                </text-block-required>
+                <digit-text-box slot="indexlastinput"
+                                v-model="installModel.port"
+                                :only-integer="true"
+                                :only-positive="true"
+                                :validate="[`required`]"
+                                :validatecontext="validation"
+                                @validate-changed="indexLastValidate = $event">
+                </digit-text-box>
+
+                <text-block-required slot="coreTypeId"
+                                     :not-valid="coreTypeIdValidate">
+                    Core type
+                </text-block-required>
+                <select-box slot="coreTypeIdinput"
+                            v-model="installModel.coreTypeId"
+                            :options="nodeCoreTypes"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="coreTypeIdValidate = $event">
+                </select-box>
+
+            </form-fields-layout>
+        </div>
+        <div slot="buttons"
+             slot-scope="{ validation, summary }">
+            <modal-control-buttons :save="installNodes"
+                                   :cancel="cancelInstall"
+                                   :delete-visible="false"
+                                   :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-template>
+
+<script>
+
+    module.exports = async function () {
+        const axios = await require(`axios`);
+        const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+
+        return {
+            data() {
+                return {
+                    settings: {
+                        columns: [
+                            this.addColumn(`Name`, `name`, { slot: `nameslot` }),
+                            this.addColumn(`Type`, `hostTypeName`),
+                            this.addColumn(`Ip`, `ip`),
+                            this.addColumn(`Nodes`, `nodesCount`),
+                            this.addColumn(`Cores`, `vCpuCores`),
+                            this.addColumn(`Ram (GB)`, `vMemoryGb`),
+                            this.addColumn(`SSH PORT`, `sshCoreVmPort`),
+                            this.addColumn(`NAT Switch`, `ipSubset`),
+                            this.addColumn(`PW Creds`, `powershellCredentialName`),
+                            this.addColumn(`VM Core Creds`, `vmCoreCredentialName`),
+                        ],
+                        emptyMessage: null,
+                        urls: {
+                            grid: `-`,
+                        },
+                        gridItemActions: [
+                            {
+                                title: `Refresh`,
+                                id: `refreshNodes`,
+                                slot: `refreshmenuoption`,
+                            },
+                            {
+                                title: `Add Node`,
+                                id: `install`,
+                                slot: `installmenuoption`,
+                            },
+                            {
+                                title: `Edit`,
+                                id: `edit`,
+                                slot: `editmenuoption`,
+                            },
+                            {
+                                title: `Delete`,
+                                id: `delete`,
+                                slot: `deletemenuoption`,
+                            }
+                        ],
+                        expandable: true,
+                        addButtonText: `Add Host`,
+                        defaultSortField: `name`,
+                        defaultSortFieldDescending: false,
+                        hidePageSize: true,
+                        defaultPageSize: 5,
+                        sourceStrategy: this.getLocalStrategy(false, ``, null),
+                        additionalOptions: {
+                            minimumLimitAllItems: 500
+                        },
+                        actions: this
+                    },
+                    types: [],
+                    credentials: [],
+                    nodeCoreTypes: [],
+                    model: {},
+                    installModel: null,
+                    modalTitle: ``,
+                    nameValidate: false,
+                    ubuntuCore2004PathValidate: false,
+                    ubuntuTonCore2004PathValidate: false,
+                    powershellCredentialIdValidate: false,
+                    nodeLocationPathValidate: false,
+                    powershellPortValidate: false,
+                    vCpuCoresValidate: false,
+                    vMemoryGbValidate: false,
+                    ipValidate: false,
+                    ipSubsetValidate: false,
+                    sshCoreVmPortValidate: false,
+                    VmCoreCredentialNameValidate: false,
+                    hostTypeIdValidate: false,
+                    fields: [
+                        { labelSlot: "name", inputSlot: "nameinput" },
+                        { labelSlot: "description", inputSlot: "descriptioninput", alignToTop: true },
+                        { labelSlot: "ubuntuCore2004Path", inputSlot: "ubuntuCore2004Pathinput" },
+                        { labelSlot: "ubuntuTonCore2004Path", inputSlot: "ubuntuTonCore2004Pathinput" },
+                        { labelSlot: "hostTypeId", inputSlot: "hostTypeIdinput" },
+                        { labelSlot: "powershellCredentialId", inputSlot: "powershellCredentialIdinput" },
+                        { labelSlot: "powershellPort", inputSlot: "powershellPortinput" },
+                        { labelSlot: "nodeLocationPath", inputSlot: "nodeLocationPathinput" },
+                        { labelSlot: "vCpuCores", inputSlot: "vCpuCoresinput" },
+                        { labelSlot: "vMemoryGb", inputSlot: "vMemoryGbinput" },
+                        { labelSlot: "ip", inputSlot: "ipinput" },
+                        { labelSlot: "sshCoreVmPort", inputSlot: "sshCoreVmPortinput" },
+                        { labelSlot: "ipSubset", inputSlot: "ipSubsetinput" },
+                        { labelSlot: "VmCoreCredentialName", inputSlot: "VmCoreCredentialNameinput" },
+                    ],
+                    indexStartValidate: false,
+                    indexLastValidate: false,
+                    coreTypeIdValidate: false,
+                    installFields: [
+                        { labelSlot: "indexstart", inputSlot: "indexstartinput" },
+                        { labelSlot: "indexlast", inputSlot: "indexlastinput" },
+                        { labelSlot: "coreTypeId", inputSlot: "coreTypeIdinput" },
+                    ],
+                    hosts: []
+                }
+            },
+            async created() {
+                await this.loadData();
+            },
+            methods: {
+                async loadData() {
+                    const { data: result } = await axios.get(`/api/hosts/data`);
+                    this.gridData = result.hosts;
+                    this.hosts = result.hosts.map(i => { return { id: i.id, title: i.name } });
+                    this.types = result.types;
+                    this.credentials = result.credentials;
+                    this.nodeCoreTypes = result.nodeCoreTypes;
+                    setTimeout(() => {
+                        this.$refs.grid.reloadData()
+                    });
+                },
+                cancel() {
+                    this.$refs.formModal.closeModal();
+                },
+                cancelInstall() {
+                    this.$refs.installModal.closeModal();
+                },
+                add({ title }) {
+                    this.model = {};
+                    this.modalTitle = title;
+
+                    this.nameValidate = false;
+                    this.ubuntuCore2004PathValidate = false;
+                    this.ubuntuTonCore2004PathValidate = false;
+                    this.hostTypeIdValidate = false;
+                    this.powershellCredentialIdValidate = false;
+                    this.nodeLocationPathValidate = false;
+                    this.powershellPortValidate = false;
+                    this.vCpuCoresValidate = false;
+                    this.vMemoryGbValidate = false;
+                    this.ipValidate = false;
+                    this.ipSubsetValidate = false;
+                    this.sshCoreVmPortValidate = false;
+                    this.VmCoreCredentialNameValidate = false;
+
+                    this.$refs.formModal.openModal();
+                },
+                async install({ item }) {
+                    this.installModel = {
+                        id: item.id
+                    };
+                    this.indexStartValidate = false;
+                    this.indexLastValidate = false;
+                    this.$refs.installModal.openModal();
+                },
+                async refreshNodes({ item }) {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: result } = await axios.get(`/api/hosts/nodesrefresh?id=${item.id}`);
+                    this.fireEvent(`globalBusy`, false);
+                },
+                async installNodes() {
+                    this.fireEvent(`globalBusy`, true);
+                    await axios.get(`/api/hosts/install`, { params: this.installModel });
+                    await this.loadData();
+                    this.fireEvent(`globalBusy`, false);
+
+                    this.$refs.installModal.closeModal();
+                },
+                async edit({ item }) {
+                    this.editedItem = item;
+
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: model } = await axios.get(`/api/hosts/single`, { params: { id: item.id } });
+                    this.fireEvent(`globalBusy`, false);
+
+                    this.model = model;
+                    this.modalTitle = `Edit Smart Contract`;
+                    this.$refs.formModal.openModal();
+                },
+                async save() {
+                    const url = !this.model.id ? `/api/hosts/add` : `/api/hosts/edit`
+
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: savedItem } = await axios.post(url, this.model);
+                    this.fireEvent(`globalBusy`, false);
+
+                    this.$refs.formModal.closeModal();
+
+                    if (!this.model.id) {
+                        this.$refs.grid.addItem(savedItem);
+                    } else {
+                        this.$refs.grid.updateItem(savedItem, `id`);
+                    }
+                },
+                async delete({ item }) {
+                    const result = await this.$refs.deleteConfirm.showConfirm();
+                    if (!result) return;
+
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: deleteResult } = await axios.delete(`/api/hosts/softdelete`, { params: { id: item.id } });
+                    this.fireEvent(`globalBusy`, false);
+
+                    if (deleteResult) this.$refs.grid.deleteItem(item);
+                    return deleteResult;
+                },
+                async deleteItem() {
+                    const result = await this.delete({ item: this.editedItem });
+                    if (result) this.$refs.formModal.closeModal();
+                },
+            },
+            mixins: [translateMixin, globalObserver, gridHelperMixin],
+            components: {
+                FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+                DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+                ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+                HostNodes: localStaticComponent(`/components/infrastracture/HostNodes.html`),
+                MenuOption: staticBasicComponent(`MenuOption`),
+                ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+                TextBox: staticBasicComponent(`TextBox`),
+                TextBlock: staticBasicComponent(`TextBlock`),
+                TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+                FormModal: staticBasicComponent(`FormModal`),
+                MultiLine: staticBasicComponent(`MultiLineTextBox`),
+                FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+                DigitTextBox: staticBasicComponent(`DigitTextBox`),
+                SelectBox: staticBasicComponent(`SelectBox`),
+            }
+        }
+    }
+</script>

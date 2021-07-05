@@ -1,0 +1,190 @@
+﻿<vue-template>
+    <toast-popup
+        ref="toastpopup">
+    </toast-popup>
+
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="fireEvent(`globalBusy`, false)">
+        <short-text
+            slot="keynameslot"
+            slot-scope="{ item }"
+            :text="item.keyName"
+            :is-link="false">
+        </short-text>
+        <short-text
+            slot="typeslot"
+            slot-scope="{ item }"
+            :text="getTypeName(item.typeId)">
+        </short-text>
+        <row-layout
+            slot="mnemonicphraseslot"
+            slot-scope="{ item }">
+            <div @click="copyToClipboard(item.mnemonicPhrase)">
+                <font-awesome
+                    icon="fa-copy"
+                    icon-set="far"
+                    class="copy-component-id">
+                </font-awesome>
+            </div>
+            <short-text
+                class="small-font-component-id"
+                :text="item.mnemonicPhrase"
+                :is-link="false">
+            </short-text>
+        </row-layout>
+        <row-layout
+            slot="publickeyslot"
+            slot-scope="{ item }">
+            <div @click="copyToClipboard(item.publicKey)">
+                <font-awesome
+                    icon="fa-copy"
+                    icon-set="far"
+                    class="copy-component-id">
+                </font-awesome>
+            </div>
+            <short-text
+                class="small-font-component-id"
+                :text="item.publicKey"
+                :is-link="false">
+            </short-text>
+        </row-layout>
+        <row-layout
+            slot="secretkeyslot"
+            slot-scope="{ item }">
+            <div @click="copyToClipboard(item.secretKey)">
+                <font-awesome
+                    icon="fa-copy"
+                    icon-set="far"
+                    class="copy-component-id">
+                </font-awesome>
+            </div>
+            <short-text
+                class="small-font-component-id"
+                :text="item.secretKey"
+                :is-link="false">
+            </short-text>
+        </row-layout>
+        <row-layout
+            slot="tonsafepublickeyslot"
+            slot-scope="{ item }">
+            <div @click="copyToClipboard(item.tonSafePublicKey)">
+                <font-awesome
+                    icon="fa-copy"
+                    icon-set="far"
+                    class="copy-component-id">
+                </font-awesome>
+            </div>
+            <short-text
+                class="small-font-component-id"
+                :text="item.tonSafePublicKey"
+                :is-link="false">
+            </short-text>
+        </row-layout>
+        <slot
+            slot="leftedgecontent"
+            name="leftedgecontent">
+        </slot>
+    </flat-data-grid>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        props: {
+            id: {
+                type: String,
+                default: _ => ``
+            },
+            smartTypes: {
+                type: Array,
+                default: _ => []
+            }
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Key Name`, `keyName`, { slot: `keynameslot`, width: 50 }),
+                        this.addColumn(`Type`, `type_id`, { slot: `typeslot`, width: 50 }),
+                        this.addColumn(`Mnemonic Phrase`, `mnemonicPhrase`, { slot: `mnemonicphraseslot`, width: 75 }),
+                        this.addColumn(`Public Key`, `publicKey`, { slot: `publickeyslot`, width: 75 }),
+                        this.addColumn(`Secret Key`, `secretKey`, { slot: `secretkeyslot`, width: 75 }),
+                        this.addColumn(`Ton Safe Public Key`, `tonSafePublicKey`, { slot: `tonsafepublickeyslot`, width: 75 }),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [],
+                    defaultSortField:`name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 50,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 50
+                    },
+                    actions: this
+                },
+                gridData: null,
+            }
+        },
+        created() {
+            this.fireEvent(`globalBusy`, true);
+            this.prepareData();
+        },
+        methods: {
+            async prepareData() {
+                this.types = this.smartTypes;
+
+                const { data: result } = await axios.get(`/api/smartaccounts/keys`, { params: { id: this.id } });
+                this.gridData = result;
+            },
+            getTypeName(typeId) {
+                if (!typeId || !this.types) return ``;
+
+                const type = this.types.find(i => i.id === typeId);
+                return type ? type.title : ``;
+            },
+            copyToClipboard(text) {
+                var el = document.createElement('textarea');
+                el.value = text;
+                el.setAttribute('readonly', '');
+                el.style = { position: 'absolute', left: '-9999px' };
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                this.$refs.toastpopup.show(`Text copied to clipboard`);
+            },
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+            ToastPopup: staticBasicComponent(`Toast`),
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .copy-component-id {
+        cursor: pointer;
+        color: #ee1c29;
+        margin-right: 5px;
+    }
+    .small-font-component-id {
+        font-size: 11px;
+    }
+</style>

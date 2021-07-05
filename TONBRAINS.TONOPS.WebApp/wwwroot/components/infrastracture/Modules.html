@@ -1,0 +1,445 @@
+<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <short-text
+            slot="nameslot"
+            slot-scope="{ item }"
+            :text="moduleTiles[item.name]"
+            :is-link="true"
+            @clicked="editItem(item)">
+        </short-text>
+        <div slot="livestatus" slot-scope="{ item }">
+            <i
+                v-if="item.liveStatus === `unknown`"
+                style="color: darkcyan"
+                class="fas fa-spinner fa-pulse">
+            </i>
+            <span
+                v-else-if="item.liveStatus"
+                style="color: forestgreen">
+                <i class="fas fa-plug"></i>
+            </span>
+            <span
+                v-else-if="!item.liveStatus"
+                style="color: red">
+                <i class="fas fa-plug"></i>
+            </span>
+        </div>
+        <short-text slot="descriptionslot" slot-scope="{ item }" :text="item.description">
+        </short-text>
+        <short-text slot="connectionstringslot" slot-scope="{ item }" :text="item.dbConnectionString">
+        </short-text>
+        <div v-if="nodeType === 1" slot="loggingactiveslot" slot-scope="{ item }">
+            <switch-box v-if="item.logging" v-model="item.logging.active" @toggled="()=>toggledLogging(item)">
+            </switch-box>
+        </div>
+        <div slot="kibanaslot" slot-scope="{ item }">
+            <hyper-link-action
+                title="Open Url"
+                @clicked="getKibanaLink(item.id)">
+            </hyper-link-action>
+        </div>
+
+        <div slot="innerContent" slot-scope="{ item, expand }" class="expand-container-component-id">
+            <tabs-header
+                :items="tabs"
+                v-model="selectedTab">
+            </tabs-header>
+            <module-environments
+                v-if="expand && selectedTab === `environments`"
+                :module-id="item.id">
+            </module-environments>
+        </div>
+
+        <menu-option slot="editmenuoption" slot-scope="{ item }" :title="item.title" mode="edit"></menu-option>
+        <menu-option slot="deletemenuoption" slot-scope="{ item }" :title="item.title" mode="delete"></menu-option>
+        <menu-option slot="installmenuoption" slot-scope="{ item }" :title="item.title" mode="upload"></menu-option>
+        <menu-option slot="updatemenuoption" slot-scope="{ item }" :title="item.title" mode="upload"></menu-option>
+        <menu-option slot="selectconfigurationoption" slot-scope="{ item }" :title="item.title" mode="list"></menu-option>
+        <menu-option slot="startservicemenuoption" slot-scope="{ item }" :title="item.title" mode="list"></menu-option>
+        <menu-option slot="stopservicemenuoption" slot-scope="{ item }" :title="item.title" mode="list"></menu-option>
+        <menu-option slot="refreshconfigurationmenuoption" slot-scope="{ item }" :title="item.title" mode="list"></menu-option>
+    </flat-data-grid>
+
+    <module-card
+        ref="modulecard"
+        :node-type="nodeType"
+        :node-id="nodeId"
+        :node-ip="nodeIp"
+        :module-name="moduleName"
+        :ecosystem-id="ecosystemId"
+        @saved="savedCard($event)">
+    </module-card>
+
+    <form-modal title="Install version of service" ref="updateVersionModal" min-width="500px">
+        <div slot="content" class="form-container-component-id local-size" slot-scope="{ validation }">
+            <form-fields-layout :fields="[{ labelSlot: 'version', inputSlot: 'versioninput' }]">
+                <text-block slot="version">
+                    Version for update
+                </text-block>
+                <select-box :options="moduleVersions" slot="versioninput" v-model="installedVersion">
+                </select-box>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons :save="updateToVersion" save-translation="Install" :cancel="cancelUpdateVersion" />
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal ref="deleteConfirm">
+    </delete-confirm-modal>
+    <select-configuration
+        ref="selectConfiguration">
+    </select-configuration>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            nodeType: Number,
+            nodeId: String,
+            nodeIp: String,
+            moduleName: String,
+            ecosystemId: String
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Version`, `installedVersion`, { notFilterable: true }),
+                        this.addColumn(`Live Status`, `livestatus`, { notFilterable: true, slot: "livestatus" }),
+                        this.addColumn(`Id`, `id`, { notFilterable: false }),
+                        this.addColumn(`Description`, `description`, { notFilterable: false, slot: `descriptionslot` }),
+                       // this.addColumn(`Url`, `url`, { notFilterable: false }),
+                        this.addColumn(`IP`, `ip`, { notFilterable: false }),
+                        this.addColumn(`Iternal Http2`, `http2Port`, { notFilterable: false }),
+                        this.addColumn(`External Http1`, `http1Port`, { notFilterable: false }),
+                        //this.addColumn(`Kibana`, `kibana`, { notFilterable: true, slot: `kibanaslot` }),
+                        this.addColumn(`Enviroments assigned`, `count`, { notFilterable: true }),
+                        this.addColumn(`Logging`, `loggingactive`, { notFilterable: true, slot: `loggingactiveslot`, notVisible: this.nodeType !== 1 })
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Install`,
+                            id: `install`,
+                            slot: `installmenuoption`,
+                            activeHandler: this.installActiveHandler
+                        },
+                        {
+                            title: `Force Refresh Configuration`,
+                            id: `refreshconfiguration`,
+                            slot: `refreshconfigurationmenuoption`
+                        },
+                        {
+                            title: `Start Service`,
+                            id: `startservice`,
+                            slot: `startservicemenuoption`
+                        },
+                        {
+                            title: `Stop Service`,
+                            id: `stopservice`,
+                            slot: `stopservicemenuoption`
+                        },
+                        {
+                            title: `Update`,
+                            id: `update`,
+                            slot: `updatemenuoption`,
+                            activeHandler: this.updateActiveHandler
+                        },
+                        {
+                            title: `Edit Configuration`,
+                            id: `selectConfiguration`,
+                            slot: `selectconfigurationoption`,
+                            activeHandler: this.updateOrDeleteActiveHandler
+                        },
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                            activeHandler: this.updateOrDeleteActiveHandler
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                            activeHandler: this.updateOrDeleteActiveHandler
+                        }
+                    ],
+                    addButtonText: ``,
+                    defaultSortField: `name`,
+                    expandable: !this.nodeId,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    hideSearchBox: true,
+                    hideToolbar: !this.nodeId,
+                    addButtonVisibilityHandler: this.isViewOnlyHandler,
+                    defaultSortFieldDescending: false,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                tabs: [
+                    {
+                        id: `environments`,
+                        title: `Environments`
+                    }
+                ],
+                selectedTab: `environments`,
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                urlValidate: false,
+                nodesValidate: false,
+                ecosystemValidate: false,
+                fieldsLogging: [
+                    { labelSlot: `active`, inputSlot: `activeinput` },
+                    { labelSlot: `minimumloglevel`, inputSlot: `minimumloglevelinput` }
+                ],
+                fields: [
+                    { labelSlot: `name`, inputSlot: `nameinput` },
+                    { labelSlot: `description`, inputSlot: `descriptioninput`, alignToTop: true },
+                    { labelSlot: `url`, inputSlot: `urlinput` },
+                    { labelSlot: `weburl`, inputSlot: `weburlinput` },
+                    { labelSlot: `environments`, inputSlot: `environmentsinput` },
+                    { labelSlot: `nodes`, inputSlot: `nodesinput`, showHandler: this.nodesVisible },
+                    { labelSlot: `ecosystem`, inputSlot: `ecosysteminput`, showHandler: this.nodesVisible }
+                ],
+                moduleNames: getLotusModules(),
+                moduleTiles: {},
+                environments: [],
+                minimumLogLevels: [],
+                selectedEnvironments: [],
+                updateModule: null,
+                moduleVersions: [],
+                installedVersion: null,
+                step: 1,
+                nodes: [],
+                currentNodeId: this.nodeId,
+                ecosystems: []
+            }
+        },
+        created() {
+            for (const moduleName of this.moduleNames) this.moduleTiles[moduleName.id] = moduleName.title;
+        },
+        methods: {
+            async refreshconfiguration({ item }) {
+                await axios.get(`api/modules/forcerefreshconfiguration`, { params: { moduleId: item.id } });
+            },
+            async startservice({ item }) {
+                await axios.get(`api/modules/startservice`, { params: { moduleId: item.id } });
+            },
+            async stopservice({ item }) {
+                await axios.get(`api/modules/stopservice`, { params: { moduleId: item.id } });
+            },
+            async liveservice(id) {
+                const { data: result } = await axios.get(`api/modules/liveservice`, { params: { moduleId: id } });
+                return result;
+            },
+            async gridCompleted() {
+                const { data: modules } = await axios.get(this.nodeId ? `/api/modules/grid?nodeid=${this.nodeId}` : `/api/modules/grid?moduleName=${this.moduleName}&ecosystemId=${this.ecosystemId}`);
+                const { data: counts } = await axios.get(`api/modules/environmentcount`);
+
+                this.mapModules(modules, counts);
+
+                this.gridData = modules;
+                this.$refs.grid.reloadData();
+            },
+            mapModules(modules, counts) {
+                const grid = this.$refs.grid;
+                for (const module of modules) {
+                    const countItem = counts.find(a => a.id === module.id);
+                    module.count = countItem ? countItem.count : `-`;
+                    module.ip = null;
+                    module.port = null;
+                    if (module.url) {
+                        var temp = module.url.replace("http://", "").replace("https://", "").split(":");
+                        module.ip = temp[0];
+                        module.http2Port = temp[1];
+                    }
+
+                    if (module.webUrl) {
+                        var temp = module.webUrl.replace("http://", "").replace("https://", "").split(":");
+                        module.http1Port = temp[1];
+                    }
+
+                    module.liveStatus = `unknown`;
+
+                    this.liveservice(module.id).then((result) => {
+                        module.liveStatus = result;
+                        grid.updateItem(module, `id`);
+                    });
+                }
+            },
+            selectConfiguration({ item }) {
+                this.$refs.selectConfiguration.editObjectConfiguration(item.id);
+            },
+            getKibanaLink(id) {
+                window.open(`http://172.17.1.95/app/discover#/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now%2Fw,to:now%2Fw))&_a=(columns:!(_source),filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:'5d5d5ac0-1415-11eb-a3b1-f3e656a16ffe',key:fields.Service,negate:!f,params:(query:ConfigurationService),type:phrase),query:(match_phrase:(fields.ServiceId:"${id}")))),index:'5d5d5ac0-1415-11eb-a3b1-f3e656a16ffe',interval:auto,query:(language:kuery,query:''),sort:!())`, `_blank`);
+            },
+            async updateToVersion() {
+                const version = this.moduleVersions.find(a => a.id === this.installedVersion);
+                let nodeId = this.nodeId;
+                this.$refs.updateVersionModal.closeModal();
+                if (!nodeId) {
+                    const { data: node } = await axios.get(`/api/nodes/modulenode`, { params: { moduleId: this.updateModule.id } });
+                    nodeId = node.id;
+                }
+                this.fireEvent(`Hide-${nodeId}`, true);
+                const { data: reply } = await axios.get(`/api/modules/updateversion`, { params: { nodeId, moduleId: this.updateModule.id, version: version.id } });
+                if (!reply.result) {
+                    //TODO: show error message!!!!
+                }
+                
+                this.$refs.grid.reloadData();
+            },
+            async install({ item }) {
+                //install latest version of module to node
+                let nodeId = this.nodeId;
+                if (!nodeId) {
+                    const { data: node } = await axios.get(`/api/nodes/modulenode`, { params: { moduleId: item.id } });
+                    nodeId = node.id;
+                }
+                this.fireEvent(`Hide-${nodeId}`, true);
+                const { data: reply } = await axios.get(`/api/modules/installversion`, { params: { nodeId, moduleId: item.id, version: "" } });
+                if (!reply.result) {
+                //TODO: show error message!!!!
+                }
+                this.$refs.grid.reloadData();
+            },
+            async update({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: reply } = await axios.get(`/api/moduleversions/grid`, { params: { filterByModule: item.name } });
+                this.fireEvent(`globalBusy`, false);
+
+                for (const item of reply) {
+                    item.title = `${item.version} (${item.description})`;
+                }
+
+                reply.sort(
+                    (left, right) => {
+                        if (left.version === right.version) return 0;
+
+                        return left.version > right.version ? -1 : 1;
+                    }
+                );
+
+                this.moduleVersions = reply;
+                this.installedVersion = this.moduleVersions.find(a => a.version === item.installedVersion).id;
+                this.updateModule = item;
+
+                this.$refs.updateVersionModal.openModal();
+            },
+            updateOrDeleteActiveHandler() {
+                return this.isServicesRoot;
+            },
+            updateActiveHandler(item) {
+                return !!item.installedVersion;
+            },
+            installActiveHandler(item) {
+                return !item.installedVersion;
+            },
+            cancelUpdateVersion() {
+                this.$refs.updateVersionModal.closeModal();
+            },
+            add({ item, title }) {
+                this.$refs.modulecard.openModal();
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/modules/delete`, { params: { id: item.id } });
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+
+                this.$emit(`gridchanged`);
+
+                return deleteResult;
+            },
+            async editItem(item) {
+                await this.edit({ item: item });
+            },
+            async edit({ item, title }) {
+                this.editedItem = item;
+
+                this.$refs.modulecard.openModal(item.id);
+            },
+            async savedCard($event) {
+                const { data: counts } = await axios.get(`api/modules/environmentcount`);
+                this.mapModules([$event.savedItem], counts);
+                if ($event.isNew) {
+                    this.$refs.grid.addItem($event.savedItem);
+                    await axios.get(`/api/nodes/savemoduletonode`, { params: { id: $event.currentNodeId, moduleId: $event.savedItem.id } });
+                } else {
+                    this.$refs.grid.updateItem($event.savedItem, `id`);
+                }
+            }
+        },
+        computed: {
+            isServicesRoot() {
+                return !this.nodeId;
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            SwitchBox: staticBasicComponent(`SwitchBox`),
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`, componentStyles.hyperLinks.hyperLinkAction),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            TextBox: staticBasicComponent(`TextBox`, componentStyles.textBoxes.default),
+            TextBlock: staticBasicComponent(`TextBlock`, componentStyles.textBlocks.formFieldLabel),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`, componentStyles.textBlocks.defaultValidateLabelBox),
+            FormModal: staticBasicComponent(`FormModal`, componentStyles.modals.defaultFormModal),
+            SelectBox: staticBasicComponent(`SelectBox`, componentStyles.selectBoxes.default),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`, componentStyles.multiSelectBoxes.default),
+            DefaultButton: staticBasicComponent(`ActionButton`, componentStyles.buttons.grayEllipseButton),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`, componentStyles.textBoxes.defaultMultiLineTextBox),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            IconBox: staticBasicComponent(`IconBox`),
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`),
+            ModuleEnvironments: localStaticComponent(`/components/infrastracture/ModuleEnvironments.html`),
+            SelectConfiguration: localStaticComponent(`/components/infrastracture/SelectConfiguration.html`),
+            ModuleCard: localStaticComponent(`/components/infrastracture/ModuleCard.html`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.step-button-component-id {
+    display: inline-block;
+    margin-left: 50px;
+    margin-top: 15px;
+}
+.expand-container-component-id {
+    background-color: white;
+    padding: 10px;
+}
+</style>

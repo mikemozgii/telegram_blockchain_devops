@@ -1,0 +1,192 @@
+﻿<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <slot
+            slot="leftedgecontent"
+            name="leftedgecontent">
+        </slot>
+        <row-layout
+            slot="networkslot"
+            slot-scope="{ item }">
+            <font-awesome
+                icon="fa-circle"
+                class="status-network-component-id"
+                :style="{'color': item.active ? 'forestgreen' : '#ee1c29'}">
+            </font-awesome>
+            <short-text
+                :text="item.network">
+            </short-text>
+        </row-layout>
+        <short-text
+            slot="statusslot"
+            slot-scope="{ item }"
+            :text="item.status">
+        </short-text>
+        <true-false
+            slot="deployedslot"
+            slot-scope="{ item }"
+            :checked="item.isDeployed">
+        </true-false>
+        <menu-option
+            slot="deploymenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="deploy">
+        </menu-option>
+        <menu-option
+            slot="smartcontractmenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="override-course">
+        </menu-option>
+        <menu-option slot="refreshmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'sync-alt'">
+        </menu-option>
+        <div slot="innerContent"
+            slot-scope="{ item, expand }"
+            v-if="item && expand">
+            <smart-account-network-logs
+                v-show="currentTab === `transactions`"
+                :id="item.id">
+                <tabs-header
+                    slot="leftedgecontent"
+                    :items="tabsItems"
+                    v-model="currentTab">
+                </tabs-header>
+            </smart-account-network-logs>
+            <smart-account-state-metric
+                v-show="currentTab === `metrics`"
+                :nid="item.networkId" :smaid="item.smartAccountId">
+                <tabs-header
+                    slot="leftedgecontent"
+                    :items="tabsItems"
+                    v-model="currentTab">
+                </tabs-header>
+            </smart-account-state-metric>
+        </div>
+
+    </flat-data-grid>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        props: {
+            id: {
+                type: String,
+                default: _ => ``
+            },
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Network`, `network`, { slot: `networkslot` }),
+                        this.addColumn(`Status`, `status`, { slot: `statusslot` }),
+                        this.addColumn(`Balance`, `balance`),
+                        this.addColumn(`Deployed`, `isDeployed`, { slot: `deployedslot` }),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Deploy`,
+                            id: `deploy`,
+                            slot: `deploymenuoption`,
+                            activeHandler: this.deployActiveHandler
+                        },
+                        {
+                            title: `Smart Contract`,
+                            id: `openSmartContractDialog`,
+                            slot: `smartcontractmenuoption`,
+                            activeHandler: this.smartContractActiveHandler
+                        },
+                        {
+                            title: `Refresh`,
+                            id: `refreshmetrics`,
+                            slot: `refreshmenuoption`,
+                        },
+                    ],
+                    expandable: true,
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                tabsItems: [
+                    { title: `Transfers`, id: `transactions` },
+                    { title: `State Metrics`, id: `metrics` },
+                ],
+                currentTab: `transactions`,
+            }
+        },
+        methods: {
+            openSmartContractDialog({ item }) {
+                this.$emit(`open-smart-contract-dialog`, item.networkId);
+            },
+            deployActiveHandler(item) {
+                return !item.isDeployed;
+            },
+            smartContractActiveHandler(item) {
+                return item.isDeployed;
+            },
+            async refreshmetrics({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                await axios.get(`/api/smartaccounts/refreshstates`, { params: { networkId: item.networkId, smartAccountId: this.id } });
+                this.fireEvent(`globalBusy`, false);
+            },
+            async deploy({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.get( `/api/smartaccounts/deploynetwork`, { params: { id: item.id } });
+                this.fireEvent(`globalBusy`, false);
+
+                if (!savedItem) return;
+
+                this.$refs.grid.updateItem(savedItem, `id`);
+                this.$emit(`deploy-network`);
+            },
+            async gridCompleted() {
+                const { data: result } = await axios.get(`/api/smartaccounts/networks`, { params: { id: this.id } });
+                this.gridData = result;
+                this.$refs.grid.reloadData();
+            },
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            SmartAccountNetworkLogs: localStaticComponent(`/components/assetsmanagement/SmartAccountNetworkLogs.html`),
+            SmartAccountStateMetric: localStaticComponent(`/components/assetsmanagement/SmartAccountStateMetric.html`),
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`),
+            TrueFalse: staticBasicComponent(`TrueFalseMark`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .status-network-component-id {
+        font-size: 12px;
+        margin-right: 5px;
+    }
+</style>

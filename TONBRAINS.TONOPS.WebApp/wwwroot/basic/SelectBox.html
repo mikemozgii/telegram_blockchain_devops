@@ -1,0 +1,366 @@
+<vue-template>
+    <div
+        class="select-textbox-component-id"
+        v-if="!disable"
+        @click="toggleMenu()"
+        @mouseenter="mouseEntersSelectBox($event)"
+        @mouseleave="mouseLeavesSelectBox($event)">
+        <div
+            class="slot-container-component-id"
+            :class="[{ 'disabled-component-id': disable }, { 'not-valid-input': validate && validateErrors && validateErrors.length }]">
+            <short-text
+                v-if="cropText"
+                hide-tooltip>
+                <span slot="text">
+                    <slot name="itemcontent" :item="selected">
+                        <span>{{ selected ? selected.title : title }}</span>
+                    </slot>
+                </span>
+            </short-text>
+            <slot name="itemcontent" :item="selected" v-else>
+                <span>{{ selected ? selected.title : title }}</span>
+            </slot>
+            <clear-button-pop-up
+                ref="clearButtonPopUp"
+                v-if="value && value.length && showClearButton"
+                :action="clear">
+            </clear-button-pop-up>
+            <div class="separator-component-id"></div>
+            <font-awesome-icon class="icon-down-component-id" :icon="'fa-chevron-down'" :icon4="'fa-angle-down'"></font-awesome-icon>
+        </div>
+    </div>
+    <div class="only-text-select-textbox-component-id" v-if="disable">
+        <slot name="itemcontent" :item="selected"><span>{{ selected ? selected.title : '' }}</span></slot>
+    </div>
+    <transition name="popup-transition-component-id">
+        <popup-panel
+            class="select-popup-component-id"
+            :hide-header="true"
+            :hide-footer="true"
+            v-if="open"
+            :common-styles="panelStyles.containerStyles"
+            :content-styles="panelStyles.contentStyles"
+            :style="{ width: selectWidth }">
+            <div slot="content">
+                <div class="filter" v-if="false">
+                </div>
+                <div class="popup-options">
+                    <list-box :items="options || []" v-model="selected" @selected="selectedItem()" @mounted="setScroll()">
+                        <div slot="item" slot-scope="{ item }" :class="{ 'item-popup-component-id': true, 'selected-item-popup-component-id': selected && selected[idName] === item[idName] }">
+                            <slot name="itemcontent" :item="item"><span>{{ item.title }}</span></slot>
+                        </div>
+                    </list-box>
+                </div>
+            </div>
+        </popup-panel>
+    </transition>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const clickAway = await require(`globalMixins/clickAway`);
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            value: [Object, String, Number],
+            title: String,
+            options: [Array],
+            disable: Boolean,
+            showValidateBox: {
+                type: Boolean,
+                default: () => true
+            },
+            firstShowValidateBox: {
+                type: Boolean,
+                default: () => false
+            },
+            idName: {
+                type: String,
+                default: () => "id"
+            },
+            showClearButton: {
+                type: Boolean,
+                default: () => true
+            },
+            clearLabel: {
+                type: String,
+                default: () => `Clear`
+            },
+            cropText: {
+                type: Boolean,
+                default: () => true
+            }
+        },
+        data: () => {
+            return {
+                open: false,
+                selected: this.value,
+                innerShowValidateBox: this.firstShowValidateBox,
+                id: null,
+                panelStyles: {
+                    contentStyles: {
+                        "padding-left": "0px",
+                        "padding-right": "0px",
+                        "padding-top": "0px",
+                        "padding-bottom": "0px",
+                    },
+                    containerStyles: {
+                        "border-width": "1px",
+                        "box-shadow": "0 0 4px 0 rgba(0, 0, 0, .04)",
+                        "background-color": "white"
+                    }
+                }
+            }
+        },
+        created() {
+            this.defaultValidateRules = {
+                'required': this.required
+            };
+            this.innerShowValidateBox = this.firstShowValidateBox;
+            this.selected = this.value;
+            this.validateValue();
+        },
+        mounted() {
+            if ((this.value || this.value === 0) && this.options) this.selected = this.options.find(a => a[this.idName] === this.value);
+            this.id = `selectbox-component-id` + this.uuid();
+            this.setupClickAway(this.id, this.clickaway);
+        },
+        methods: {
+            uuid() {
+                var dt = new Date().getTime();
+                var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                    var r = (dt + Math.random() * 16) % 16 | 0;
+                    dt = Math.floor(dt / 16);
+                    return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                });
+                return uuid;
+            },
+            clear() {
+                if (this.disable) return;
+                this.clickOnClear = true;
+                this.selected = null;
+                this.$emit(`input`, this.selected);
+                this.$emit(`selected`, this.selected);
+                this.validateValue();
+            },
+            mouseEntersSelectBox(e) {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                let rect = e.target.getBoundingClientRect();
+                let position = {
+                    left: rect.right-38,
+                    top: rect.top + 7,
+                };
+                this.$refs.clearButtonPopUp.show(position);
+            },
+
+            mouseLeavesSelectBox(e) {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                this.$refs.clearButtonPopUp.hide();
+            },
+
+            required(rule) {
+                if (this.selected === 0) return true;
+
+                if (!this.selected) {
+                    this.validateMessage(rule, 'This field is required');
+                    return false;
+                }
+
+                return true;
+            },
+            selectedItem() {
+                this.open = false;
+
+                const value = this.selected ? this.selected[this.idName] : null;
+
+                this.$emit(`input`, value);
+                this.$emit(`selected`, value);
+                this.$emit(`click-selected`, value);
+
+                this.validateValue();
+            },
+            toggleMenu() {
+
+                if (this.disable) return;
+                if (this.clickOnClear) {
+                    this.clickOnClear = false;
+                    return;
+                }
+                this.open = !this.open;
+            },
+            clickaway() {
+                this.open = false;
+            },
+            setScroll() {
+                if (this.value && this.open) {            
+                    setTimeout(() => {
+                        var index = this.options.findIndex((item) => { return item[this.idName] == this.value; });
+                        var container = this.$el.querySelector(".popup-options");
+                        var listBoxItem = this.$el.querySelector(".listbox-item");
+
+                        var itemHeight = 0;
+                        if (listBoxItem) {
+                            itemHeight = listBoxItem.clientHeight;
+                        }
+
+                        var scrollTop = index * itemHeight;
+                        container.scrollTop = scrollTop;
+                    },300);
+                   
+                }
+            }
+        },
+        watch: {
+            value (newValue) {
+                if (!this.options) return;
+
+                this.selected = this.options.find(a => a[this.idName] === newValue);
+                this.validateValue();
+            },
+            options(newValue) {  
+                if (!newValue) return;
+
+                this.selected = this.options.find(a => a[this.idName] === this.value);
+                this.validateValue();
+            }
+        },
+        computed: {
+            selectWidth() {
+                const el = this.$el.children[0];
+                return el ? el.clientWidth + `px` : `0`;
+            }
+        },
+        mixins: [clickAway, validateMixin],
+        components: {
+            PopupPanel: staticBasicComponent(`Panel`),
+            ListBox: staticBasicComponent(`ListBox`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`),
+            ValidateBox: staticBasicComponent(`ValidateBox`),
+            ClearButtonPopUp: staticBasicComponent(`ClearButtonPopUp`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id .select-textbox-component-id {
+  width: 100%;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.container-component-id .select-textbox-component-id input {
+    box-shadow: none;
+    padding: 5.5px 12px;
+    padding-right: 30px;
+    font-size: 13px;
+    transition: none;
+    display: block;
+    width: 100%;
+    line-height: 1.428571429;
+    color: #404040;
+    background-color: #fff;
+    border: 2px solid rgba(0, 0, 0, 0.08);
+    border-radius: 2px;
+    background-clip: padding-box;
+    overflow: visible;
+    box-sizing: border-box;
+}
+.container-component-id .select-textbox-component-id input:focus, .container-component-id .select-textbox-component-id input:active {
+    border-color: rgba(51, 204, 255, 0.3);
+    background-image: none;
+    outline: 0;
+}
+.container-component-id .only-text-select-textbox-component-id {
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.container-component-id .select-popup-component-id {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.12);
+  border-width: 1px;
+  border-color: #d5d8de;
+  background-color: #fff;
+  border: 1px solid #aaa;
+  z-index: 1;
+}
+.container-component-id .select-popup-component-id .popup-options {
+    max-height: 200px;
+    overflow-y: auto;
+}
+.slot-container-component-id {
+  height: 32px;
+  border-width: 1px;
+  border-top-color: #bdc0c7;
+  box-shadow: none;
+  padding: 5.5px 12px;
+  padding-right: 2px;
+  font-size: 13px;
+  transition: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  line-height: 1.428571429;
+  color: #404040;
+  background-color: #fff;
+  border: 1px solid #e7eaf3;
+  border-radius: 2px;
+  background-clip: padding-box;
+  overflow: visible;
+  box-sizing: border-box;
+  white-space: nowrap; }
+.separator-component-id {
+  flex: 1;
+}
+.item-popup-component-id {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.selected-item-popup-component-id {
+  background: lightgrey !important;
+}
+@keyframes jump-show-animate-component-id {
+  0% {
+    opacity: 0;
+    transform: scale3d(0.1, 0.1, 0.1) translate3d(0, -10px, 0);
+    animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19); }
+  60% {
+    opacity: 1;
+    transform: scale3d(0.475, 0.475, 0.475) translate3d(0, 60px, 0);
+    animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1); }
+}
+.popup-transition-component-id-enter-active {
+  animation-name: jump-show-animate-component-id;
+  animation-duration: .4s;
+}
+.popup-transition-component-id-leave-active {
+  animation-name: jump-show-animate-component-id;
+  animation-duration: .5s;
+  animation-direction: reverse;
+}
+.disabled-component-id {
+  pointer-events: none;
+  background-color: #ebebe6;
+}
+.disabled-cursor-component-id {
+  cursor: not-allowed !important;
+}
+
+.not-valid-input {
+  border-color: #ee1c29;
+}
+</style>
+

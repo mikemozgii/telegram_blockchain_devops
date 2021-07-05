@@ -1,0 +1,68 @@
+<vue-template>
+<div>
+    <button
+        class="icon-button-component-id"
+        @@click="runAction()">
+        <div class="button-content">
+            <slot></slot>
+        </div>
+    </button>
+</div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: ['title', 'action'],
+    methods: {
+        runAction () {
+            if (!this.action || this.disable) return;
+
+            this.action();
+        }
+    }
+}
+</script>
+
+<style scoped>
+.icon-button-component-id {
+    /*@Html.StyleProperty("background-color", @Model.OverrideStyle)
+    @Html.StyleProperty("color", @Model.OverrideStyle);
+    @Html.StyleProperty("font-size", @Model.OverrideStyle);*/
+    border-radius: 2px;
+    /*border: @Html.StyleValue("border", @Model.OverrideStyle) @Html.StyleValue("border-color", @Model.OverrideStyle);*/
+    display: inline-block;
+    text-align: center;
+    vertical-align: middle;
+    user-select: none;
+    transition: none;
+    white-space: nowrap;
+    text-transform: none;
+    overflow: visible;
+    box-sizing: border-box;
+    word-wrap: break-word;
+    width: 100%;
+    cursor: pointer;
+}
+
+/*.icon-button-component-id:hover {
+    background-color: @Html.StyleValue("hover-background-color", @Model.OverrideStyle);
+}*/
+.icon-button-component-id:active {
+    outline: 0;
+    /*@Html.StyleProperty("background-color", @Model.OverrideStyle)*/
+}
+.icon-button-component-id:active {
+    outline: 0;
+    /*@Html.StyleProperty("background-color", @Model.OverrideStyle)*/
+}
+.icon-button-component-id:focus {
+    outline: 0;
+}
+
+.icon-button-component-id .button-content {
+    padding: 3px;
+}
+/*.button-content:hover {
+    @Html.StyleProperty("background-color", @Model.OverrideStyle)
+}*/
+</style>

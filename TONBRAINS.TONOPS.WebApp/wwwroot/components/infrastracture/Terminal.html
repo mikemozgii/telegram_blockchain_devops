@@ -1,0 +1,256 @@
+<vue-template>
+    <div class="console">
+        <div class='console-inner'>
+            <div id="outputs">
+                <span v-for="text in history" class="output-text">{{text}}</span>
+            </div>
+            <div class='output-cmd'>
+                <input ref="textinput"
+                       type="text"
+                       class='console-input'
+                       placeholder="Type command..."
+                       v-if="!disableInput"
+                       v-on:keyup.enter="command"
+                       v-on:keyup.up.prevent="upCommmand"/>
+            </div>
+        </div>
+    </div>
+</vue-template>
+<script>
+    module.exports = async function () {
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+        return {
+            props: {
+                node: Object
+            },
+            data: () => {
+                return {
+                    disableInput: false,
+                    history: [],
+                    visible: false,
+                    historyCommand: [],
+                    current: 0
+                }
+            },
+            created() {
+                this.register(`Hide-${this.node.id}`, this.hide);
+                this.register(`History-${this.node.id}`, this.historyPush)
+                this.register(`Recieve-${this.node.id}`, this.recieveMessage)
+                this.visible = this.node.type > 2;
+                var jsonCmd = window.sessionStorage.getItem(`cmd-${this.node.id}`);
+                if (jsonCmd) {
+                    var cmd = JSON.parse(jsonCmd);
+                    this.historyCommand = cmd;
+                    this.current = cmd.length;
+                }
+            },
+            beforeDestroy() {
+                this.unregister(`Hide-${this.node.id}`);
+                this.unregister(`History-${this.node.id}`);
+                this.unregister(`Recieve-${this.node.id}`);
+                window.sessionStorage.setItem(`cmd-${this.node.id}`, JSON.stringify(this.historyCommand));
+            },
+            methods: {
+                hide(value) {
+                    if (value != undefined) this.visible = value;
+                    else this.visible = !this.visible;
+                },
+                async command(event) {
+                    const value = event.target.value.trim();
+                    if (value == '')
+                        return;
+                    this.disabled("disabled");
+                    this.historyCmd(value);
+                    this.$refs.textinput.value = '';
+                    switch (value) {
+                        case 'clear': this.clear(); this.disabled(); break;
+                        case 'history': this.fireEvent('GetHistory', this.node.ip); break;
+                        case 'reset':
+                            this.historyCommand = [];
+                            this.current = 0;
+                            this.clear();
+                            this.disabled();
+                            await axios.get(`/api/nodes/resethistory`,
+                            {
+                                params:
+                                {
+                                    host: this.node.ip
+                                }
+                            }); break;
+                        default: await axios.get(`/api/nodes/commandssh`,
+                            {
+                                params:
+                                {
+                                    nodeId: this.node.id,
+                                    command: value
+                                }
+                            }); break;
+                            
+                    }
+                },
+                historyCmd(command) {
+                    this.historyCommand.push(command);
+                    this.current = this.historyCommand.length;
+                },
+                upCommmand() {
+                    this.current = this.current - 1;
+                    if (this.current >= 0) {
+                        this.$refs.textinput.value = this.historyCommand[this.current];
+                    }
+                    else {
+                        this.current = this.historyCommand.length;
+                        this.$refs.textinput.value = "";
+                    }
+                   
+                },
+                historyPush(array) {
+                    this.disabled();
+                    this.history = array;
+                    this.focus();
+                },
+                recieveMessage(message) {
+                    this.disabled();
+                    this.history.push(message);
+                    this.focus();
+                },
+                disabled(disabled) {
+                    this.$refs.textinput.disabled = disabled;
+                },
+                focus() {
+                    this.$refs.textinput.focus();
+                },
+                clear() {
+                    this.history = [];
+                }
+            },
+            mixins: [translateMixin, globalObserver]
+        }
+    }
+</script>
+
+<style scoped>
+    .terminal-hide {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    /* Track */
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    /* Handle */
+    ::-webkit-scrollbar-thumb {
+        background: #888;
+    }
+
+        /* Handle on hover */
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+    .console {
+        position: inherit;
+        font-family: monospace,monospace;
+        color: #fff;
+        height: 300px;
+        max-width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        padding-top: 1em;
+        padding-bottom: 1em;
+        background: rgba(22, 57, 120,0.5);
+        border-radius: 0.5em;
+        box-shadow: 0 0.75em 3em rgba(50, 50, 50, 0.3);
+        z-index: 100;
+        line-height: 1.5;
+    }
+
+    .console-input {
+        font-family: monospace, monospace;
+        background-color: transparent;
+        border: none;
+        outline: none;
+        color: #fff;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        min-width: calc(100% - 2em);
+        resize: none;
+    }
+
+        .console-input:before {
+            content: '> ';
+            color: rgb(225, 10, 62);
+            vertical-align: top;
+        }
+
+    .output-cmd:before {
+        content: '> ';
+        color: #FC3565;
+        vertical-align: top;
+    }
+
+    .output-text:before {
+        content: '> ';
+        color: rgb(33, 206, 206);
+        font-weight: 600 !important;
+        vertical-align: top;
+    }
+
+    .output-text,
+    .output-cmd {
+        width: 100%;
+        display: block;
+    }
+
+    .console-inner {
+        padding: 0.3em 1.1em;
+    }
+
+    .output-text,
+    .output-cmd {
+        display: block;
+        white-space: pre;
+    }
+
+    #outputs div {
+        opacity: 0.85;
+    }
+
+        #outputs div div {
+            color: #46f01d;
+            opacity: 0.8;
+            text-decoration: none;
+        }
+
+    #outputs a {
+        color: #46f01d;
+        opacity: 0.8;
+        text-decoration: underline;
+    }
+
+    .console-inner .output-text#ready {
+        color: #3df5b8;
+        font-style: italic;
+        opacity: 0.75;
+    }
+
+    .console-template-canvas-el {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+</style>

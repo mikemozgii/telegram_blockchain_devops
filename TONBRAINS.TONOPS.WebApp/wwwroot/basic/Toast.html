@@ -1,0 +1,54 @@
+<vue-template>
+    <inner-popup ref="popup">
+        <div class="toast-container-component-id" :style="{ 'background-color': color }">
+            <span>{{ message }}</span>
+        </div>
+    </inner-popup>
+</vue-template>
+
+<script>
+    module.exports = {
+        props: {
+            timeout: {
+                type: Number,
+                default: _ => 3000
+            }
+        },
+        data() {
+            return {
+                message: '',
+                color: ''
+            }
+        },
+        methods: {
+            show(text, color = `#dff0d8`) {
+                this.message = text;
+                this.color = color;
+
+                this.$refs.popup.showBasedOnPosition({
+                    right: 20,
+                    top: 20
+                });
+
+                setTimeout(this.$refs.popup.hide, this.timeout);
+            }
+        },
+        components: {
+            InnerPopup: staticBasicComponent(`Popup`)
+        }
+    }
+</script>
+
+<style scoped>
+    .toast-container-component-id {
+        width: fit-content;
+        height: 20px;
+        border-radius: 4px;
+        color: #333;
+        padding: 10px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        margin-top: 25px;
+    }
+</style>

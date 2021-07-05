@@ -1,0 +1,156 @@
+<vue-template>
+    <content-modal :hide-header="true" :title="name" ref="modal" :without-paddings="true"
+        @closed="closePdf()"
+        min-width="70%">
+        <div slot="content">
+            <row-layout>
+                <column-layout align-items="stretch" style="width: 100%;">
+                    <pdf-viewer style="min-height: 94vh;"
+                                ref="pdfViewer"
+                                @file-loaded="pdfLoaded"
+                                :pdf-url="pdfUrl"
+                                v-model="fileId">
+                    </pdf-viewer>
+
+                </column-layout>
+                <column-layout class="round-buttons-group-component-id">
+                    <tool-tip-box left class="round-button-component-id" width-tooltip="100px">
+                        <action-button rounded="true" :action="close" :styles="defaultStyle">
+                            <font-awesome :icon="'fa-times'" :icon4="'fa-times'" size="button-icon-component-id"></font-awesome>
+                        </action-button>
+                        <span slot="tooltip">
+                            Close
+                        </span>
+                    </tool-tip-box>
+
+                    <tool-tip-box left class="round-button-component-id" width-tooltip="100px" v-if="!pdfUrl">
+                        <action-button rounded="true" :action="download" class="download-button-component-id" :styles="defaultStyle">
+                            <font-awesome :icon="`fa-download`" :icon4="`fa-download-alt`" size="button-icon-component-id"></font-awesome>
+                        </action-button>
+                        <span slot="tooltip">
+                            Download
+                        </span>
+                    </tool-tip-box>
+
+                    <tool-tip-box left class="round-button-component-id" width-tooltip="100px" v-if="pdfUrl">
+                        <action-button rounded="true" :action="downloadPdf" class="download-button-component-id" :styles="defaultStyle">
+                            <font-awesome v-if="forceDownloadFileId" icon="fa-file-word" size="button-icon-component-id"></font-awesome>
+                            <font-awesome v-else icon="fa-file-pdf" size="button-icon-component-id"></font-awesome>
+                        </action-button>
+                        <span slot="tooltip">
+                            Download Pdf
+                        </span>
+                    </tool-tip-box>
+
+                    <tool-tip-box left class="round-button-component-id" width-tooltip="100px" v-if="excelUrl">
+                        <action-button rounded="true" :action="downloadExcel" class="download-button-component-id" :styles="defaultStyle">
+                            <font-awesome :icon="`fa-file-excel`" :icon4="`fa-file-excel`" size="button-icon-component-id"></font-awesome>
+                        </action-button>
+                        <span slot="tooltip">
+                            Download Excel
+                        </span>
+                    </tool-tip-box>
+                </column-layout>
+            </row-layout>
+        </div>
+    </content-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const fileInfoHelperMixin = await require(`globalMixins/fileInfoHelper`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            title: String
+        },
+        data() {
+            return {
+                fileId: null,
+                name: "",
+                excelUrl: null,
+                pdfUrl: null,
+                forceDownloadFileId: false,
+                defaultStyle: componentStyles.buttons.default
+            }
+        },
+        methods: {
+            pdfLoaded() {
+                this.fileLoaded = true;
+                this.fireEvent(`globalBusy`, false);
+            },
+            download() {
+                this.downloadFile(this.fileId);
+            },
+            downloadExternalUrl(url) {
+                if (this.forceDownloadFileId) {
+                    this.downloadFile(this.fileId);
+                    return;
+                }
+
+                window.location.href = url;
+                this.fireEvent(`globalBusy`, true);
+                setTimeout(() => {
+                    this.fireEvent(`globalBusy`, false);
+                }, 1500);
+            },
+            downloadExcel() {
+                this.downloadExternalUrl(this.excelUrl);
+            },
+            downloadPdf() {
+                this.downloadExternalUrl(this.pdfUrl);
+            },
+            show(fileId, name, pdfUrl, excelUrl, forceDownloadFileId) {
+                this.fileLoaded = false;
+                this.fireEvent(`globalBusy`, true);
+                this.name = name;
+                this.fileId = fileId;
+                this.pdfUrl = pdfUrl;
+                this.excelUrl = excelUrl;
+                this.forceDownloadFileId = forceDownloadFileId;
+                this.$refs.modal.openModal();
+            },
+            close() {
+                this.closePdf();
+                this.$refs.modal.closeModal();
+            },
+            closePdf() {
+                this.pdfUrl = null;
+                this.fileId = null;
+                this.$refs.pdfViewer.close();
+            }
+        },
+
+        mixins: [globalObserver, fileInfoHelperMixin],
+        components: {
+            ContentModal: staticBasicComponent(`ContentModal`),
+            IconBox: staticBasicComponent(`IconBox`),
+            PdfViewer: staticBasicComponent(`PdfViewer`),
+            ToolTipBox: staticBasicComponent(`ToolTipBox`),
+            ActionButton: staticBasicComponent(`ActionButton`),
+            FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+            RowLayout: staticBasicComponent(`RowLayout`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.round-buttons-group-component-id {
+    z-index: 10000;
+    margin: 0 -55px 0 9px;
+}
+.round-button-component-id {
+    margin-top: 6px;
+}
+.button-icon-component-id {
+    font-size: 16px;
+}
+.download-button-component-id button {
+    color: #fff;
+    background: #17a2b8;
+}
+</style>

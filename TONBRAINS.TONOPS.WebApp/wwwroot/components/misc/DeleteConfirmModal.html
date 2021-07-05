@@ -1,0 +1,36 @@
+<vue-template>
+    <confirm-modal
+        min-width="540px"
+        ref="confirm" 
+        title="Delete item?"
+        :message="template"
+        text-no="Cancel"
+        text-yes="Delete"
+        yes-mode="danger"
+        hide-header
+        ashtml>
+    </confirm-modal>
+</vue-template>
+
+<script>
+module.exports = {
+    data: () => {
+        return {
+            message: 'Are you really want to delete item?',
+            template: ''
+        }
+    },
+    created() {
+        this.template = `<span>${this.message}<span><br /><br /><br />`
+    },
+    methods: {
+        async showConfirm() {
+            const result = await this.$refs.confirm.showConfirm();
+            return result;
+        },
+    },
+    components: {
+        ConfirmModal: staticBasicComponent(`ConfirmModal`)
+    }
+}
+</script>

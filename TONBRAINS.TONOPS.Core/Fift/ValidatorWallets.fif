@@ -1,0 +1,26 @@
+library ValidatorWallets
+
+256 1<<1- 15 / constant Ones
+
+{
+  drop 1 pick "${validatorContractName_msig}.tvc" $+ file>B B>boc  
+  <s 2 i@+ nip ref@+ // load code (as cell) from `.tvc` file
+  swap ref@+ nip     // load data (as cell) from `.tvc` file
+  empty_cell         // libs
+  3 roll  // balance
+  0 // split_depth
+  0 // ticktock
+  2 // mode: create
+  register_smc
+  Masterchain swap 2 pick  
+  type ." multisig address = " 2dup .addr cr 2dup 6 .Addr cr
+  rot +"_multisig.addr" save-address-verbose
+} : create-msig
+
+{ } : entry
+
+{
+// [wallets] //public keys
+${validators_msig}
+// [end]
+} : create-validator-wallets

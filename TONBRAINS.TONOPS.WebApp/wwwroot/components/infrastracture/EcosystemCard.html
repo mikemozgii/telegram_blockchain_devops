@@ -1,0 +1,156 @@
+<vue-template>
+    <form-modal
+        :title="modalTitle"
+        ref="formModal"
+        min-width="500px">
+        <div slot="content" class="form-container-component-id local-size" slot-scope="{ validation }">
+            <form-fields-layout :fields="fields">
+                <text-block-required slot="name" :not-valid="nameValidate">Name</text-block-required>
+                <text-box clear-label="Clear"
+                          slot="nameinput"
+                          v-model="model.name"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block slot="environments">
+                    Attached environments
+                </text-block>
+                <multi-select-box
+                    slot="environmentsinput"
+                    :options="environments"
+                    v-model="selectedEnvironments">
+                </multi-select-box>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons :save="save"
+                                    :cancel="cancel"
+                                    :delete-action="deleteItem"
+                                    :delete-visible="model && model.taskId && !isMyModule"
+                                    :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal
+        ref="deleteConfirm"
+    ></delete-confirm-modal>
+    <alert-modal
+        ref="checkdomainalert"
+        title="Environment domain"
+        message="Domain with same name already exists"
+    ></alert-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "environments", inputSlot: "environmentsinput" }
+                ],
+                environments: [],
+                selectedEnvironments: []
+            }
+        },
+        created() {
+            this.loadEnvironments();
+        },
+        methods: {
+            async loadEnvironments() {
+                const { data: environments } = await axios.get(`/api/environment/grid`);
+                for (const environment of environments) environment.title = environment.name;
+                this.environments = environments;
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            add({ item, title }) {
+                this.model = {
+                };
+                this.modalTitle = `Create ecosystem`; 
+                this.nameValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/ecosystems/delete`, { params: { id: item.id }});
+
+                await axios.delete(`/api/modules/multidelete`, { params: { ecosystem: item.id }});
+
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async getModel(id) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/ecosystems/single`, { params: { id: id } });
+                this.fireEvent(`globalBusy`, false);
+                model.id = id;
+                this.selectedEnvironments = JSON.parse(model.environments);
+                return model;
+            },
+            async openModal(id) {
+                this.nameValidate = false;
+                if (!id) {
+                    this.model = {
+                    };
+                    this.modalTitle = `Create ecosystem`;
+                } else {
+                    this.model = await this.getModel(id);
+                    this.modalTitle = `Edit environment`;
+                }
+
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.model.environments = JSON.stringify(this.selectedEnvironments);
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.post(`/api/ecosystems/addoredit`, this.model);
+                this.fireEvent(`globalBusy`, false);
+                this.$refs.formModal.closeModal();
+
+                this.$emit(`saved`, { isNew: !this.model.id, savedItem });
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            AlertModal: staticBasicComponent(`AlertModal`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`)
+        }
+    }
+}
+</script>

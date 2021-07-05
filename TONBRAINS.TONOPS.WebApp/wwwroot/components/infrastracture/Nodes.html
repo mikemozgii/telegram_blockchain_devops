@@ -1,0 +1,473 @@
+
+<vue-template>
+
+    <flat-data-grid ref="grid"
+                    :settings="settings"
+                    v-if="gridData && dropdowns"
+                    @data-loaded="dataLoaded()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <div slot="nameslot"
+             slot-scope="{ item }">
+            <div style="display: inline-flex">
+                <div>
+                    <i v-if="!item.connection"
+                       style="color: darkcyan"
+                       class="fas fa-spinner fa-pulse"></i>
+                    <span v-else-if="item.connection==='Disconnect'" style="color:red"><i class="fas fa-plug"></i></span>
+                    <span v-else style="color:forestgreen"><i class="fas fa-plug"></i></span>
+                    <b v-if="item.zabbixServerId" style="color: red">Z</b>
+                </div>
+                <row-layout style="margin-left: 5px">
+                    <font-awesome v-if="item.hasProblems" icon="fa-exclamation" color="red">
+                    </font-awesome>
+                    <short-text :text="item.name" :is-link="true" @clicked="editItem(item)">
+
+                    </short-text>
+                </row-layout>
+            </div>
+        </div>
+        <short-text slot="typeslot"
+                    slot-scope="{ item }"
+                    :text=" item.type | typeNodeFilter(dropdowns)">
+        </short-text>
+
+        <short-text slot="addressslot"
+                    slot-scope="{ item }"
+                    :text="item | isStatic">
+        </short-text>
+        <short-text slot="credentialslot"
+                    slot-scope="{ item}"
+                    :text="item.credentialId | credentialFilter(dropdowns)">
+        </short-text>
+        <short-text slot="descriptionslot"
+                    slot-scope="{ item }"
+                    :text="item.description">
+        </short-text>
+        <short-text slot="osslot"
+                    slot-scope="{ item }"
+                    :text="item.os">
+        </short-text>
+        <short-text slot="instanceslot"
+                    slot-scope="{ item }"
+                    :text="item.instanceName">
+        </short-text>
+        <short-text slot="diskslot"
+                    slot-scope="{ item }"
+                    :text="item.disk ? `${item.disk[0]}GB(${(100-item.disk[1])}%) / ${item.disk[2] - item.disk[0]}GB(${item.disk[1]}%)/  ${item.disk[2]}GB` : ``">
+        </short-text>
+        <!--item.disk ? `${item.disk[2].replace('G','')}GB` : ``-->
+        <!--<short-text slot="diskfreeslot"
+                    slot-scope="{ item }"
+                    :text="item.disk ? `${item.disk[0]}GB (${(100- item.disk[1])}%)` : ``">
+        </short-text>-->
+        <short-text slot="deploymentslot"
+                    slot-scope="{ item }"
+                    :text="item.deploymentType | deploymentTypeFilter(dropdowns)">
+        </short-text>
+
+        <menu-option slot="editmenuoption" slot-scope="{ item }" :title="item.title" mode="edit"></menu-option>
+        <menu-option slot="terminalmenuoption" slot-scope="{ item }" :title="item.title" mode="code"></menu-option>
+        <menu-option slot="monitoringmenuoption" slot-scope="{ item }" :title="item.title" mode="view"></menu-option>
+        <menu-option slot="deployoption" slot-scope="{ item }" :title="item.title" mode="cog"></menu-option>
+        <menu-option slot="auditoption" slot-scope="{ item }" :title="item.title" mode="history"></menu-option>
+
+        <menu-option slot="restartmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'sync-alt'">
+        </menu-option>
+        <menu-option slot="stopmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'stop'">
+        </menu-option>
+
+        <menu-option slot="deletemenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'delete'">
+        </menu-option>
+
+
+        <div slot="innerContent" slot-scope="{ item, expand }">
+
+            <div v-if="item && item.credentialId != 'init'">
+
+                <div v-if="item.type == 0 || item.type ==1">
+
+                    <tabs-header :items="tabItems" v-model="currentTab">
+
+                    </tabs-header>
+                </div>
+
+                <div v-if="!(item.type == 0 || item.type ==1)">
+
+                    <tabs-header :items="tabItems2" v-model="currentTab">
+
+                    </tabs-header>
+                </div>
+
+                <div v-if="item && currentTab ===`Terminal`">
+                    <terminal :node="item"></terminal>
+                </div>
+
+                <div v-if="item && currentTab ===`metric`">
+                    <host-nodes-metrics :node-id="item.id">
+
+                    </host-nodes-metrics>
+                </div>
+
+                <div v-if="item && currentTab == `Services`">
+                    <node-modules v-if="item && expand && item.type < 2"
+                                  :node-type="item.type"
+                                  :node-id="item.id"
+                                  :node-ip="item.ip">
+                    </node-modules>
+                </div>
+            </div>
+
+            <div v-if="item && item.credentialId == 'init'">
+                <div style="margin:0 auto;font-style:italic;width:100%; text-align:center;">Not Deployed</div>
+            </div>
+
+        </div>
+    </flat-data-grid>
+
+    <form-modal title="Audit"
+                ref="auditmodal"
+                min-width="500px">
+
+        <div slot="content" style="width: 500px;overflow-y: scroll;height: 500px;">
+            <div v-if="auditModel" v-for="(item, index) in auditModel" :key="index">
+                <div @click.prevent="expandAuditItem(item)">
+                    <row-layout>
+                        <font-awesome :icon="item.expanded ? `fa-chevron-right` : `fa-chevron-down`"></font-awesome>
+                        <b>{{item.timestamp.substring(0, item.timestamp.indexOf(`.`))}}</b>
+                    </row-layout>
+                </div>
+                <div v-show="item.expanded" style="margin-left: 20px">
+                    <p v-for="(value, name) in item.data" :key="name"><b>{{name}}</b>->{{value}}</p>
+                </div>
+                <hr />
+            </div>
+        </div>
+        <div slot="buttons">
+            <modal-control-buttons :cancel="cancelAudit"
+                                   :save-visible="false"
+                                   :delete-visible="false">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+
+
+</vue-template>
+
+<script>
+    module.exports = async function () {
+        const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+
+        return {
+            props: {
+                group: Object,
+                dropdowns: Object,
+                expand: Boolean
+            },
+            data() {
+                return {
+                    settings: {
+                        columns: [
+                            this.addColumn(`Name`, `name`, { notFilterable: false, slot: `nameslot` }),
+                            this.addColumn(`Host`, `nodeHostName`),
+                            //this.addColumn(`Description`, `description`, { notFilterable: false, slot: `descriptionslot` }),
+                            this.addColumn(`Ip`, `ip`, { notFilterable: false, slot: `addressslot` }),
+                            this.addColumn(`Type`, `type`, { notFilterable: false, slot: `typeslot` }),
+                            this.addColumn(`Credential`, `credential`, { notFilterable: false, slot: `credentialslot` }),
+                            this.addColumn(`Deployment`, `deployment`, { notFilterable: false, slot: `deploymentslot` }),
+                            this.addColumn(`OS`, `os`, { notFilterable: false, slot: `osslot` }),
+                            this.addColumn(`Disk`, `disktotal`, { slot: `diskslot`, columnPoints: 'px', width: 300 }),
+                            //this.addColumn(`Disk Total`, `status`, { slot: `diskslot` }),
+                            //this.addColumn(`Disk Free`, `connection`, { slot: `diskfreeslot` }),
+                            this.addColumn(`Zabbix Server`, `zabbixServerName`),
+                            this.addColumn(`Instance Name`, `instanceName`, { notFilterable: false, slot: `instanceslot` }),
+                        ],
+                        emptyMessage: null,
+                        urls: {
+                            grid: `/api/nodes/findbygroup?groupId=${this.group.id}`
+                        },
+                        gridItemActions: [
+                            {
+                                title: `Edit`,
+                                id: `edit`,
+                                slot: `editmenuoption`,
+                            },
+                            {
+                                title: `Monitoring`,
+                                id: `monitoring`,
+                                slot: `monitoringmenuoption`,
+                                //activeHandler: (item) => item.zabbixServerId && item.zabbixHostId
+                            },
+                            {
+                                title: `Deploy`,
+                                id: `deploy`,
+                                slot: `deployoption`,
+                            },
+                            {
+                                title: `Audit`,
+                                id: `audit`,
+                                slot: `auditoption`,
+                            },
+                            {
+                                title: `Restart`,
+                                id: `restart`,
+                                slot: `restartmenuoption`,
+                            },
+                            {
+                                title: `Stop`,
+                                id: `stop`,
+                                slot: `stopmenuoption`,
+                                activeHandler: (item) => item.status === `run`
+                            },
+                            {
+                                title: `Delete`,
+                                id: `delete`,
+                                slot: `deletemenuoption`,
+                                activeHandler: (item) => !item.hostId
+                            },
+                        ],
+                        defaultSortField: `name`,
+                        defaultSortFieldDescending: false,
+                        hideToolbar: true,
+                        expandable: true,
+                        hidePageSize: true,
+                        defaultPageSize: 5,
+                        additionalOptions: {
+                            minimumLimitAllItems: 500,
+                            allDataAtOnce: true
+                        },
+                        actions: this
+                    },
+                    data: [],
+                    currentTab: `Terminal`,
+                    tabItems: [{ id: 'Services', title: 'Services' }, { id: 'Terminal', title: 'Terminal' }],
+                    tabItems2: [{ id: 'Terminal', title: 'Terminal' },{ id: 'metric', title: 'Metric' } ],
+                    nodes: [],
+                    auditModel: null
+                }
+            },
+            filters: {
+                isStatic: function (item) {
+                    if (item.isStaticIp)
+                        return `${item.ip} [static]`
+                    return item.ip;
+                },
+                credentialFilter: function (id, dropdowns) {
+                    if (!dropdowns || id === "" || id === undefined)
+                        return '';
+                    else
+                        return dropdowns.credentials.filter(x => x.id === id)[0].title;
+                },
+                typeNodeFilter: function (id, dropdowns) {
+                    if (!dropdowns || id === "" || id === undefined)
+                        return '';
+                    else
+                        return dropdowns.nodeTypes.filter(x => x.id === id)[0].title;
+                },
+                deploymentTypeFilter: function (id, dropdowns) {
+                    if (!dropdowns || id === "" || id === undefined)
+                        return '';
+                    else
+                        return dropdowns.deplymentTypes.filter(x => x.id === id)[0].title;
+                }
+            },
+            async created() {
+                this.register(`ChangeStatus-${this.group.id}`, this.changeStatus);
+                this.register(`UpdateGrid-${this.group.id}`, this.updateItem);
+                this.register(`DeleteFromGrid-${this.group.id}`, this.deleteFromGrid);
+            },
+            async beforeDestroy() {
+                this.unregister(`ChangeStatus-${this.group.id}`, this.changeStatus);
+                this.unregister(`UpdateGrid-${this.group.id}`, this.updateItem);
+                this.unregister(`'DeleteFromGrid-${this.group.id}`, this.deleteFromGrid);
+            },
+            methods: {
+                async delete({ item }) {
+                    const result = await this.$refs.deleteConfirm.showConfirm();
+                    if (!result) return;
+
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: deleteResult } = await axios.delete(`/api/hosts/deletenode`, { params: { id: item.id } });
+                    this.fireEvent(`globalBusy`, false);
+
+                    if (deleteResult) this.$refs.grid.deleteItem(item);
+                    return deleteResult;
+                },
+                async restart({ item } ) {
+                    const status = await this.changeServerStatus(item.id, `restart`);
+                    item.status = status; 
+                    this.$refs.grid.updateItem(item, `id`);
+                },
+                async stop({ item } ) {
+                    const status = await this.changeServerStatus(item.id, `stop`);
+                    item.status = status; 
+                    this.$refs.grid.updateItem(item, `id`);
+                },
+                async changeServerStatus(id, status) {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: result } = await axios.get(`/api/nodes/changenodestatus`, { params: { id, status } });
+                    this.fireEvent(`globalBusy`, false);
+                    return result;
+                },
+                expandAuditItem(item) {
+                    this.$set(item, 'expanded', !item.expanded);
+                },
+                cancelAudit() {
+                    this.auditModel = null;
+                    this.$refs.auditmodal.closeModal();
+                },
+                audit({ item }) {
+                    this.auditModel = JSON.parse(item.audit);
+                    this.$refs.auditmodal.openModal();
+                },
+                async dataLoaded() {
+                    const nodes = this.$refs.grid.getRows();
+                    
+                    if (nodes.length > 0) {
+                        this.nodes = nodes;
+                        for (const node of this.nodes) {
+                            this.$set(node, `zabbixServerName`, this.getZabbixServerName(node.zabbixServerId));
+                        }
+                        var nodeIds = nodes.filter(x => x.ip).map(x => x.id);
+                        if (nodeIds.length > 0)
+                            await this.checkServersStatus(nodeIds);
+                    }
+                    setTimeout(async () => {
+                        if (this.zabbixProblems) await this.zabbixProblems()
+                    });
+                },
+                async checkServersStatus(nodeIds) {
+                    await axios.get(`/api/nodes/checkserverstatus`, { params: { ids: JSON.stringify(nodeIds), groupId: this.group.id } });
+                },
+                async changeStatus({ status, id }) {
+                    var item = this.nodes.filter(x => x.id === id)[0];
+                    if (item) {
+                        item.connection = status;
+                        item.disk = status.replace("G", "").replace("G", "").replace("%", "").split(' ').filter(i => i.length);
+
+                        this.$refs.grid.updateItem(item, `id`);
+                    }
+                },
+                async editFromGrid(item) {
+                },
+                async deleteFromGrid() {
+                    await this.deleteItem();
+                },
+                async add(groupId) {
+                    var model = {
+                        zabbixHostId: 0,
+                        zabbixServerId: '',
+                        modules: '[]',
+                        configurations: [],
+                        deploymentType: null,
+                        type: null,
+                        groupId: groupId,
+                        hostName: 'ubuntucore',
+                        instanceName: '',
+                        sshPort: 22,
+                        sshIp: ``
+                    };
+                    await this.fireEvent(`openmodalnode`, model);
+                },
+                async delete({ item, title }) {
+                    this.modalTitle = ``;
+                    const result = await this.$refs.deleteConfirm.showConfirm();
+                    if (!result) return;
+
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: deleteResult } = await axios.delete(`/api/environment/delete`, { params: { id: item.id } });
+                    this.fireEvent(`globalBusy`, false);
+                    if (deleteResult) this.$refs.grid.deleteItem(item);
+                    return deleteResult;
+                },
+                async editItem(item) {
+                    await this.edit({ item: item });
+                },
+                async edit({ item, title }) {
+                    this.fireEvent(`openmodalnode`, item);
+                },
+                terminal({ item }) {
+                    this.fireEvent(`Hide-${item.id}`);
+                },
+                async monitoring({ item, title }) {
+                    await axios.get(`/api/nodes/createtunnel`, { params: { id: item.id, seconds: 600 } });
+                    //var server = this.dropdowns.zabbixServers.find(i => i.id === item.zabbixServerId);
+                    //if (!server) return;
+                    ////Attention is working with - https://chrome.google.com/webstore/detail/ignore-x-frame-headers/gleekbfjekiniecknbkamfmkohkpodhe?hl=ru
+                    //var monitoringSrc = `http://${server.ip}/zabbix/zabbix.php?action=latest.view&filter_hostids%5B%5D=${item.zabbixHostId}`;
+
+                    window.open(`http://localhost:${item.sshPort}`);
+                },
+                deploy({ item, title }) {
+                    this.fireEvent('openinitnode', item);
+                },
+
+                async zabbixProblems() {
+                    var nodeIds = this.nodes.filter(x => x.ip).map(x => x.id);
+                    if (!nodeIds.length) return;
+
+                    const { data: result } = await axios.get(`/api/nodes/zabbixchecknodes`, { params: { ids: JSON.stringify(nodeIds) } });
+                    for (const node of this.nodes) {
+                        if (result[node.id]) {
+                            this.$set(node, `hasProblems`, true);
+                        }
+                    }
+                },
+                getZabbixServerName(zabbixServerId) {
+                    var server = this.dropdowns.zabbixServers.find(i => i.id === zabbixServerId)
+                    return server ? server.title : ``;
+                },
+                async updateItem({ item, insert, group }) {
+                    
+                    this.$emit(`updated`);
+                    //item.connection = 'In process';
+                    //if()
+                    //if (insert && !group)
+                    //    this.$refs.grid.addItem(item);
+                    //if (group) {
+                    //    this.$refs.grid.addItem(item);
+                    //    this.fireEvent(`DeleteFromGrid-${group}`, item);
+                    //}
+                    //else
+                    //    this.$refs.grid.updateItem(item, `id`);
+                    //this.nodes = [...this.nodes, item];
+                    //await this.checkServersStatus([item.id]);
+                },
+                deleteFromGrid(item) {
+                    this.$refs.grid.deleteItem(item, `id`);
+                    this.nodes = this.nodes.filter(x => x.id !== item.id);
+                    this.$emit(`updated`);
+                }
+
+            },
+            mixins: [translateMixin, globalObserver, gridHelperMixin],
+            components: {
+                FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+                MenuOption: staticBasicComponent(`MenuOption`),
+                ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+                NodeModules: localStaticComponent(`/components/infrastracture/Modules.html`),
+                Terminal: localStaticComponent(`/components/infrastracture/Terminal.html`),
+                TabsHeader: staticBasicComponent(`TabsHeaderBlock`),
+                SaveButton: staticBasicComponent(`ActionButton`),
+                FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+                RowLayout: staticBasicComponent(`RowLayout`),
+                FormModal: staticBasicComponent(`FormModal`),
+                ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+                HostNodesMetrics: localStaticComponent(`/components/infrastracture/HostNodesMetrics.html`),
+            }
+        }
+    }
+</script>

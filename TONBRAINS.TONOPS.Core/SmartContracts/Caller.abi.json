@@ -1,0 +1,26 @@
+{
+	"ABI version": 2,
+	"header": ["time", "expire"],
+	"functions": [
+		{
+			"name": "call",
+			"inputs": [
+				{"name":"addr","type":"address"},
+				{"name":"tons","type":"uint128"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		}
+	],
+	"data": [
+	],
+	"events": [
+	]
+}

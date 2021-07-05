@@ -1,0 +1,27 @@
+﻿#client
+winrm quickconfig
+winrm set winrm/config/client '@{TrustedHosts="Computer1,Computer2"}'
+
+
+#server
+Enable-PSRemoting -Force
+winrm quickconfig
+#https	
+winrm create winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="_";CertificateThumbprint="_"}
+
+#http
+winrm create winrm/config/Listener?Address=*+Transport=HTTP
+
+#test
+
+Test-WsMan ComputerName
+Test-WsMan ComputerName -UseSSL
+
+#Set TrustedHosts with PowerShell
+Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value "Computer1,Computer2"
+
+
+enable firewall on both: 5985-5986
+
+
+Set-Item wsman:\localhost\client\trustedhosts *

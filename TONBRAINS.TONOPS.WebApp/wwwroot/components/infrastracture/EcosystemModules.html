@@ -1,0 +1,152 @@
+<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings"
+                    v-if="gridData"
+                    @completed="gridCompleted()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <div slot="innerContent"
+             slot-scope="{ item, expand }">
+            <tabs-header :items="[{ id: `services`, title: `Custom Services`}]"
+                         v-model="selectedTab">
+            </tabs-header>
+            <module-types v-if="item && expand"
+                          :ecosystem-id="item.id" />
+        </div>
+        <menu-option slot="selectmodulesoption" slot-scope="{ item }" :title="item.title" mode="add"></menu-option>
+        <menu-option slot="editecosystemoption" slot-scope="{ item }" :title="item.title" mode="edit"></menu-option>
+
+        <menu-option slot="selectconfigurationoption" slot-scope="{ item }" :title="item.title" mode="list"></menu-option>
+
+    </flat-data-grid>
+    <select-configuration
+        ref="selectConfiguration">
+    </select-configuration>
+
+    <ecosystem-card
+        ref="card"
+        @saved="saved($event)">
+    </ecosystem-card>
+
+    <ecosystem-select-module
+        ref="selectmodule"
+        @saved="savedModules()">
+    </ecosystem-select-module>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { notFilterable: true }),
+                        this.addColumn(`Services`, `countTypes`, { notFilterable: true }),
+                        this.addColumn(`Deployments`, `countDeployments`, { notFilterable: true }),
+                        this.addColumn(`Environments`, `countEnvironments`, { notFilterable: true }),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Add Services`,
+                            id: `selectModules`,
+                            slot: `selectmodulesoption`,
+                        },
+
+                        {
+                            title: `Edit Configuration`,
+                            id: `selectConfiguration`,
+                            slot: `selectconfigurationoption`,
+                        },
+                        {
+                            title: `Edit Ecosystem`,
+                            id: `editEcosystem`,
+                            slot: `editecosystemoption`,
+                        },
+
+     
+                    ],
+                    addButtonText: `Add Ecosystem`,
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    expandable: true,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    hideSearchBox: true,
+                    addButtonVisibilityHandler: this.isViewOnlyHandler,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                moduleNames: getLotusModules(),
+                selectedTab: `services`
+            }
+        },
+        methods: {
+            editEcosystem({ item }) {
+                this.$refs.card.openModal(item.id);
+            },
+            savedModules() {
+                this.gridCompleted();
+            },
+            selectModules({ item }) {
+                this.$refs.selectmodule.editObjectConfiguration(item.id);
+            },
+            selectConfiguration({ item }) {
+                this.$refs.selectConfiguration.editObjectConfiguration(item.id);
+            },
+            async gridCompleted() {
+                const { data: ecosystems } = await axios.get(`/api/ecosystems/grid`);
+                const { data: moduleTypes } = await axios.get(`/api/modules/moduletypes`);
+                for (const item of ecosystems) {
+                    const { data: moduleCounts } = await axios.get(`api/modules/modulecount?ecosystemId=${item.id}`);
+                    const { data: environmentCount } = await axios.get(`api/modules/environmentecosystemcount?ecosystemId=${item.id}`);
+
+                    item.countDeployments = moduleCounts.length ? moduleCounts.reduce((accumulator, currentValue) => accumulator + currentValue.count, 0) : 0;
+                    item.countEnvironments = environmentCount;
+                }
+
+                for(const moduleType of moduleTypes) moduleType.ecosystems = JSON.parse(moduleType.ecosystems);
+
+                for (const ecosystem of ecosystems) {
+                    ecosystem.countTypes = moduleTypes.filter(a => a.ecosystems.find(b => b === ecosystem.id)).length;
+                }
+
+                this.gridData = ecosystems;
+                this.$refs.grid.reloadData();
+            },
+            getModuleTitle(id) {
+                return this.moduleNames.find(a => a.id === id).title;
+            },
+            add() {
+                this.$refs.card.openModal();
+            },
+            saved($event) {
+                this.$refs.grid.addItem($event.savedItem);
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            ModuleTypes: localStaticComponent(`/components/infrastracture/ModuleTypes.html`),
+            SelectConfiguration: localStaticComponent(`/components/infrastracture/SelectConfiguration.html`),
+            EcosystemCard: localStaticComponent(`/components/infrastracture/EcosystemCard.html`),
+            EcosystemSelectModule: localStaticComponent(`/components/infrastracture/EcosystemSelectModule.html`),
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`)
+        }
+    }
+}
+</script>

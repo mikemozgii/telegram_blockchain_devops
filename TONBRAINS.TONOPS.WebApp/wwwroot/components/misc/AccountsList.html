@@ -1,0 +1,72 @@
+<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @selected="select($event)">
+    </flat-data-grid>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+
+    return {
+        props: {
+            value: {
+                type: [Object, Array],
+                default: _ => null
+            }
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`)
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid:`/api/account/grid`,
+                    },
+                    gridItemActions: [],
+                    addButtonText: `Add Account`,
+                    defaultSortField:`name`,
+                    expandable: false,
+                    hidePageSize: true,
+                    hideToolbar: true,
+                    hideHeaders: true,
+                    defaultPageSize: 5,
+                    defaultSortFieldDescending: false,
+                    additionalOptions: {
+                        minimumLimitAllItems: 500,
+                        allDataAtOnce: true
+                    },
+                    actions: this,
+                    rowHandler: this.rowHandler
+                },
+                selected: null
+            }
+        },
+        methods: {
+            rowHandler(property, item) {
+                switch (property) {
+                    case 'background-color':
+                        return this.selected === item ? '#2F71C4' : '';
+                    case 'color':
+                        return this.selected === item ? 'white' : '#42424A';
+                    default: return ``;
+                }
+            },
+            select($event) {
+                this.selected = $event;
+                this.$emit(`input`, this.selected);
+                this.$emit(`selected`, this.selected);
+            }
+        },
+        mixins: [gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`)
+        }
+    }
+}
+</script>

@@ -1,0 +1,46 @@
+<vue-template>
+    <slot v-if="!firstPlaceSlot"></slot>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        'visible': {
+            type: String,
+            default: () => 'collapsed'
+        },
+        hideSpinner: {
+            type: Boolean,
+            default: () => false
+        },
+        firstPlaceSlot: {
+            type: Boolean,
+            default: _ => false
+        },
+        minHeight: {
+            type: String,
+            default: () => "0px"
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    position: relative;
+}
+.busy-fade-component-id {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    opacity: .7;
+    background-color: black;
+}
+</style>

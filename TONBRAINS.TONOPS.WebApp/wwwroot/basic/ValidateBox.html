@@ -1,0 +1,37 @@
+<vue-template>
+    <span>{{ title }}</span>
+</vue-template>
+
+<script>
+module.exports = {
+    props: ['title']
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    margin-top: 10px;
+    margin-bottom: 0;
+    padding: 15px 20px;
+    position: relative;
+    background-color: #eb6357;
+    color: #FFF;
+    line-height: 20px;
+    box-sizing: border-box;
+    
+}
+.container-component-id:after {
+    display: inline-block;
+    position: absolute;
+    top: -6px;
+    left: 20px;
+    width: 0;
+    height: 0;
+    content: '';
+    z-index: 2;
+    border-bottom: 7px solid #eb6357;
+    transform: scale(.9999);
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+}
+</style>

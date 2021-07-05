@@ -1,0 +1,226 @@
+<vue-template>
+    <form-modal :title="modalTitle"
+                ref="formModal"
+                min-width="500px">
+
+        <div slot="content" class="form-container-component-id local-size" slot-scope="{ validation }">
+            <form-fields-layout :fields="fields">
+
+                <text-block-required slot="group" :not-valid="groupValidate">Group</text-block-required>
+                <select-box slot="groupinput"
+                            v-if="model"
+                            v-model="model.groupId"
+                            :options="dropdowns.groups"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="groupValidate = $event">
+                </select-box>
+
+                <text-block-required slot="deployment" :not-valid="deploymentValidate">Deployment type</text-block-required>
+                <select-box slot="deploymentinput"
+                            v-if="model"
+                            v-model="model.deploymentType"
+                            :options="dropdowns.deplymentTypes"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="deploymentValidate = $event">
+                </select-box>
+
+                <text-block-required slot="os" :not-valid="osValidate">Operating system</text-block-required>
+                <select-box slot="osinput"
+                            v-model="model.os"
+                            v-if="model"
+                            :options="dropdowns.operatingSystems"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="osValidate = $event">
+                </select-box>
+
+                <text-block slot="host">Host</text-block>
+                <select-box slot="hostinput"
+                            v-if="model"
+                            v-model="model.hostId"
+                            :options="dropdowns.hosts">
+                </select-box>
+
+                <text-block-required slot="type" :not-valid="typeValidate">Node Type</text-block-required>
+                <select-box slot="typeinput"
+                            v-if="model"
+                            v-model="model.type"
+                            :options="dropdowns.nodeTypes"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="typeValidate = $event">
+                </select-box>
+
+                <text-block-required slot="name" :not-valid="nameValidate">Name</text-block-required>
+                <text-box clear-label="Clear"
+                          v-if="model"
+                          slot="nameinput"
+                          v-model="model.name"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block slot="description">Description</text-block>
+                <multi-line clear-label="Clear"
+                            v-if="model"
+                            slot="descriptioninput"
+                            v-model="model.description">
+                </multi-line>
+
+                <text-block-required slot="ip" :not-valid="ipValidate">Host</text-block-required>
+                <text-box clear-label="Clear"
+                          slot="ipinput"
+                          v-model="model.ip"
+                          v-if="model"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="ipValidate = $event">
+                </text-box>
+
+                <text-block-required slot="sship" :not-valid="ipSshValidate">SSH IP</text-block-required>
+                <text-box clear-label="Clear"
+                          slot="sshipinput"
+                          v-model="model.sshIp"
+                          v-if="model"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="ipSshValidate = $event">
+                </text-box>
+
+                <text-block-required slot="sshport" :not-valid="portSshValidate">SSH Port</text-block-required>
+                <digit-text-box
+                    slot="sshportinput"
+                    v-model="model.sshPort"
+                    v-if="model"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :maximum="65545"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="portSshValidate = $event">
+                </digit-text-box>
+
+            </form-fields-layout>
+
+        </div>
+
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons :save="save"
+                                   :cancel="cancel"
+                                   :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-template>
+
+<script>
+    module.exports = async function () {
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+
+        return {
+            props: {
+                dropdowns: Object
+            },
+            data() {
+                return {
+                    modalTitle: '',
+                    model: null,
+                    aftefGroup: '',
+                    fields: [
+                        { labelSlot: "group", inputSlot: "groupinput" },
+                        { labelSlot: "deployment", inputSlot: "deploymentinput" },
+                        { labelSlot: "os", inputSlot: "osinput" },
+                        { labelSlot: "host", inputSlot: "hostinput", showHandler: this.showHostSelectBox },
+                        { labelSlot: "type", inputSlot: "typeinput" },
+                        { labelSlot: "name", inputSlot: "nameinput" },
+                        { labelSlot: "description", inputSlot: "descriptioninput", alignToTop: true },
+                        { labelSlot: "ip", inputSlot: "ipinput" },
+                        { labelSlot: "sship", inputSlot: "sshipinput" },
+                        { labelSlot: "sshport", inputSlot: "sshportinput" },
+                    ],
+                    deploymentTypeValidate: false,
+                    osValidate: false,
+                    typeValidate: false,
+                    nameValidate: false,
+                    ipValidate: false,
+                    portValidate: false,
+                    groupValidate: false,
+                    deploymentValidate: false,
+                    ipSshValidate: false,
+                    portSshValidate: false
+                }
+            },
+            async created() {
+                this.register('openmodalnode', this.open);
+            },
+            beforeDestroy() {
+                this.unregister('openmodalnode', this.open);
+            },
+            methods: {
+                showHostSelectBox() {
+                    return this.model.hostId;
+                },
+                resetValidation() {
+                    this.typeValidate = false;
+                    this.osValidate = false;
+                    this.nameValidate = false;
+                    this.ipValidate = false;
+                    this.groupValidate = false;
+                    this.deploymentValidate = false;
+                    this.ipSshValidate = false;
+                    this.portSshValidate = false;
+                },
+                cancel() {
+                    this.$refs.formModal.closeModal();
+                    this.model = null;
+                },
+                async open(item) {
+                    if (!item.id)
+                        this.modalTitle = 'Add node';
+                    else {
+                        this.modalTitle = `Edit node ${item.name}`;
+                        this.aftefGroup = item.groupId
+                    }
+                    this.model = item;
+                    this.resetValidation();
+
+                    this.$refs.formModal.openModal();
+                },
+                async save() {
+                    var item = this.model
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: savedItem } = await axios.post(`/api/nodes/${item.id ? `edit` : `add`}`, item);
+                    this.fireEvent(`globalBusy`, false);
+
+                    this.$refs.formModal.closeModal();
+                    if (this.aftefGroup !== savedItem.groupId)
+                        this.fireEvent(`UpdateGrid-${savedItem.groupId}`, { item: savedItem, insert: !item.id, group: this.aftefGroup});
+                    else
+                        this.fireEvent(`UpdateGrid-${savedItem.groupId}`, { item: savedItem, insert: !item.id});
+
+                }
+            },
+            mixins: [translateMixin, globalObserver],
+            components: {
+                ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+                TextBox: staticBasicComponent(`TextBox`),
+                FormModal: staticBasicComponent(`FormModal`),
+                DefaultButton: staticBasicComponent(`ActionButton`),
+                FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+                SelectBox: staticBasicComponent(`SelectBox`),
+                FormModal: staticBasicComponent(`FormModal`),
+                TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+                MultiSelectBox: staticBasicComponent(`MultiSelectBox`),
+                ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+                MultiLine: staticBasicComponent(`MultiLineTextBox`),
+                TextBlock: staticBasicComponent(`TextBlock`),
+                DigitTextBox: staticBasicComponent(`DigitTextBox`)
+
+            }
+        }
+    }
+</script>

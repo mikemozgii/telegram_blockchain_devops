@@ -1,0 +1,287 @@
+﻿<vue-template>
+    <content-modal :hide-header="true"
+                   :lock-close="false"
+                   ref="modal"
+                   :without-paddings="true"
+                   @closed="clearData()">
+
+        <row-layout slot="content">
+           
+            <font-awesome v-bind:style="{'margin-left':getBackButtonLeft(), 'margin-right':getBackButtonRight()}"
+                          :icon="'fa-backward'"
+                          v-if="showBackButton()"
+                          :size="`nav-icon-component-id`"
+                          @click.native="backClick"
+                          :icon4="'fa-backward'">
+
+            </font-awesome>
+           
+            <column-layout class="image-container-component-id" :align-items="'center'">
+
+                <div v-for="file in files" style="width: 100%;">
+                    <div style="display: flex;justify-content: center;max-height: 94vh">
+                        <img :src="getImagePath(file)"
+                             v-if="isImage(file)"
+                             style="min-height: 500px;"
+                             @load="imageLoaded"
+                             v-show="file.fileId === currentFile.fileId"
+                             :alt="file.name" />
+                    </div>
+
+                    <pdf-viewer style="min-height: 94vh;"
+                                ref="pdfViewer"
+                                @file-loaded="pdfLoaded"
+                                v-if="isPdf(file) && file.fileId === currentFile.fileId"
+                                :pdf-url="getPdfUrl(file)"
+                                v-model="file.fileId">
+                    </pdf-viewer>
+
+                </div>
+
+            </column-layout>
+
+            <column-layout class="round-buttons-group-component-id">
+                <tool-tip-box left class="round-button-component-id" width-tooltip="100px">
+                    <action-button rounded="true" :action="close" :styles="defaultStyle">
+                        <font-awesome :icon="'fa-times'" :icon4="'fa-times'" size="button-icon-component-id"></font-awesome>
+                    </action-button>
+                    <span slot="tooltip">
+                        {{closeButtonText}}
+                    </span>
+                </tool-tip-box>
+
+                <tool-tip-box left class="round-button-component-id" width-tooltip="100px">
+                    <action-button rounded="true" :action="download" class="download-button-component-id" :styles="defaultStyle">
+                        <font-awesome :icon="`fa-download`" :icon4="`fa-download-alt`" size="button-icon-component-id"></font-awesome>
+                    </action-button>
+                    <span slot="tooltip">
+                        {{downloadButtonText}}
+                    </span>
+                </tool-tip-box>
+            </column-layout>
+            
+            <div v-bind:style="{'margin-left':getForwardButtonLeft(), 'margin-right':getForwardButtonRight()}">
+                <font-awesome 
+                    :icon="'fa-forward'"
+                    v-if="showNextButton()"
+                    :size="`nav-icon-component-id`"
+                    @click.native="nextClick"
+                    :icon4="'fa-forward'">
+                </font-awesome>
+            </div>
+        </row-layout>
+
+    </content-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const fileInfoHelperMixin = await require(`globalMixins/fileInfoHelper`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            closeButtonText: {
+                type: String,
+                default: () => `Close`
+            },
+            downloadButtonText: {
+                type: String,
+                default: () => `Download`
+            },
+
+        },
+        data: () => {
+            return {
+                path: `/img/empty_picture.jpg`,
+                title:``,
+                files: [],
+                currentFile: null,
+                currentFileIndex: 0,
+                fileBlockLeftMargin: 0,
+                firstLoaded: false,
+                defaultStyle: componentStyles.buttons.default
+            }
+        },
+        methods: {
+
+            showBackButton() {
+                return this.currentFileIndex > 0;
+            },
+
+            showNextButton() {
+                return this.currentFileIndex < this.files.length-1;
+            },
+
+            backClick() {
+                if (this.currentFileIndex === 0) {
+                    return;
+                }
+
+                this.currentFileIndex = this.currentFileIndex - 1;
+                this.currentFile = this.files[this.currentFileIndex];
+
+                if (this.isPdf(this.currentFile)) {
+                    this.fireEvent(`globalBusy`, true);
+                }
+            },
+
+            nextClick() {
+                if (this.currentFileIndex === this.files.length) {
+                    return;
+                }
+
+                this.currentFileIndex = this.currentFileIndex + 1;
+                this.currentFile = this.files[this.currentFileIndex];
+                if (this.isPdf(this.currentFile)) {
+                    this.fireEvent(`globalBusy`, true);
+                }
+            },
+
+            getBackButtonLeft() {
+                return `-150px`;
+            },
+
+            getBackButtonRight() {
+                return `150px`;
+            },
+
+            getForwardButtonLeft() {
+                return `150px`;
+            },
+
+            getForwardButtonRight() {
+                return `-150px`;
+            },
+
+            isImage(file) {
+                const isImage = this.getDialogType(file.extension) === `image`;
+                return isImage;
+            },
+
+            isPdf(file) {
+                const isWord= this.isWord(file);
+                const isPdf= this.getDialogType(file.extension) === `pdf`;
+                return isWord || isPdf;
+            },
+
+            isWord(file) {
+                const isWord= this.getDialogType(file.extension) === `word`;
+                return isWord;
+            },
+
+            getImagePath(file) {
+                const path = `/api/v3/Images/File/?fileid=` + file.fileId;
+                return path;
+            },
+
+            getPdfUrl(file) {
+                if (!file) return null;
+
+                const isWord= this.isWord(file);
+
+                if (isWord) {
+                    return `/api/v3/Images/DocFileAsPdf?fileId=${file.fileId}`; 
+                }
+
+                return null;
+            },
+
+            show(files) {
+
+                this.files = files.filter(f => this.isPdf(f) || this.isImage(f));
+                this.currentFileIndex = 0;
+                this.currentFile = this.files[0];
+                this.firstLoaded = false;
+                this.$refs.modal.openModal();
+                this.fireEvent(`globalBusy`, true);
+            },
+
+            pdfLoaded() {
+                setTimeout(() => {
+                    this.fireEvent(`globalBusy`, false);
+                    this.firstLoaded = true;
+                }, 500);
+            },
+
+            imageLoaded() {
+                this.fireEvent(`globalBusy`, false);
+                this.firstLoaded = true;
+            },
+
+            download() {
+                if (!this.currentFile) return;
+                this.downloadFile(this.currentFile.fileId);
+            },
+
+            close() {
+                this.clearData();
+                this.$refs.modal.closeModal();
+            },
+            clearData() {
+                this.firstLoaded = false;
+                this.currentFile = null;
+                this.files = [];
+                this.title = ``;
+                this.path = `/img/empty_picture.jpg`;
+                this.currentFileIndex = 0;
+            }
+        },
+        mixins: [globalObserver, fileInfoHelperMixin],
+        components: {
+            ContentModal: staticBasicComponent(`ContentModal`),
+            ActionButton: staticBasicComponent(`ActionButton`),
+            IconBox: staticBasicComponent(`IconBox`),
+            FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+            ToolTipBox: staticBasicComponent(`ToolTipBox`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            PdfViewer: staticBasicComponent(`PdfViewer`)
+        }
+    }
+
+}
+</script>
+
+<style scoped>
+.round-buttons-group-component-id {
+    z-index: 10000;
+    margin: 0 -55px 0 9px;
+}
+
+.round-button-component-id:last-child {
+    margin-top: 6px;
+}
+
+.button-icon-component-id {
+    font-size: 16px;
+}
+
+.download-button-component-id button {
+    color: #fff;
+    background: #17a2b8;
+}
+
+.image-container-component-id {
+    width: 100%;
+}
+
+.image-container-component-id img {
+    max-height: inherit;
+    max-width: 100%;
+}
+
+.nav-icon-component-id {
+    font-size: 50px;
+    color: #000;
+    cursor: pointer;
+    opacity: .6;
+    width: 0;
+}
+
+.nav-icon-component-id:hover {
+    opacity: 1;
+    font-size: 52px;
+}
+</style>

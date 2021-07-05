@@ -1,0 +1,123 @@
+<vue-template>
+    <tabs-header
+        :items="[{ id: `nodes`, title: `Nodes`}]"
+        v-model="selectedTab">
+    </tabs-header>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <span slot="nameslot" slot-scope="{ item }">
+            {{ item.name }}
+        </span>
+        <div
+            slot="innerContent"
+            slot-scope="{ item, expand }">
+            <nginx-items
+                v-if="item && expand"
+                :node-id="item.id"
+                @gridchanged="gridCompleted()"
+            />
+        </div>
+        <menu-option
+            slot="editmenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="list">
+        </menu-option>
+        <menu-option
+            slot="addmoduleoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="add">
+        </menu-option>
+    </flat-data-grid>
+    <select-configuration
+        ref="selectConfiguration">
+    </select-configuration>
+    <nginx-card
+        ref="card"
+        @saved="gridCompleted()">
+    </nginx-card>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { notFilterable: true, slot: `nameslot` }),
+                        this.addColumn(`Ip`, `ip`, { notFilterable: true }),
+                        this.addColumn(`Group`, `groupName`, { notFilterable: true })
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Add Configuration Nginx`,
+                            id: `addNginx`,
+                            slot: `addmoduleoption`,
+                        }
+                    ],
+                    addButtonText: ``,
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    expandable: true,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    hideToolbar: true,
+                    addButtonVisibilityHandler: this.isViewOnlyHandler,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                moduleNames: [],
+                moduleName: null,
+                selectedTab: `nodes`
+            }
+        },
+        methods: {
+            addNginx({ item }) {
+                this.$refs.card.add({ nodeId: item.id });
+            },
+            async gridCompleted() {
+                const { data: moduleTypes } = await axios.get(`/api/modules/moduletypes`);
+                this.moduleNames = moduleTypes.map(a => { return { id: a.id, title: a.name } });
+                const { data: nodes } = await axios.get(`/api/nodes/nginxnodes`);
+                this.gridData = nodes;
+                this.$refs.grid.reloadData();
+            },
+            getModuleTitle(id) {
+                return this.moduleNames.find(a => a.id === id).title;
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            DefaultButton: staticBasicComponent(`ActionButton`, componentStyles.buttons.default),
+            NodeModules: localStaticComponent(`/components/infrastracture/Modules.html`),
+            SelectConfiguration: localStaticComponent(`/components/infrastracture/SelectConfiguration.html`),
+            ModuleCard: localStaticComponent(`/components/infrastracture/ModuleCard.html`),
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`),
+            NginxCard: localStaticComponent(`/components/configuration/ConfigurationNginxCard.html`),
+            NginxItems: localStaticComponent(`/components/configuration/ConfigurationNginx.html`)
+        }
+    }
+}
+</script>

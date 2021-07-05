@@ -1,0 +1,239 @@
+<vue-template>
+    <div
+        v-if="!disable"
+        @mouseenter="mouseEntersInput($event)"
+        @mouseleave="mouseLeavesInput($event)">
+        <input
+            v-if="!disable"
+            @keypress="inputKeyDown($event)"
+            type="number"
+            :placeholder="watermark"
+            :value="content"
+            @input="changedValue($event)"
+            :min="minimum"
+            :max="maximum"
+            ref="input"
+            :class="{ 'not-valid-input': notValid || validate && validateErrors && validateErrors.length }"
+            :step="step"
+            :disabled="disable"
+            v-on:blur="onBlur" />
+        <clear-button-pop-up
+            ref="clearButtonPopUp"
+            v-if="value && !disable && showClearButton"
+            :action="clear">
+        </clear-button-pop-up>
+    </div>
+    
+    <div 
+         class="disable-area-component-id"
+         v-if="disable">
+        <span v-if="typeof content !== 'undefined'">{{ content }}</span>
+    </div>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            watermark: {
+                type: String,
+                default: _ => ``
+            },
+            value: {
+                type: Number,
+                default: _ => null
+            },
+            minimum: {
+                type: Number,
+                default: _ => -99999999999
+            },
+            maximum: {
+                type: Number,
+                default: _ => 999999999999
+            },
+            readonly: {
+                type: Boolean,
+                default: _ => false
+            },
+            step: {
+                type: Number,
+                default: _ => 1
+            },
+            onlyInteger: {
+                type: Boolean,
+                default: _ => false
+            },
+            disable: {
+                type: Boolean,
+                default: _ => false
+            },
+            onlyPositive: {
+                type: Boolean,
+                default: _ => false
+            },
+            showClearButton: {
+                type: Boolean,
+                default: () => true
+            },
+            clearLabel: {
+                type: String,
+                default: () => `Clear`
+            },
+            notValid: {
+                type: Boolean,
+                default: () => false
+            },
+        },
+        data: () => {
+            return {
+                content: this.value,
+                defaultValidateRules: {}
+            }
+        },
+        created() {
+
+            this.defaultValidateRules = {
+                'required': this.required,
+                'minValue': this.minValue
+            };
+
+            this.content = this.value;
+            this.validateValue();
+        },
+        methods: {
+            clear() {
+                if (this.disabled)
+                    return;
+
+                this.content = ``;
+                this.validateValue();
+
+                const parsingFunction = this.onlyInteger ? parseInt : parseFloat;
+                this.$emit('input', parsingFunction(this.content));
+                this.$emit('changed', parsingFunction(this.content));
+            },
+
+            mouseEntersInput(e) {
+
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+                
+                let rect = e.target.getBoundingClientRect();
+                let position = {
+                    left: rect.right - 47,
+                    top: rect.bottom - 25
+                };
+                this.$refs.clearButtonPopUp.show(position);
+            },
+
+            mouseLeavesInput(e) {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                this.$refs.clearButtonPopUp.hide();
+            },
+            onBlur() {
+                this.$emit('blur');
+            },
+            required(rule) {
+                const isNotValid = !this.content && this.content !== 0 && this.content !== "0";
+                if (isNotValid) this.validateMessage(rule, 'This field is required');
+                return !isNotValid;
+            },
+            minValue(rule) {
+                const value = parseInt(this.content);
+                const valid = value >= rule.parameter;
+                if (!valid) this.validateMessage(rule, `Field value can not be less then ${rule.parameter}`);
+                return valid;
+            },
+            inputKeyDown(evt) {
+                evt = (evt) ? evt : window.event;
+                var charCode = (evt.which) ? evt.which : evt.keyCode;
+
+                if(this.onlyPositive && charCode === 45) {
+                    evt.preventDefault();
+                    return false;
+                }
+                if (!this.onlyInteger) return true;
+
+                if (charCode === 46 || charCode === 44) {
+                    evt.preventDefault();
+                    return false;
+                }
+
+                return true;
+            },
+            limitedContrainsts() {
+                if (this.maximum && this.content && this.content > this.maximum) this.content = this.maximum;
+                if (this.minimum && this.content && this.content < this.minimum) this.content = this.minimum;
+            },
+            changedValue($event) {
+                this.content = $event.target.value;
+                this.limitedContrainsts();
+                this.validateValue();
+     
+                const parsingFunction = this.onlyInteger ? parseInt : parseFloat;
+
+                let newValue = parsingFunction(this.content);
+                if (typeof newValue === 'undefined') {
+                    newValue = null;
+                }
+
+                this.$emit('input', newValue);
+                this.$emit('changed', newValue);
+            }
+        },
+        watch: {
+            value(newValue) {
+                this.content = newValue;
+                this.limitedContrainsts();
+                this.validateValue();
+            }
+        },
+        mixins: [validateMixin],
+        components: {
+            ClearButtonPopUp: staticBasicComponent(`ClearButtonPopUp`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id input {
+    height: 32px;
+    box-shadow: none;
+    padding: 5px 6px;
+    font-size: .8rem;
+    transition: none;
+    display: block;
+    width: 100%;
+    line-height: 1.428571429;
+    color: #404040;
+    background-color: #fff;
+    border: 1px solid #e7eaf3;
+    border-radius: 2px;
+    background-clip: padding-box;
+    overflow: visible;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.container-component-id input:focus, input:active {
+    border-color: #4285f4;
+    background-image: none;
+    outline: 0;
+}
+.container-component-id input.not-valid-input {
+    border-color: #ee1c29;
+}
+.disable-area-component-id {
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #42424A !important;
+}
+
+</style>

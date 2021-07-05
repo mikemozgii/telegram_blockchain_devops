@@ -1,0 +1,884 @@
+<vue-template>
+    <busy-container :visible="isBusy ? 'visible' : 'disable'" :hide-spinner="true">
+        <popup
+            v-show="!hidePopup && pageItems.length"
+            ref="popupmenu"
+            class="grid-buttons-container-component-id"
+		    @mouseenter.native="mouseEnterPopup"
+            @mouseleave.native="mouseLeavesPopUp($event)"
+            @click.native="mouseClicksPopUp($event)">
+                <slot
+                    name="popup-buttons"
+                    :item="mousePointerOver"
+                    :background="popupBackgroundColor">
+                </slot>
+        </popup>
+        <div class="grid-container-component-id">
+            <div class="tables-container-component-id">
+                <table class="tables-columns-component-id table-cells-component-id">
+                    <colgroup>
+                        <col v-if="expandable" style="width: 28px;">
+                        <col v-for="column in visibleColumns" :style="{'width': column.actualWidth ? column.actualWidth + (column.columnPoints || columnPoints) : null }">
+                    </colgroup>
+                    <thead>
+                        <tr v-if="(countItems > 0 || showHeadersEmptyGrid) && !hideHeaders" class="table-header-container-component-id">
+                            <th v-if="expandable" class="table-column-component-id">
+                                &nbsp;
+                            </th>
+                            <th v-for="column in visibleColumns" @click="sortColumn(column)" class="table-column-component-id" v-bind:class="{'table-column-sortable-component-id': (!column.notSortable)}">
+                                <div class="table-header-cell-component-id">
+                                    <slot v-if="column.headerSlot" :name="column.headerSlot" :column="column"></slot>
+                                    <span v-else>{{ column.title }}</span>
+                                    <span class="separator-component-id"></span>
+                                    <div class="sorting-icons-component-id" v-if="!column.notSortable">
+                                        <span style="display:block" :class="{'active': columnSorted(column.field, false) }">&#9650;</span>
+                                        <span style="display:block" :class="{'active': columnSorted(column.field, true) }">&#9660;</span>
+                                    </div>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody :class="{'expandable-rows-component-id': expandable, 'not-expandable-rows-component-id': !expandable}">
+                        <tr v-for="(item, index) in pageItems" v-if="!item.hidden" :key="index" @click.prevent="selectItem(item, $event)" 
+                        @mouseenter="mouseEnter(item, $event)"
+                        @mouseleave="mouseLeaves($event)"
+                        :style="{ 'background-color': getBackgroundColor(item), 'color': getColor(item), 'cursor': getCursor(item), 'font-weight': getFontWeight(item), 'height': getHeight(item) }" 
+                        v-bind:class="{'row-under-cursor-component-id': isCursorUnderRow(item), 'empty-row-component-id': item.isEmpty}"
+                        >
+                            <td class="table-cell-component-id" v-if="item.gridGroupRow" :colspan="visibleColumns.length + 1">
+                                <slot name="groupRow" :group-id="item.gridGroupId" :group-key="item.gridGroupKey"></slot>
+                            </td>
+                            <td class="table-cell-component-id" v-if="expandable && !item.expander && !item.gridGroupRow" @click="expandItem(item, index)">
+                                <font-awesome-icon
+                                    v-show="!item.hideExpandIcon"
+                                    :icon="isExpanded(index) ? 'fa-caret-down' : 'fa-caret-right'" 
+                                    class="expand-component-id">
+                                </font-awesome-icon>
+                            </td>
+                            <td v-if="!item.expander  && !item.gridGroupRow" v-for="column in visibleColumns" :key="column.field" class="table-cell-component-id td-component-id">
+                                <span v-if="!column.slot">{{ getColumnValue(item, column) }}</span>
+                                <div class="overflow-wrapper-component-id">
+                                  <slot v-if="column.slot" :name="column.slot" :column="column" :item="item"></slot>
+                                </div>
+                            </td>
+                            <td v-if="expandable  && !item.gridGroupRow" v-show="item.expand" :colspan="visibleColumns.length + 1" class="table-cell-component-id expandable-row-wrap">
+                                <slot name="expandRow" :item="item.item" :expand="item.expand"></slot>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <!-- restore this condition if need show empty block countItems === 0 && !isBusy -->
+                <div class="table-empty-field-component-id" v-if="(pageItems == null || pageItems.length === 0) && !isBusy && !notShowEmpty">
+                    <slot name="tableEmpty">
+                        <div class="table-empty-content-component-id">No data to display</div>
+                    </slot>
+                </div>
+                <slot v-if="countOnPage != countItems"
+                      name="paging"
+                      :page-size="pageSize"
+                      :count-items="countItems"
+                      :count-on-page="countOnPage"
+                      :current-page="currentPage">
+                </slot>
+            </div>
+        </div>
+    </busy-container>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+
+    return {
+        props: [
+            `columns`,
+            `source`,
+            `filters`,
+            `metadata`,
+            `sourceStrategy`,
+            `expandable`,
+            `defaultSortField`,
+            `defaultSortFieldDescending`,
+            `completed`,
+            `hideHeaders`,
+            `rowHandler`,
+            `preprocessDataHandler`,
+            `settings`,
+            `defaultPageSize`,
+            `notShowEmpty`,
+            `defaultGroupField`,
+            `defaultGroupFieldDescending`,
+            `sortingProccessed`,
+            `showHeadersEmptyGrid`,
+            `hidePopup`
+        ],
+        data () {
+            return {
+                pageItems: [],
+                pageSize: this.defaultPageSize ? this.defaultPageSize : 5,
+                currentPage: 0,
+                countItems: 0,
+                selectedItem: null,
+                columnPoints: `%`,
+                footer: null,
+                cancellationTokenSource: null,
+                isBusy: false,
+                mousePointerOver: null,
+                mousePointerOverTr: null,
+                sortingColumns: [],
+                flexClassChecked: false,
+                hasFlexClass: false,
+                groupedField: null,
+				popupBackgroundColor: ``,
+				canHide: false,
+                windowResizeIntervaleId: null
+            };
+		},
+		created () {
+			window.addEventListener('scroll', this.handleScroll);
+		},
+        async mounted () {
+            if (this.columns && this.currentPage === 0 && this.source){
+                if (this.defaultSortField) {
+                    this.sortingColumns.push({
+                        field: this.defaultSortField,
+                        descending: this.defaultSortFieldDescending
+                    });
+                }
+                if (this.defaultGroupField) {
+                    this.groupedField = this.defaultGroupField;
+                }
+                await this.loadPage(1);
+            }
+            this.calculateColumnsWidth();
+            if (this.completed) this.completed();
+            this.windowResizeIntervaleId = setInterval(this.windowResize, 800);
+            this.$emit(`completed`);
+        },
+        beforeDestroy() {
+            if (this.windowResizeIntervaleId) clearInterval(this.windowResizeIntervaleId);
+            window.removeEventListener('scroll', this.handleScroll);
+        },
+        methods: {
+            mouseEnterPopup() {
+                this.canHide = true;
+            },
+            handleScroll() {
+                if (!this.$refs.popupmenu) return;
+                this.$refs.popupmenu.hide();
+            },
+            changedPaging() {
+                this.$emit(`changepaging`, {
+                    pageSize: this.pageSize,
+                    countItems: this.countItems,
+                    countOnPage: this.countOnPage,
+                    currentPage: this.currentPage,
+                    showPaging: this.countOnPage != this.countItems
+                });
+            },
+            isCursorUnderRow(item) {
+                return this.mousePointerOver === item;
+            },
+            mouseClicksPopUp(e) {
+                 this.$refs.popupmenu.hide();
+            },
+
+            hidePopUp() {
+                this.$refs.popupmenu.hide();
+            },
+
+			mouseLeavesPopUp(e) {
+				this.canHide = false;
+                if (e.toElement == this.mousePointerOverTr) {
+                    return;
+                }
+
+                if (!this.$refs.popupmenu) return;
+                this.$refs.popupmenu.hide();
+            },
+            mouseEnter(item, e) {
+                if (!this.$refs.popupmenu)
+                    return;
+
+                if (item.expander || item.gridGroupRow) {
+                    return;
+                }
+                this.mousePointerOver = item;
+                let rect = e.target.getBoundingClientRect();
+                let position = {
+                    left: rect.right - 50,
+                    top: rect.top,
+                    right: rect.right - 50,
+                    width: 50,
+                    height: 0,
+                };
+
+                this.popupBackgroundColor = this.getBackgroundColor(item);
+
+                this.$refs.popupmenu.showBasedOnPosition(position);
+            },
+            mouseLeaves(e) {
+           
+                if (!e.relatedTarget && !e.currentTarget) return;
+                if (this.isDescendant(e.currentTarget,e.relatedTarget)) {
+                    this.mousePointerOverTr = e.currentTarget;
+                    return;
+                }
+                this.mousePointerOver = null;
+
+                if (!this.$refs.popupmenu) return;
+
+                this.$refs.popupmenu.hide();
+            },
+            isDescendant(from, to) {
+                if (from.contains(to))
+                    return true;
+
+                if (!this.$refs.popupmenu)
+                    return false;
+
+                let popUpContainer = this.$refs.popupmenu.$el;
+                if (popUpContainer.contains(to))
+                    return true;
+
+                return false;
+            },
+
+            hasClass(name, el) {
+                let parent = el.parentElement;
+                let hasClass = false;
+                if (this.flexClassChecked)
+                    return this.hasFlexClass;
+
+                do {
+                    parent = parent.parentElement;
+                    if (parent) {
+
+                        let classAttr = parent.getAttribute(`class`);
+                        if (classAttr) {
+                            hasClass = classAttr.indexOf(name) > -1;
+                        }
+                    }
+                } while (parent != null
+                && !hasClass
+                    && parent.tagName.toLowerCase() != `ng-transclude`);
+                this.flexClassChecked = true;
+                this.hasFlexClass = hasClass;
+                return hasClass;
+            },
+            getFontWeight(item) {
+                if (!this.rowHandler) return '';
+
+                return this.rowHandler(`font-weight`, item, this.mousePointerOver);
+            },
+            getCursor(item) {
+                if (!this.rowHandler) return '';
+
+                return this.rowHandler(`cursor`, item, this.mousePointerOver);
+            },
+            getColor(item) {
+                if (!this.rowHandler) return '';
+
+                return this.rowHandler(`color`, item, this.mousePointerOver);
+            },
+            getHeight(item) {
+                if (!this.rowHandler) return '';
+
+                return this.rowHandler(`height`, item, this.mousePointerOver);
+            },
+            getBackgroundColor(item) {
+                if (!this.rowHandler) return '';
+
+                return this.rowHandler(`background-color`, item, this.mousePointerOver);
+            },
+            updateItem(item, key) {
+                const itemNeedUpdate = this.pageItems.find(a => a[key] === item[key]);
+                if (!itemNeedUpdate) return;
+
+                Object.keys(item).forEach(a => {
+                    itemNeedUpdate[a] = item[a];
+                });
+            },
+            addItem(item, options) {
+                if (!this.expandable) {
+                    const items = this.pageItems;
+                    items.unshift(item);
+                    this.pageItems = items;
+                    this.countItems = this.countOnPage;
+                    this.changedPaging();
+
+                    if (this.sourceStrategy && this.sourceStrategy.addItem) this.sourceStrategy.addItem(item);
+                    return;
+                }
+
+                //close all opened expand's
+                this.pageItems.forEach(a => {
+                    if (a.expand) a.expand = false;
+                });
+                const oldItems = this.pageItems;
+                this.pageItems = [];
+
+                //WORKAROUND: Vue.js very bad process unshift changes in array because I refresh all items and rerender it once again
+                setTimeout(() => {
+                    let items;
+                    if (this.expandable){
+                        const expand = options ? options.defaultExpand : true;
+                        items = [item, { hideExpandIcon: false, expander: true, expand, item }]
+                        items = items.concat(oldItems);
+                    } else {
+                        items = [item].concat(oldItems);
+                    }
+                    this.pageItems = JSON.parse(JSON.stringify(items));
+                    this.countItems = this.countOnPage;
+                    this.changedPaging();
+
+                    if (this.sourceStrategy && this.sourceStrategy.addItem) this.sourceStrategy.addItem(item);
+                }, 100);
+            },
+            isEquivalent(a, b) {
+                const aProps = Object.keys(a);
+                const bProps = Object.keys(b);
+
+                if (aProps.length != bProps.length)  return false;
+
+                for (var i = 0; i < aProps.length; i++) {
+                    var propName = aProps[i];
+
+                    if (a[propName] !== b[propName])  return false;
+                }
+
+                return true;
+            },
+            deleteItem(item, key) {
+                let items;
+                if (key) {
+                    items = this.pageItems.filter(a => a[key] !== item[key]).filter(a => !(a.expander && ((a.item[key] === item[key]) || this.isEquivalent(a.item, item))));
+                } else {
+                    items = this.pageItems.filter(a => a !== item).filter(a => !(a.expander && ((a.item === item) || this.isEquivalent(a.item, item))));
+                }
+                this.pageItems = items;
+                this.countItems = this.countOnPage;
+                this.changedPaging();
+
+                if (this.sourceStrategy && this.sourceStrategy.deleteItem) this.sourceStrategy.deleteItem(item);
+            },
+            expandItem(item, index) {
+                if(item.hideExpandIcon) return;
+                const expandItem = this.pageItems[index + 1];
+                expandItem.expand = !expandItem.expand;
+            },
+            setExpanderItem(index, hide) {
+                const expandItem = this.pageItems[index + 1];
+                expandItem.hideExpandIcon = hide;
+            },
+            isExpanded(index) {
+                return this.pageItems[index + 1].expand;
+            },
+            windowResize() {
+                //TODO: remake without classes!!!
+                const element = this.$el.getElementsByClassName(`tables-container-component-id`);
+                if (!element) return;
+                if (!element.length) return;
+
+                const rect = this.$el.getElementsByClassName(`tables-container-component-id`)[0].getBoundingClientRect();
+                if (!rect) return;
+
+                const gridWidth = rect.width;
+                if (gridWidth === 0) return;
+
+                const calculatedColumns = this.columns.filter(a => a.minWidthVisible);
+
+                if (!calculatedColumns.length) return;
+
+                calculatedColumns.forEach(a => {
+                    a.visible = gridWidth >= parseInt(a.minWidthVisible);
+                });
+                this.calculateColumnsWidth();
+            },
+            calculateColumnsWidth() {
+                if (!this.columns || this.columns.length === 0 || this.columns.every(a => !a.width && a.visible)){
+                    const singleColumnWidth = 100 / this.columns.filter(a => a.visible).length;
+                    this.columns.forEach(a => { a.actualWidth = singleColumnWidth; });
+                    return 100;
+                }
+                this.columns.filter(a => a.width && a.visible).forEach(a => {
+                    a.actualWidth = a.width;
+                });
+            },
+            getColumnValue(item, column) {
+                if (column.formatter) return column.formatter(item, column);
+                return column.field in item ? item[column.field] : null;
+            },
+            columnSorted (field, isDescending) {
+                const sortingColumn = this.sortingColumns.find(a => a.field === field);
+                if (!sortingColumn) return false;
+
+                return sortingColumn.descending === isDescending;
+            },
+            setSortColumn(sortingColumns) {
+                this.sortingColumns = JSON.parse(JSON.stringify(sortingColumns)); // shallow copy!!!!
+            },
+            async sortColumn(column) {
+                if (column.notSortable) return;
+
+                this.$emit('before-column-sorting', this.sortingColumns);
+
+                const sortingColumn = this.sortingColumns.find(a => a.field === column.field);
+                if (sortingColumn) {
+                    if (this.sortingColumns.length > 1) {
+                        if (!sortingColumn.descending) {
+                            sortingColumn.descending = true;
+                        } else {
+                            this.sortingColumns = this.sortingColumns.filter(a => a.field !== sortingColumn.field);
+                        }
+                    } else {
+                        sortingColumn.descending = !sortingColumn.descending;
+                    }
+                } else {
+                    const sortingsColumns = this.sortingColumns;
+                    sortingsColumns.push({
+                        field: column.field,
+                        descending: false
+                    })
+                    this.sortingColumns = sortingsColumns;
+                }
+
+                await this.loadPage(1);
+
+                this.$emit('column-sorted', this.sortingColumns);
+            },
+            async reloadData () {
+                this.reset();
+                if (this.sourceStrategy && this.sourceStrategy.isNeedReloadData) {
+                    this.isBusy = true;
+                    await this.sourceStrategy.reloadData();
+                    this.isBusy = false;
+                }
+                await this.loadPage(1);
+            },
+            async reloadCurrentPage () {
+                await this.loadPage(this.currentPage);
+            },
+            reset () {
+                this.pageItems = [];
+                this.currentPage = 0;
+                this.countItems = 0;
+                this.selectItem(null);
+                this.changedPaging();
+            },
+            setGroupedField(field) {
+                this.groupedField = field;
+            },
+            fillGroups(pageItems) {
+                if (!this.groupedField) return pageItems;
+
+                const groupedPageItems = [];
+                let lastGroupValue = null;
+                let iterator = 0;
+                for (const item of pageItems) {
+                    if (item.expander) {
+                        groupedPageItems.push(item);
+                        continue;
+                    }
+
+                    if (lastGroupValue !== item[this.groupedField]) {
+                        lastGroupValue = item[this.groupedField];
+                        groupedPageItems.push({
+                            gridGroupRow: true,
+                            gridGroupKey: lastGroupValue,
+                            gridGroupId: ++iterator
+                        });
+                    }
+
+                    groupedPageItems.push(item);
+                }
+                return groupedPageItems;
+            },
+            createPageItems(pageItems) {
+                if (!pageItems) return [];
+                if (this.preprocessDataHandler) {
+                    this.preprocessDataHandler(pageItems);
+                }
+                if (!this.expandable) return this.fillGroups(pageItems);
+
+                const expandablePageItems = [];
+                pageItems.forEach(item => {
+                    expandablePageItems.push(item, { hideExpandIcon: false, expander: true, expand: false, item });
+                });
+                return this.fillGroups(expandablePageItems);
+            },
+            capitalizeFirstLetter(string) {
+                return string.charAt(0).toUpperCase() + string.slice(1);
+            },
+            async getGridPage(pageData) {
+                if (this.cancellationTokenSource) this.cancellationTokenSource.cancel();
+                try {
+                    this.cancellationTokenSource = axios.CancelToken.source();
+                    const {data: result} = await axios.post(
+                        this.source,
+                        pageData,
+                        {
+                            cancelToken: this.cancellationTokenSource.token
+                        }
+                    );
+                    return result;
+                } catch (e) {
+                    if (axios.isCancel(e)) return; //cancelled requests not processed
+                }
+            },
+            async checkMinimumLimit(result, pageData, action) {
+                if (!this.settings || !this.settings.minimumLimitAllItems) return result;
+
+                if (result.count <= this.settings.minimumLimitAllItems) {
+                    pageData.pageSize = result.count;
+                    if (this.settings.minimalState) this.settings.minimalState(true);
+
+                    return await action(pageData);
+                }
+                return result;
+            },
+
+            clearTextFilter() {
+                this.filters.filter = ``;
+            },
+
+            getTextFilter() {
+                if (!this.filters)
+                    return ``;
+                return this.filters.filter;
+            },
+
+            async loadPage (number) {
+                if (!this.source) return;
+                const pageData = {
+                    page: number,
+                    pageSize: this.settings && this.settings.minimumLimitAllItems ? this.settings.minimumLimitAllItems : this.pageSize,
+                    filter: this.filters ? this.filters.filter : ``,
+                    sortingColumns: this.sortingColumns.map(a => {
+                        return {
+                            field: this.capitalizeFirstLetter(a.field),
+                            descending: a.descending
+                        }
+                    }),
+                    filters: this.filters ? this.filters.conditions : [],
+                    metadata: this.metadata
+                };
+
+                if (this.sortingProccessed) {
+                    pageData.sortingColumns = this.sortingProccessed(pageData.sortingColumns);
+                }
+
+                if (this.groupedField) {
+                    const groupField = this.capitalizeFirstLetter(this.groupedField);
+                    const sortingColumns = pageData.sortingColumns.filter(a => a.field !== this.groupedField);
+                    sortingColumns.unshift({
+                        field: groupField,
+                        descending: this.defaultGroupFieldDescending
+                    });
+                    pageData.sortingColumns = sortingColumns;
+                }
+
+                this.isBusy = true;
+                if (this.settings && this.settings.busyState) this.settings.busyState(this.isBusy);
+
+                let sourceData;
+                if (!this.sourceStrategy) {
+                    if (this.cancellationTokenSource) this.cancellationTokenSource.cancel();
+                    try {
+                        this.cancellationTokenSource = axios.CancelToken.source();
+                        const {data: result} = await axios.post(
+                            this.source,
+                            pageData,
+                            {
+                                cancelToken: this.cancellationTokenSource.token
+                            }
+                        );
+                        sourceData = result;
+                    } catch (e) {
+                        if (axios.isCancel(e)) return; //cancelled requests not processed
+                    }
+                    
+                } else {
+                    if (!this.sourceStrategy.loadPage) return;
+
+                    sourceData = await this.sourceStrategy.loadPage(pageData);
+                }
+
+                this.isBusy = false;
+                if (this.settings && this.settings.busyState) this.settings.busyState(this.isBusy);
+
+                //WORKAROUND:Sometimes grid data loading and grid rendering enter in state 'Race Condition'
+                if (!sourceData) return;
+
+                let rows;
+                let count;
+
+                if (this.settings.allDataAtOnce) {
+                    rows = sourceData;
+                    count = sourceData.length;
+                } else {
+                    rows = sourceData.rows;
+                    count = sourceData.count;
+                }
+
+                if (this.expandable) { //WORKAROUND: Without setTimeout expandable content not ordered
+                    this.pageItems = [];
+                    setTimeout(() => {
+                        this.pageItems = this.createPageItems(rows);
+                        this.countItems = count || 0;
+                        this.currentPage = number;
+                        this.selectItem(null);
+                        this.changedPaging();
+
+                        var dataLength = this.pageItems ? this.pageItems.length : 0;
+                        this.$emit(`data-loaded`, dataLength);
+                    }, 100);
+                } else {
+                    this.pageItems = this.createPageItems(rows);
+                    this.countItems = count || 0;
+                    this.currentPage = number;
+                    this.selectItem(null);
+                    this.changedPaging();
+
+                    var dataLength = this.pageItems ? this.pageItems.length : 0;
+                    this.$emit(`data-loaded`, dataLength);
+                }
+
+                setTimeout(() => { this.highlightSearchResults(); }, 100);
+            },
+            
+            //Work item #5647
+            highlightSearchResults() {
+                const filterText = this.filters.filter;
+                if (!filterText)
+                    return;
+
+                if (!filterText.trim())
+                    return;
+
+                const table = this.$el.getElementsByTagName('table');
+           
+                if (!table[0]) 
+                    return;
+
+                const rows = table[0].rows;
+                
+                if (!rows) 
+                    return;
+
+                for (let row of rows) {
+                   
+                    if (!row || row.className.indexOf(`table-header-container-`) > -1)
+                        continue;
+                   
+                    const cells = row.getElementsByTagName('td');
+                   
+                    for (let cell of cells) {
+                        const cellInnerText = cell.innerText.toLowerCase();
+                        if (cellInnerText.indexOf(filterText.toLowerCase()) <= -1) {
+                            continue;
+                        }
+
+                        const simpleChild = [];
+                        this.getChildByInnerText(cell, filterText, simpleChild);
+                        
+                        for (let childNode of simpleChild) {
+                            this.highlightTextInTextNode(childNode, filterText);
+                        }
+                    }
+                }
+            },
+
+
+            highlightTextInTextNode(node, txt) {
+                const parent = node.parentElement;
+
+                if (!parent) {
+                    return;
+                }
+
+                if (parent.childNodes > 1) {
+                    return;
+                }
+
+                const parentInnerHtml = parent.innerHTML;
+
+                const reg = new RegExp(txt, 'gi');
+                const result = parentInnerHtml.replace(reg, function(str) {
+                    return '<mark>' + str + '</mark>';
+                });
+
+                parent.innerHTML = result;
+            },
+
+            getChildByInnerText(node, txt, result) {
+                if (!node)
+                    return;
+
+                if (node.childNodes.length) {
+                    for (let childNode of node.childNodes) {
+                        this.getChildByInnerText(childNode, txt, result);
+                    }
+                } else {
+
+                    if (!node.textContent)
+                        return;
+                  
+                    const nodeInnerText = node.textContent.toLowerCase();
+                    if (nodeInnerText.indexOf(txt.toLowerCase()) > -1) {
+                        result.push(node);
+                    }
+                }
+
+                return;
+            },
+
+            selectItem (item) {
+                this.selectedItem = item;
+                this.$emit('input', item);
+                this.$emit('selected', item);
+            },
+            getRows() {
+                return this.pageItems;
+            }
+        },
+        watch: {
+            points (newValue) {
+                this.columnPoints = this.points
+            }
+        },
+        computed: {
+            visibleColumns() {
+                return this.columns.filter(a => a.visible && !a.notVisible && a.slot != `buttons`);
+            },
+            countOnPage() {
+                return this.pageItems.filter(a => !a.expander && !a.gridGroupRow).length;
+            }
+        },
+        components: {
+            BusyContainer: staticBasicComponent(`BusyContainer`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`),
+            Popup: staticBasicComponent(`Popup`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.grid-buttons-container-component-id > div{
+    /*z-index: 1000;*/
+}
+.empty-row-component-id td {
+  height: 21px;
+  padding-top: 0px !important;
+  padding-bottom: 0px !important; }
+
+.overflow-wrapper-component-id {
+  max-height: 24px; }
+
+.popup-buttons-container {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  cursor: pointer; }
+
+.expandable-row-wrap {
+  background-color: #fff; }
+
+.container-component-id {
+  width: 100%; }
+  .container-component-id .tables-container-component-id {
+    display: flex;
+    width: 100%;
+    flex-direction: column; }
+  .container-component-id .table-cells-component-id {
+    border-spacing: 0px 0px; }
+    .container-component-id .table-cells-component-id tbody.expandable-rows-component-id tr:nth-child(4n+1) {
+      background-color: transparent; }
+    .container-component-id .table-cells-component-id tbody.not-expandable-rows-component-id tr:nth-child(2n+1) {
+      background-color: transparent; }
+    .container-component-id .table-cells-component-id td.table-cell-component-id {
+      border-bottom: 1px solid #e7eaf3;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      padding-right: 15px;
+      padding-left: 15px; }
+  .container-component-id .tables-columns-component-id {
+    width: 100%;
+    table-layout: fixed;
+    background-color: #fff; }
+    .container-component-id .tables-columns-component-id .table-header-container-component-id .sorting-icons-component-id span.active {
+      color: #000;
+      opacity: 1; }
+    .container-component-id .tables-columns-component-id .table-header-container-component-id .sorting-icons-component-id span {
+      opacity: 0; }
+    .container-component-id .tables-columns-component-id .table-header-container-component-id:hover .sorting-icons-component-id span {
+      opacity: 1; }
+    .container-component-id .tables-columns-component-id th.table-column-component-id {
+      padding-top: 8px;
+      padding-bottom: 8px;
+      padding-right: 15px;
+      padding-left: 15px;
+      color: #424242;
+      border-top: 1px solid #e7eaf3;
+      border-bottom: 1px solid #e7eaf3;
+      font-size: 13px;
+      font-weight: 700; }
+    .container-component-id .tables-columns-component-id .table-header-cell-component-id {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      text-align: left;
+      user-select: none; }
+      .container-component-id .tables-columns-component-id .table-header-cell-component-id .sorting-icons-component-id {
+        font-size: 9px;
+        padding-left: -2px; }
+        .container-component-id .tables-columns-component-id .table-header-cell-component-id .sorting-icons-component-id span:first-child {
+          margin-right: 1px; }
+        .container-component-id .tables-columns-component-id .table-header-cell-component-id .sorting-icons-component-id span {
+          color: #bebebe; }
+  .container-component-id .separator-component-id {
+    flex: 1; }
+
+.table-empty-field-component-id {
+  background-color: #fff; }
+  .table-empty-field-component-id .table-empty-content-component-id {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    border-bottom: 1px solid #e7eaf3;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-right: 15px;
+    padding-left: 15px;
+    width: 100%; }
+
+.row-under-cursor-component-id {
+  box-shadow: 0 2px 6px rgba(103, 119, 136, 0.2); }
+
+.td-component-id {
+  height: 37px; }
+
+    .expand-component-id {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        color: #1e2022;
+    }
+
+.expand-component-id:hover {
+  border-radius: 10px;
+  background-color: #F8F8F8; }
+
+.table-column-sortable-component-id {
+  cursor: pointer; }
+
+mark {
+  background-color: #3390ff;
+  color: #fff;
+}
+</style>

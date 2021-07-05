@@ -1,0 +1,55 @@
+﻿<vue-template>
+
+    <tabs-header
+        :items="tabsItems"
+        v-model="currentTab">
+    </tabs-header>
+    <div v-show="currentTab === `details`" style="column-count: 4;">
+        <p v-for="(value, name) in item" :key="name">
+            {{getPropTitle(name)}}: <b>{{value}}</b>
+        </p>
+    </div>
+    <div v-show="currentTab === `nodes`">
+        <p v-for="node of nodes" :key="node.id">
+            {{node.name}}: <b>{{node.ip}}</b> <i>{{node.disk}}</i>
+        </p>
+    </div>
+
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        props: {
+            item: Object,
+        },
+        data() {
+            return {
+                tabsItems: [
+                    { title: `Details`, id: `details` },
+                    { title: `Nodes`, id: `nodes` }
+                ],
+                currentTab: `details`,
+                nodes: []
+            }
+        },
+        async created() {
+            const { data: result } = await axios.get(`/api/tonconfigurations/nodes?id=${this.item.id}`);
+            this.nodes = result;
+        },
+        methods: {
+            getPropTitle(prop) {
+               return (prop.charAt(0).toUpperCase() + prop.slice(1)).match(/[A-Z][a-z]+/g).join(` `);
+            },
+        },
+        mixins: [translateMixin, globalObserver],
+        components: {
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`)
+        }
+    }
+}
+</script>

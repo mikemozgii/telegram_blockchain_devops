@@ -1,0 +1,300 @@
+<vue-template>
+    <simple-tree
+        :columns="settings.columns"
+        :data="data"
+        :default-sort-field="settings.defaultSortField"
+        :default-sort-field-descending="settings.defaultSortFieldDescending"
+        :tree-empty-message="settings.emptyMessage"
+        :source-strategy="settings.sourceStrategy"
+        :hide-toolbar="settings.hideToolbar"
+        :hide-headers="settings.hideHeaders"
+        :row-handler="settings.rowHandler"
+        :metadata="settings.metadata"
+        :grid-settings="settings.additionalOptions"
+        :filters="settings.filters"
+        :parent-id-field="settings.parentIdField"
+        :id-field="settings.idField"
+        :preprocess-data-handler="settings.preprocessDataHandler"
+        :default-page-size="settings.defaultPageSize"
+        :sort-case-sensitive="settings.sortCaseSensitive"
+        search-label="Search"
+        :hide-popup="hidePopup"
+        :not-show-empty="notShowEmpty"
+        @selected="selected($event)"
+        @data-loaded="dataLoaded()"
+        @completed="completed()"
+        ref="grid">
+
+        <div slot="toolbarActions" class="treetoolbar-actions-component-id">
+            <column-layout :align-items="`flex-end`">
+                <row-layout class="treetoolbar-middle-actions-container-component-id">
+                    <slot name="toolbar-buttons"></slot>
+                    <add-button
+                        :action="selectAddAction"
+                        v-if="settings.addButtonText && (!settings.addButtonVisibilityHandler || settings.addButtonVisibilityHandler())"
+                        :styles="successStyle">
+                        <div class="button-with-icon-component-id">
+                            <icon-box
+                                :icon="'fa-plus'"
+                                :icon4="'fa-plus'"
+                                :title="settings.addButtonText">
+                            </icon-box>
+                        </div>
+                    </add-button>
+                </row-layout>
+            </column-layout>
+        </div>
+
+        <div slot="toolbar-buttons-right" style="display: flex;">
+            <div
+                class="filter-button-component-id"
+                v-if="settings.showFilters"
+                @click="showFilters">
+                <span>
+                    <font-awesome-icon
+                        :icon="'fa-filter'"
+                        :icon4="'fa-filter'"
+                        :size="`filter-icon-component-id`">
+                    </font-awesome-icon>
+                </span>
+            </div>
+            <slot name="toolbar-buttons-right"> </slot>
+        </div>
+
+        <div slot="toolbar-buttons-top">
+            <slot name="toolbar-buttons-top"> </slot>
+        </div>
+
+        <template slot="treeColumnContent" slot-scope="{ column, item }">
+            <slot name="treeColumnContent" :column="column" :item="item">
+                <a @click.stop.prevent="toggleExpand(item)" :style="{ 'visibility': item.expandable ? 'visible' : 'hidden' }">
+                    <slot name="expandcontent" :item="item">
+                        <font-awesome-icon class="expand-component-id" :icon="item.expand ? 'fa-caret-down' : 'fa-caret-right'"></font-awesome-icon>
+                    </slot>
+                </a>
+                <slot name="treecolumninnercontent" :column="column" :item="item"><span>{{ item[column.field] }}</span></slot>
+            </slot>
+        </template>
+        <template v-for="column in slotColumns" :slot="column.slot" slot-scope="{ column, item }">
+            <slot :name="column.slot" :column="column" :item="item"></slot>
+        </template>
+        <template v-for="column in headerSlotColumns" :slot="column.headerSlot" slot-scope="{ column }">
+            <slot :name="column.headerSlot" :column="column"></slot>
+        </template>
+        <div slot="popup-buttons" slot-scope="{ item }">
+            <horizontal-grid-menu
+                :actions="settings.gridItemActions"
+                :action-context="item"
+                @selected="selectAction($event, item)">
+                <template
+                    v-for="buttonSlot in buttonsSlots"
+                    :slot="buttonSlot.slot"
+                    slot-scope="{ item }">
+                    <slot
+                        :name="buttonSlot.slot"
+                        :item="item">
+                    </slot>
+                </template>
+            </horizontal-grid-menu>
+        </div>
+        <template slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </template>
+    </simple-tree>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const componentStyles = await require(`componentStyles`);
+	const globalObserver = await require(`globalMixins/globalObserver`);
+    return {
+        props: {
+            settings: {
+                type: Object
+            },
+            data: {
+                type: Array
+            },
+            notShowEmpty: {
+                type: Boolean,
+                default: () => false
+            }
+        },
+        data() {
+            return {
+                successStyle: componentStyles.buttons.successButton
+            }
+        },
+        created() {
+            this.register('refresh', this.reloadData);
+		},
+        methods: {
+            completed() {
+                this.$emit(`completed`);
+            },
+            showFilters() {
+                this.$refs.gridFilters.openModal();
+            },
+            dataLoaded() {
+                this.$emit(`data-loaded`);
+            },
+            selectAction({ id, title }, item) {
+                if (!this.settings.actions) return;
+                if (!(id in this.settings.actions)) return;
+                this.settings.actions[id]({ item, title });
+            },
+            selectAddAction() {
+                this.selectAction({ id: 'add', title: this.settings.addButtonText}, {});
+            },
+            async reloadData() {
+                if (this.$refs.grid) {
+                    await this.$refs.grid.reloadData();
+                }
+            },
+            async updateItem(item, key) {
+                await this.$refs.grid.updateItem(item, key);
+            },
+            selected($event) {
+                this.$emit(`selected`, $event);
+            },
+            toggleExpand(item) {
+                item.expand = !item.expand;
+                this.getRows().filter(a =>
+                    a.treeHash.length > item.treeHash.length &&
+                    a.treeHash.indexOf(item.treeHash) === 0
+                ).forEach(a => {
+                    a.hidden = !item.expand;
+                    a.expand = item.expand;
+                });
+                this.$emit(`toggled`, item);
+            },
+            getRows() {
+                if (!this.$refs.grid) return [];
+                return this.$refs.grid.getRows();
+            },
+            addItem(item) {
+                return this.$refs.grid.addItem(item);
+            },
+            deleteItem(item) {
+                return this.$refs.grid.deleteItem(item);
+            },
+            hardReload() {
+                if (this.$refs.grid) this.$refs.grid.hardReload();
+            },
+            setNewSource(source) {
+                if (this.$refs.grid) this.$refs.grid.setNewSource(source);
+            }
+        },
+        beforeDestroy() {
+			this.unregister('refresh', this.reloadData);
+		},
+        computed: {
+            slotColumns() {
+                return this.settings.columns.filter(a => a.slot);
+            },
+            filterSlotColumns() {
+                return this.settings.columns.filter(a => a.filterSlot);
+            },
+            headerSlotColumns() {
+                return this.settings.columns.filter(a => a.headerSlot);
+            },
+            buttonsSlots() {
+                return this.settings.gridItemActions.filter(a => a.slot);
+            },
+            hidePopup() {
+                return this.settings.gridItemActions ? !this.settings.gridItemActions.length : true;
+            }
+        },
+		mixins: [globalObserver],
+        components: {
+            SimpleTree: staticBasicComponent(`SimpleTree`),
+            AddButton: staticBasicComponent(`ActionButton`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`),
+            HorizontalGridMenu: staticBasicComponent(`HorizontalGridMenu`),
+            IconBox: staticBasicComponent(`IconBox`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+            RowLayout: staticBasicComponent(`RowLayout`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.button-with-icon-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.button-with-icon-component-id > span {
+    margin-left: 3px;
+}
+    .expand-component-id {
+        margin-left: -5px;
+        margin-right: 7px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        color: #1e2022;
+    }
+
+.expand-component-id:hover {
+    border-radius: 10px;
+    background-color: lightgray;
+}
+
+.treetoolbar-actions-component-id {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.treetoolbar-middle-actions-container-component-id > * {
+    margin-left: 5px;
+}
+
+.refresh-column-header-component-id {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+}
+
+.refresh-column-container-component-id {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.icon-component-id {
+    color: rgb(102, 116, 134);
+}
+
+.filter-button-component-id {
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+    .filter-button-component-id:hover .filter-icon-component-id {
+        opacity: 1;
+        background-color: lightgray;
+        border-radius: 25px;
+        -moz-border-radius: 25px;
+        -webkit-border-radius: 25px;
+        -khtml-border-radius: 25px;
+    }
+.filter-icon-component-id {
+    font-size: 18px;
+    color: blue;
+    opacity: .7;
+    padding: 5px 5px 5px 5px;
+}
+</style>

@@ -1,0 +1,162 @@
+<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <short-text
+            slot="nameslot"
+            slot-scope="{ item }" 
+            :text="item.name"
+            :is-link="true"
+            @clicked="editItem(item)">
+        </short-text>
+        <menu-option slot="regenerateoption" slot-scope="{ item }" :title="item.title" :mode="'sync-alt'"></menu-option>
+        <menu-option slot="editmenuoption" slot-scope="{ item }" :title="item.title" :mode="'edit'"></menu-option>
+        <menu-option slot="deletemenuoption" slot-scope="{ item }" :title="item.title" :mode="'delete'"></menu-option>
+    </flat-data-grid>
+
+    <configuration-nginx-card
+        ref="card"
+        @saved="saved($event)">
+    </configuration-nginx-card>
+
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            nodeId: {
+                type: String,
+                required: true
+            }
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { slot: `nameslot` }),
+                        this.addColumn(`Location`, `location`, { }),
+                        this.addColumn(`Port`, `port`, { }),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Regenerate config`,
+                            id: `regenerate`,
+                            slot: `regenerateoption`
+                        },
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                        }
+                    ],
+                    addButtonText: `Add Nginx Config `,
+                    defaultSortField:`name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    hideToolbar: true,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                portValidate: false,
+                nodeValidate: false,
+                locationValidate: false,
+                http2Validate: false,
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "port", inputSlot: "portinput" },
+                    { labelSlot: "node", inputSlot: "nodeinput" },
+                    { labelSlot: "location", inputSlot: "locationinput" },
+                    { labelSlot: "http2", inputSlot: "http2input" },
+                ],
+                moduleNames: getLotusModules(),
+                selectedFile: null,
+                nodes: []
+            }
+        },
+        async created() {
+            const { data: result } = await axios.get(`/api/nodes/nginxnodes`);
+
+            this.nodes = result.map(a => {
+                a.title = a.name;
+                return a;
+            });
+        },
+        methods: {
+            async regenerate() {
+                this.fireEvent(`globalBusy`, true);
+                await axios.get(`/api/configurationnginx/generatenginxconfig`);
+                this.fireEvent(`globalBusy`, false);
+            },
+            async gridCompleted() {
+                const { data: result } = await axios.get(`/api/configurationnginx/grid?nodeId=${this.nodeId}`);
+                this.gridData = result;
+                this.$refs.grid.reloadData();
+            },
+            add() {
+                this.$refs.card.add({ nodeId: this.nodeId });
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/configurationnginx/delete`, { params: { id: item.id }});
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async edit({ item }) {
+                this.$refs.card.edit(item);
+            },
+            async saved($event) {
+                if ($event.isNew) {
+                    this.$refs.grid.addItem($event.savedItem);
+                } else {
+                    this.$refs.grid.updateItem($event.savedItem, `id`);
+                }
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            ConfigurationNginxCard: localStaticComponent(`/components/configuration/ConfigurationNginxCard.html`)
+        }
+    }
+}
+</script>

@@ -1,0 +1,24 @@
+<vue-template>
+    <span
+        :class="[size, icon, iconSet, `fa-fw`]"
+        :style="{'color': color ? color : '', 'font-family': fontFamily }">
+    </span>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        icon: String,
+        color: String,
+        size: String,
+        iconSet: {
+            type: String,
+            default: _ => `fas`
+        },
+        fontFamily: {
+            type: String,
+            default: _ => `"Font Awesome 5 Pro"`
+        }
+    }
+}
+</script>

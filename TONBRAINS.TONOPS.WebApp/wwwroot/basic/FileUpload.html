@@ -1,0 +1,53 @@
+<vue-template>
+    <input type="file"
+        ref="fileinput"
+        :multiple="multiUploading"
+        :accept="fileTypes"
+        @change="changeSelected()" />
+</vue-template>
+
+<script>
+module.exports = async function () {
+    return {
+        props:{
+            multiUploading: {
+                type: Boolean,
+                default: _ => false
+            },
+            fileTypes: {
+                type: String,
+                default: _ => ''
+            }
+        },
+        data() {
+            return {
+                selectedFile: null
+            }
+        },
+        methods: {
+            getFiles() {
+                return this.$refs.fileinput.files;
+            },
+            getSingleFile() {
+                return this.$refs.fileinput.files[0];
+            },
+            openDialog() {
+                this.reset();
+                this.$refs.fileinput.click();
+            },
+            changeSelected() {
+                this.$emit(`selected`, this.$refs.fileinput.files);
+            },
+            reset() {
+                this.$refs.fileinput.value = ``;
+            }
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: none;
+}
+</style>

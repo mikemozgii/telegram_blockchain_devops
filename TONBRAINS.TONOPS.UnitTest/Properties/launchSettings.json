@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TONBRAINS.TONOPS.UnitTest": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

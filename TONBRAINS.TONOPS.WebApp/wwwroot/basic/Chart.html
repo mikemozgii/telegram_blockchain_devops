@@ -1,0 +1,89 @@
+﻿<vue-template>
+    <div :style="{'width': width + `px`, 'height': height + `px` }">
+        <canvas
+            ref="chart">
+        </canvas>
+    </div>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const Chart = await require(`chart`);
+
+    return {
+        props: {
+            width: {
+                type: Number,
+                default: _=> 200
+            },
+            height: {
+                type: Number,
+                default: _=> 200
+            },
+            labels: {
+                type: Array,
+                default: _ => []
+            },
+            data: {
+                type: Array,
+                default: _ => null
+            },
+            type: {
+                type: String,
+                default: _ => `bar`
+            },
+            options: {
+                type: Object,
+                default: _ => {}
+            }
+        },
+        data() {
+            return {
+                context2d: null,
+                chartInstance: null
+            }
+        },
+        mounted() {
+            this.context2d = this.$refs.chart.getContext(`2d`);
+            if (this.data) this.refreshChartDataset();
+        },
+        methods: {
+            refreshChartDataset() {
+                if (this.chartInstance) {
+                    this.chartInstance.config.type = this.type;
+                    const length = this.chartInstance.data.datasets.length;
+                    for (let i= 0; i < length; i++) {
+                        this.chartInstance.data.datasets.shift();
+                    }
+                    for (const dataset of this.data) {
+                        this.chartInstance.data.datasets.push(dataset);
+                    }
+                    this.chartInstance.options = this.options;
+                    const lengthLabels = this.chartInstance.data.labels.length;
+
+                    for (let i= 0; i < lengthLabels; i++) {
+                        this.chartInstance.data.labels.shift();
+                    }
+                    for (const label of this.labels) {
+                        this.chartInstance.data.labels.push(label);
+                    }
+                    this.chartInstance.update();
+                } else {
+                    this.chartInstance = new Chart(
+                        this.context2d,
+                        {
+                            type: this.type,
+                            data: {
+                                labels: this.labels,
+                                datasets: this.data
+                            },
+                            options: this.options
+                        }
+                    );
+                }
+            }
+        }
+    }
+}
+</script>
+

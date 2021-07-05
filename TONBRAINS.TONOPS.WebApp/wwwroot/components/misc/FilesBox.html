@@ -1,0 +1,271 @@
+<vue-template>
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+
+    <div
+        v-show="filesInfoData.length == 0"
+        class="actions-buttons-component-id">
+        <form ref="fileform" class="dragarea-component-id">
+            <icon-box
+                :icon="'fa-plus'"
+                title="Drop the files here!">
+            </icon-box>
+        </form>
+    </div>
+    <div
+        :class="{'files-box-component-id': true}">
+        <div
+            class="files-chips-component-id"
+            v-show="filesInfoData.length">
+            <file-chip v-for="item in filesInfoData"
+                :key="item.id"
+                :value="item.id"
+                :name="item.name"
+                :progress="item.progress ? item.progress : 100"
+                :disable="disable"
+                @deleted="deleteFile($event)"
+                @on-click="view($event)">
+            </file-chip>
+        </div>
+    </div>
+
+    <file-text ref="filetext"></file-text>
+
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validate`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+
+    return {
+        props: {
+            value: {
+                type: Array,
+                default: _ => null
+            },
+            multiUploading: {
+                type: Boolean,
+                default: _ => false
+            },
+            fileTypes: {
+                type: String,
+                default: _ => ''
+            },
+            onStatusChange: {
+                type: Function
+            },
+            previouslyAddedFiles: {
+                type: Array,
+                default: _ => []
+            },
+            disable: {
+                type: Boolean,
+                default: _ => false
+            }
+        },
+        data() {
+            return {
+                filesInfoData: [],
+                redBorder: false,
+                inProgress: false,
+                defaultValidateRules: {},
+                filesForDelete:[]
+            }
+        },
+        mounted() {
+            this.dragAndDropCapable = this.determineDragAndDropCapable();
+            if (this.dragAndDropCapable) {
+                ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (evt) {
+                    this.$refs.fileform.addEventListener(evt, function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }.bind(this), false);
+                }.bind(this));
+
+                this.$refs.fileform.addEventListener('drop', async function (e) {
+                    await this.selectedChanged(e.dataTransfer.files);
+                }.bind(this));
+            }
+        },
+        async created() {
+            await this.loadFilesInfo();
+            this.defaultValidateRules = {
+                'required': this.required,
+                'fileUploading': this.isFileUploading
+            };
+            this.validateValue();
+        },
+        methods: {
+            view($event) {
+                const title = this.filesInfoData.find(i => i.id === $event);
+                this.$refs.filetext.open($event, title ? title.name : '');
+            },
+            determineDragAndDropCapable(){
+              var div = document.createElement('div');
+
+              return ( ( 'draggable' in div )
+                      || ( 'ondragstart' in div && 'ondrop' in div ) )
+                      && 'FormData' in window
+                      && 'FileReader' in window;
+            },
+            getFilesId() {
+                return this.filesInfoData.map(fileInfo => fileInfo.id);
+            },
+            required(rule) {
+                if (!this.filesInfoData || this.filesInfoData.length === 0) {
+                    this.redBorder = true;
+                    return false;
+                }
+                this.redBorder = false;
+                return true;
+            },
+            isFileUploading(rule) {
+                if (this.inProgress) {
+                    this.redBorder = true;
+                    return false;
+                }
+                this.redBorder = false;
+                return true;
+            },
+            async selectedChanged($event) {
+                this.inProgress = true;
+                if(this.onStatusChange) this.onStatusChange(this.inProgress);
+                for (const file of $event) {
+                    await this.uploadFile(file);
+                }
+                this.inProgress = false;
+                if(this.onStatusChange) this.onStatusChange(this.inProgress);
+            },
+            async uploadFile(file) {
+                const formData = new FormData();
+                formData.append("content", file);
+                let fileInfo = {
+                    id: new Date().getTime().toString(),
+                    name: file.name,
+                    progress: 0
+                }
+                this.filesInfoData.push(fileInfo);
+
+                const options = {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    },
+                    onUploadProgress: (progressEvent) => {
+                        const { loaded, total } = progressEvent;
+                        const progress = Math.round( (loaded * 100) / total );
+                        fileInfo.progress = progress > 97 ? 97 : progress;
+                    }
+                }
+
+                let fileInfos = this.filesInfoData;
+                const result = await axios.post(`/api/files`, formData, options).catch(function(e) {
+                    fileInfos = fileInfos.filter(info => info.id !== fileInfo.id);
+                });
+
+                if (result) {
+                    fileInfo.id = result.data.id;
+                    fileInfo.progress = 100;
+                } else {
+                    this.filesInfoData = this.filesInfoData.filter(info => info.id !== fileInfo.id);
+                }
+
+            },
+            async deleteFile($event) {
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                const fileInfo = this.filesInfoData.filter(file => file.id === $event);
+
+                if (fileInfo.length === 1) {
+                    this.filesForDelete.push($event);
+                }
+
+                this.filesInfoData = this.filesInfoData.filter(file => file.id !== $event);
+            },
+            async removeFiles() {
+                if (!this.filesForDelete.length)
+                    return true;
+                const deleteResult = await axios.post(`/api/files/deletefiles`, this.filesForDelete);
+                this.filesForDelete = [];
+                return deleteResult;
+            },
+            openAttachDialog() {
+                if (!this.multiUploading && this.filesInfoData.length > 0) return;
+                if (this.customFileDialogOpen) this.customFileDialogOpen();
+                else this.fireEvent(`selectfile`, { callback: this.selectedChanged, multiselect: false, fileTypes: `` });
+            },
+            async loadFilesInfo() {
+                if (this.value && this.value.length > 0) {
+                    const { data: filesInfo } = await axios.post("/api/files/fileentities", this.value);
+                    if (filesInfo) this.filesInfoData = filesInfo;
+                } else {
+                    this.filesInfoData = [];
+                }
+            },
+        },
+        watch: {
+            filesInfoData(newValue) {
+                this.$emit(`change`, newValue);
+                this.validateValue();
+            },
+            inProgress(newValue) {
+                this.validateValue();
+            }
+        },
+        mixins: [globalObserver, validateMixin],
+        components: {
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            FileChip: localStaticComponent(`/components/misc/FileChip.html`),
+            FileText: localStaticComponent(`/components/misc/FileText.html`),
+            ActionButton: staticBasicComponent(`ActionButton`),
+            IconBox: staticBasicComponent(`IconBox`),
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .container-component-id {
+        display: flex;
+        flex-direction: column;
+        justify-items: center;
+        background-color: white;
+    }
+    .files-box-component-id:hover {
+        visibility: visible;
+    }
+    .box-component-id {
+        display: inline-block; 
+        max-width: 100%;
+    }
+    .files-box-component-id {
+        display: flex;
+    }
+    .files-chips-component-id {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        margin-bottom: 1.5px;
+        padding-right: 6px;
+    }
+    .actions-buttons-component-id {
+        justify-content: center;
+        display: inline-flex;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+    }
+    .actions-buttons-component-id > * {
+        margin-right: 5px;
+    }
+    .dragarea-component-id {
+        background: lightgrey;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        border-radius: 5px;
+    }
+</style>

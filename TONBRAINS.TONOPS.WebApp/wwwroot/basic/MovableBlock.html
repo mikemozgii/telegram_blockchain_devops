@@ -1,0 +1,248 @@
+<vue-template>
+    <div
+        ref="movableContainer"
+        class="movable-container-component-id"
+        :style="{'width': parameters.width + 'px', 'height': parameters.height + 'px', 'left': parameters.left + 'px', 'top': parameters.top + 'px' }"
+        @mousedown="moveEnter($event)"
+        @mousemove.prevent="moveElement($event)">
+        <div class="top-sizes-component-id">
+            <div
+                v-if="!parameters.notSizable"
+                class="size-circle-component-id left-top-size-component-id"
+                @mousedown.stop.prevent="resizedEnter($event, 'lefttop')"
+                @mouseup.stop.prevent="interactionExit()">
+                <svg height="15" width="15">
+                    <circle cx="9" cy="9" r="5" stroke="white" stroke-width="1" fill="black"></circle>
+                </svg>
+            </div>
+            <div class="empty-space-component-id"></div>
+            <div
+                @mousedown.stop.prevent
+                @mouseup.stop.prevent="removeBlock()"
+                class="remove-movable-block-component-id">
+                <svg height="15" width="15">
+                    <line x1="2" x2="9" y1="2" y2="9" stroke="red" stroke-width="4" stroke-linecap="round"></line>
+                    <line x1="9" x2="2" y1="2" y2="9" stroke="red" stroke-width="4" stroke-linecap="round"></line>
+                </svg>
+            </div>
+            <div
+                v-if="!parameters.notSizable"
+                class="size-circle-component-id right-top-size-component-id"
+                @mousedown.stop.prevent="resizedEnter($event, 'righttop')"
+                @mouseup.stop.prevent="interactionExit()">
+                <svg height="15" width="15">
+                    <circle cx="9" cy="9" r="5" stroke="white" stroke-width="1" fill="black"></circle>
+                </svg>
+            </div>
+        </div>
+        <input type="text" class="block-label-component-id" v-model="parameters.label" placeholder="Tooltip" />
+        <div class="empty-space-component-id"></div>
+        <div class="lower-sizes-component-id">
+            <div
+                v-if="!parameters.notSizable"
+                class="size-circle-component-id left-top-size-component-id"
+                @mousedown.stop.prevent="resizedEnter($event, 'leftbottom')"
+                @mouseup.stop.prevent="interactionExit()">
+                <svg height="15" width="15">
+                    <circle cx="9" cy="9" r="5" stroke="white" stroke-width="1" fill="black"></circle>
+                </svg>
+            </div>
+            <div class="empty-space-component-id"></div>
+            <div
+                v-if="!parameters.notSizable"
+                class="size-circle-component-id right-top-size-component-id"
+                @mousedown.stop.prevent="resizedEnter($event, 'rightbottom')"
+                @mouseup.stop.prevent="interactionExit()">
+                <svg height="15" width="15">
+                    <circle cx="9" cy="9" r="5" stroke="white" stroke-width="1" fill="black"></circle>
+                </svg>
+            </div>
+        </div>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        horizontalSizeChange: {
+            type: Boolean,
+            default() {
+                return true;
+            }
+        },
+        verticalSizeChange: {
+            type: Boolean,
+            default() {
+                return true;
+            }
+        },
+        parameters: {
+            type: Object,
+            required: false
+        }
+    },
+    data() {
+        return {
+            isMoved: false,
+            isResized: false,
+            resizedCorner: '',
+            previousPosition: {
+                x: 0,
+                y: 0
+            },
+            eventListenerId: null
+        }
+    },
+    mounted() {
+        window.addEventListener(`mouseup`, this.interactionExit);
+        window.addEventListener(`mousemove`, this.moveElement);
+    },
+    beforeDestroy() {
+        window.removeEventListener(`mouseup`, this.interactionExit);
+        window.removeEventListener(`mousemove`, this.moveElement);
+    },
+    methods: {
+        removeBlock() {
+            this.$emit(`blockremoved`, this.parameters);
+        },
+        moveEnter($event) {
+            if ($event.button === 2) return;
+            if ($event.target.tagName.toLowerCase() === `input` && $event.target.type === `text`) return;
+
+            $event.preventDefault();
+
+            this.previousPosition.x = $event.clientX;
+            this.previousPosition.y = $event.clientY;
+            this.isMoved = true;
+        },
+        resizedEnter($event, corner) {
+            this.previousPosition.x = $event.clientX;
+            this.previousPosition.y = $event.clientY;
+            this.isResized = true;
+            this.resizedCorner = corner;
+        },
+        interactionExit() {
+            if (!this.isMoved && !this.isResized) return;
+
+            this.isMoved = false;
+            this.isResized = false;
+            this.previousPosition.x = 0;
+            this.previousPosition.y = 0;
+        },
+        moveElement($event) {
+            if (!this.isMoved && !this.isResized) return;
+
+            //WORKAROUND: I do not know how to do it properly. Get parent size is dirty hack :(.
+            const containerWidth = this.$refs.movableContainer.parentElement.parentElement.clientWidth;
+            const containerHeight = this.$refs.movableContainer.parentElement.parentElement.clientHeight;
+
+            const offsetX = this.previousPosition.x - $event.clientX;
+            const offsetY = this.previousPosition.y - $event.clientY;
+            this.previousPosition.x = $event.clientX;
+            this.previousPosition.y = $event.clientY;
+
+            if (this.isMoved) {
+                this.parameters.left -= offsetX;
+                this.parameters.top -= offsetY;
+                if (this.parameters.left < 0) this.parameters.left = 0;
+                if (this.parameters.top < 0) this.parameters.top = 0;
+
+                if (this.parameters.left + this.parameters.width > containerWidth) this.parameters.left = containerWidth - this.parameters.width;
+                if (this.parameters.top + this.parameters.height > containerHeight) this.parameters.top = containerHeight - this.parameters.height;
+            }
+
+            if (this.isResized) {
+                switch(this.resizedCorner) {
+                    case 'lefttop':
+                        this.parameters.width -= -offsetX;
+                        this.parameters.height -= -offsetY;
+                        this.parameters.left -= offsetX;
+                        this.parameters.top -= offsetY;
+                        break;
+                    case 'righttop':
+                        this.parameters.width -= offsetX;
+                        this.parameters.height -= -offsetY;
+                        this.parameters.top -= offsetY;
+                        break;
+                    case 'leftbottom':
+                        this.parameters.width -= -offsetX;
+                        this.parameters.height -= offsetY;
+                        this.parameters.left -= offsetX;
+                        break;
+                    case 'rightbottom':
+                        this.parameters.width -= offsetX;
+                        this.parameters.height -= offsetY;
+                        break;
+                }
+
+                const heightLimit = this.parameters.minimumHeight ? this.parameters.minimumHeight : 45;
+                const widthLimit = this.parameters.minimumWidth ? this.parameters.minimumWidth : 45;
+
+                if (this.parameters.left < 0) this.parameters.left = 0;
+                if (this.parameters.top < 0) this.parameters.top = 0;
+
+                if (this.parameters.height < heightLimit) this.parameters.height = heightLimit;
+                if (this.parameters.width < widthLimit) this.parameters.width = widthLimit;
+                
+                if (this.parameters.left + this.parameters.width > containerWidth) this.parameters.left = containerWidth - this.parameters.width;
+                if (this.parameters.top + this.parameters.height > containerHeight) this.parameters.top = containerHeight - this.parameters.height;
+            }
+        }
+    }
+}
+</script>
+
+<style scoped>
+.movable-container-component-id {
+    position: absolute;
+    cursor: move;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0px 1px 1px black;
+    border-color: rgba(255, 165, 0, 0.7);
+    border-style: solid;
+    border-width: 3px;
+    opacity: .3;
+    font-size: 0.8rem;
+    background-color: blue;
+}
+.empty-space-component-id {
+    flex: 1;
+}
+.top-sizes-component-id {
+    opacity: .4;
+    display: flex;
+}
+.top-sizes-component-id .size-circle-component-id {
+    padding: 3px;
+    color: #fff;
+}
+.top-sizes-component-id .left-top-size-component-id {
+    margin: -12px 0 0 -12px;
+}
+.top-sizes-component-id .right-top-size-component-id {
+    margin: -12px -9px 0px 0px;
+}
+.lower-sizes-component-id {
+    opacity: .4;
+    display: flex;
+}
+.lower-sizes-component-id .size-circle-component-id {
+    padding: 3px;
+    color: #fff;
+}
+.lower-sizes-component-id .left-top-size-component-id {
+    transform: translate(-12px, 15px);
+}
+.lower-sizes-component-id .right-top-size-component-id {
+    transform: translate(10px, 15px);
+}
+.remove-movable-block-component-id {
+    transform: translate(18px,-21px);
+    cursor: pointer;
+}
+.block-label-component-id {
+    transform: translate(-13px, -42px);
+    margin-left: 16px;
+}
+</style>

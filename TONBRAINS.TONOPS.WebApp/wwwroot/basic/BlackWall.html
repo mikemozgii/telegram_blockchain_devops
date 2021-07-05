@@ -1,0 +1,102 @@
+<vue-template>
+    <div>
+        <transition name="black-wall-animation-component-id">
+            <div
+                class="wall-container-component-id custom-scroll-container"
+                :class="{'need-centered-component-id': needCentered, 'wall-overflow-content-component-id': needOverflow, 'wall-notoverflow-content-component-id': !needOverflow}"
+                v-if="!alwaysShowContent && visible === 'visible'"
+                @click.self="action">
+                <slot></slot>
+            </div>
+            <div
+                class="wall-container-component-id custom-scroll-container"
+                :class="{'need-centered-component-id': needCentered, 'wall-overflow-content-component-id': needOverflow, 'wall-notoverflow-content-component-id': !needOverflow}"
+                v-if="alwaysShowContent"
+                v-show="visible === 'visible'"
+                @click.self="action">
+                <slot></slot>
+            </div>
+        </transition>
+    </div>
+</vue-template>
+
+<script vuescript>
+module.exports = {
+    props: {
+        action: Function,
+        visible: String,
+        needCentered: {
+            type: Boolean,
+            default: _ => true
+        },
+        needOverflow: {
+            type: Boolean,
+            default: _ => true
+        },
+        alwaysShowContent: {
+            type: Boolean,
+            default: _ => false
+        },
+        showBodyScrollAfterHide: {
+            type: Boolean,
+            default: _ => true
+        }
+    },
+    watch: {
+        visible(newValue) {
+            if (newValue !== `visible` && !this.showBodyScrollAfterHide) return;
+
+            //I admit what it is dirty hack but I don't know how to do it right way :(.
+            document.getElementsByTagName(`body`)[0].style.overflow = newValue === `visible` ? `hidden` : ``;
+        }
+    }
+}
+</script>
+
+<style scoped>
+.wall-container-component-id {
+    display: flex;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100105; /* It's enough? */
+    flex-wrap: wrap;
+    flex-direction: column;
+    background-color: rgba(66, 66, 74, 0.80);
+}
+.wall-overflow-content-component-id {
+    overflow: auto;
+}
+.wall-notoverflow-content-component-id {
+    overflow: hidden;
+}
+.need-centered-component-id {
+    justify-content: center;
+}
+
+@keyframes fadein-component-id {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: .5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.black-wall-animation-component-id-enter-active {
+    animation-name: fadein-component-id;
+    animation-duration: .3s;
+}
+
+.black-wall-animation-component-id-leave-active {
+    animation-name: fadein-component-id;
+    animation-duration: .3s;
+    animation-direction: reverse;
+}
+</style>

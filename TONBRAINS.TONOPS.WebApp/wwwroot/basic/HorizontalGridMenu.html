@@ -1,0 +1,92 @@
+﻿<vue-template>
+    <popup-panel
+        :hide-header="true"
+        :hide-footer="true"
+        class="menu-popup-component-id"
+        :style="{ 'background-color': backgroundColor }"
+        :common-styles="panelStyles.containerStyles"
+        :content-styles="panelStyles.contentStyles">
+        <horizontal-list-box slot="content" :items="activeActions" v-model="selected" @selected="selectItem($event)">
+            <div slot="item" slot-scope="{ item }" class="action-popup-component-id">
+                <slot v-if="item.slot" :name="item.slot" :item="item"></slot>
+                <span v-if="!item.slot">{{ item.title }}</span>
+            </div>
+        </horizontal-list-box>
+    </popup-panel>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const clickAway = await require(`globalMixins/clickAway`);
+
+    return {
+        props: [`actions`, `disable`, `actionContext`, `backgroundColor`],
+        data: () => {
+            return {
+                selected: null,
+                panelStyles: {
+                    contentStyles: {
+                        "padding-left": "0px",
+                        "padding-right": "0px",
+                        "padding-top": "0px",
+                        "padding-bottom": "0px",
+                    },
+                    containerStyles: {
+                        "border-width": "0px",
+                        "box-shadow": "none",
+                        "background-color": "transparent"
+                    }
+                }
+            }
+        },
+        mounted() {
+            this.setupClickAway(
+                `menu-button-component-id` + this.generateClickAwayComponentHash(),
+                () => {
+                    this.menuVisible = false;
+                }
+            );
+        },
+        methods: {
+            selectItem(item) {
+                this.menuVisible = false;
+                if (item.action) {
+                    item.action(item);
+                } else {
+                    this.$emit('selected', item);
+                }
+            }
+        },
+        computed: {
+            activeActions() {
+                return this.actions.filter(a => !a.activeHandler || a.activeHandler(this.actionContext));
+            }
+        },
+        mixins: [clickAway],
+        components: {
+            HorizontalListBox: staticBasicComponent(`HorizontalListBox`),
+            PopupPanel: staticBasicComponent(`Panel`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.menu-popup-component-id{
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: flex-end;
+    background-color: inherit;
+    border:none;
+}
+
+.action-popup-component-id {
+    opacity: .9;
+}
+
+.action-popup-component-id:hover {
+    opacity: 1;
+}
+</style>
+

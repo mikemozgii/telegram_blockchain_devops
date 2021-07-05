@@ -1,0 +1,47 @@
+<vue-template>
+    <div class="header-component-id" @click="expand = !expand">
+        <span>{{ title }}</span>
+        <span class="icon mdi mdi-menu-down" :class="{'mdi-menu-up': expand, 'mdi-menu-down': expand}"></span>
+    </div>
+    <div class="content-component-id" v-show="expand">
+        <slot></slot>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: ['value', 'title'],
+    data: function () {
+        return {
+            expand: this.value
+        }
+    },
+    watch: {
+        value (newValue) {
+            this.expand = newValue;
+        },
+        expand (newValue) {
+            this.$emit('input', newValue);
+            this.$emit('changed', newValue);
+        }
+    }
+}
+</script>
+
+<style scoped>
+.header-component-id {
+    display: flex;
+    padding: 20px 20px 0px 20px;
+}
+.header-component-id span:first-child {
+    flex: 1;
+    padding-right: 8px;
+    font-size: 0.9rem;
+}
+.content-component-id {
+    background-color: #ededed;
+    color: #000;
+    font-size: 0.8rem;
+}
+</style>
+

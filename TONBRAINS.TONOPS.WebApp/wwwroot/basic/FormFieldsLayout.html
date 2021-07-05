@@ -1,0 +1,115 @@
+﻿<vue-template>
+    <div
+         v-for="field in fields"
+         v-if="isShow(field)"
+         class="form-fields-layout-container-component-id"
+         v-bind:class="{ 'form-fields-layout-label-top-component-id': field.alignToTop }">
+        <div :class="{ 'form-fields-layout-label-component-id': field.labelSlot }" :style="{ 'width': localLabelWidth }">
+            <div ref="label" class="label-text-component-id">
+                <slot :name="field.labelSlot"></slot>
+            </div>
+        </div>
+        <div :class="{ 'form-fields-layout-input-component-id': !field.validateBlock }" :style="{ 'max-width': maxWidth }"><slot :name="field.inputSlot"></slot></div>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        fields: Array,
+        maxWidth: {
+            type: String,
+            default: _ => ''
+        },
+        labelWidth: {
+            type: String,
+            default: _ => ''
+        }
+    },
+    data() {
+        return {
+            localLabelWidth: ''
+        }
+    },
+    mounted() {
+        if (this.labelWidth) {
+            this.localLabelWidth = this.labelWidth;
+            this.$emit('ready');
+        }
+        else {
+            if(this.setWidth)
+                this.setWidth();
+
+            setTimeout(() => {
+                if(this.setWidth)
+                    this.setWidth();
+                this.$emit('ready');
+            }, 1000);
+        }
+    },
+    methods: {
+        setWidth() {
+            if (!this.$refs.label) {
+                this.localLabelWidth = '';
+                return;
+            }
+            var width = 0;
+            for (var i = 0; i < this.$refs.label.length; i++) {
+                width = this.$refs.label[i].clientWidth > width ? this.$refs.label[i].clientWidth : width;
+            }
+
+            this.localLabelWidth = width !== 0 ? width + 'px' : '';
+        },
+        isShow(field) {
+            if (!field.hidden && !field.showHandler) {
+                return true;
+            } 
+            if (field.showHandler) {
+                return field.showHandler();
+            } else if (field.hidden) {
+                return !field.hidden;
+            }
+        }
+    },
+    watch: {
+        labelWidth(newValue) {
+            this.localLabelWidth = newValue;
+        }
+    }
+}
+</script>
+
+<style scoped>
+.label-text-component-id {
+    white-space: nowrap;
+    word-wrap: normal;
+}
+.form-fields-layout-label-top-component-id {
+    align-items: flex-start !important;
+}
+.form-fields-layout-label-component-id {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    margin-right: 7px;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+}
+.form-fields-layout-input-component-id {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    max-width: 100%;
+    min-width: 0;
+}
+.form-fields-layout-container-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.form-fields-layout-container-component-id > *:last-child {
+    flex: 1;
+}
+.validate-block-component-id {
+    margin-top: 0px !important;
+}
+</style>

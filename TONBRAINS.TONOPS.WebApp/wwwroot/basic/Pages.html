@@ -1,0 +1,88 @@
+<vue-template>
+    <div class="navigation-button-component-id" :class="{'disabled-component-id': currentPage <= 1}" :disabled="currentPage <= 1" @click.stop.prevent="loadPage(currentPage - 1)">
+        <font-awesome icon="fa-chevron-left"></font-awesome>
+    </div>
+    <div class="navigation-button-component-id" :class="{'disabled-component-id': currentPage >= countPages}" :disabled="currentPage >= countPages" @click.stop.prevent="loadPage(currentPage + 1)">
+        <font-awesome icon="fa-chevron-right"></font-awesome>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: [`currentPage`, `countPages`, `pageSize`],
+    data() {
+        return {
+            paginatePages: []
+        }
+    },
+    mounted() {
+        this.refreshPages();
+    },
+    methods: {
+        loadPage(page) {
+            this.$emit('pagechanged', page);
+        },
+        refreshPages() {
+            this.$nextTick(() => {
+                if (!this.currentPage) {
+                    this.paginatePages = [];
+                    return;
+                }
+    
+                const paginatePages = [];
+    
+                if (this.currentPage > 1) paginatePages.push(this.currentPage - 1);
+                paginatePages.push(this.currentPage);
+                if (this.currentPage < this.countPages) paginatePages.push(this.currentPage + 1);
+    
+                this.paginatePages = paginatePages;
+            });
+        }
+    },
+    watch: {
+        currentPage() {
+            this.refreshPages();
+        },
+        pageSize() {
+            this.refreshPages();
+        },
+        countPages() {
+            this.refreshPages();
+        }
+    },
+    components: {
+        FontAwesome: staticBasicComponent(`FontAwesomeIcon`)
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: inline-flex;
+}
+.navigation-button-component-id {
+    font-size: 0.8rem;
+    line-height: 14px;
+    font-weight: 400;
+    padding: 0.3rem 0.3rem;
+    color: #ee1c29;
+    cursor: pointer;
+    user-select: none;
+}
+.navigation-button-component-id:not(:last-child) {
+    margin-right: 4px;
+}
+.navigation-button-component-id:not(.selected-component-id):hover {
+    color: #4285f4;
+}
+.disabled-component-id {
+    color: #878787;
+    pointer-events: none;
+    cursor: auto;
+}
+.selected-component-id {
+    cursor: auto;
+    color: #FFF;
+}
+</style>
+

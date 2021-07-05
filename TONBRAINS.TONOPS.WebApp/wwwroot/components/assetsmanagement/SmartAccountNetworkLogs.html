@@ -1,0 +1,122 @@
+﻿<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <row-layout
+            slot="leftedgecontent"
+            :children-space="10"
+            class="leftedgecontent-component-id">
+            <slot name="leftedgecontent"></slot>
+            <row-layout
+                :children-space="10"
+                class="check-box-component-id">
+                <check-box
+                    v-model="showDebit"
+                    header="Debit"
+                    @check-clicked="filterGrid()">
+                </check-box>
+                <check-box
+                    v-model="showCredit"
+                    header="Credit"
+                    @check-clicked="filterGrid()">
+                </check-box>
+            </row-layout>
+        </row-layout>
+        <div
+            slot="typeslot"
+            slot-scope="{ item }"
+            :style="{'color': item.type === `Debit` ? `forestgreen` : `#ee1c29`}">
+            {{ item.type }}
+        </div>
+        <div
+            slot="timeslot"
+            slot-scope="{ item }">
+            {{ gridDateFormat(item.transferTime, `MM/DD/YYYY HH:mm A`, 'YYYY-MM-DDTHH:mmZ') }}
+        </div>
+        <short-text
+            slot="nameslot"
+            slot-scope="{ item }"
+            :text="item.type === `Debit` ? item.fromName: item.toName">
+        </short-text>
+    </flat-data-grid>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        props: {
+            id: {
+                type: String,
+                default: _ => ``
+            },
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Time`, `transferTime`, { slot: `timeslot` }),
+                        this.addColumn(`Type`, `type`, { slot: `typeslot` }),
+                        this.addColumn(`Amount`, `transferBalance`),
+                        this.addColumn(`Total`, `total`),
+                        this.addColumn(`from/To Account`, `fromName`, { slot: `nameslot` }),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [],
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                showDebit: true,
+                showCredit: true,
+                data: []
+            }
+        },
+        methods: {
+            filterGrid() {
+                setTimeout(() => {
+                    this.gridData = this.data.filter(i => (this.showDebit && i.type === "Debit") || (this.showCredit && i.type === "Credit"));
+                    this.$refs.grid.reloadData();
+                });
+            },
+            async gridCompleted() {
+                const { data: result } = await axios.get(`/api/smartaccounts/networklogs`, { params: { id: this.id } });
+                this.data = result;
+                this.filterGrid();
+            },
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            CheckBox: staticBasicComponent(`CheckBox`),
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .leftedgecontent-component-id {
+        width: 100%;
+    }
+    .check-box-component-id {
+        margin-top: 14px;
+        margin-left: auto;
+    }
+</style>

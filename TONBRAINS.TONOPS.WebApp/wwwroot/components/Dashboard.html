@@ -1,0 +1,27 @@
+﻿<vue-template>
+    <div style="width:100%;padding-top: 150px;">
+        <div style="display: flex; align-items: center; max-width: 350px; margin: 0 auto;">
+            <img src="../img/tonbrains2.png" style="max-width: 40px; margin-right: 20px;text-align: center;" />
+            <div class="tk-good-times text-brandred" style="font-size: 36px;font-weight: 700;">TON BRAINS</div>
+        </div>
+        <div style="max-width: 350px; margin: 0 auto;text-align:center;">
+            <div class="tk-good-times" style="font-size: 24px;margin-top: 15px;color: #677788">QUANET MATRIX</div>
+        </div>
+    </div>
+</vue-template>
+<script>
+module.exports = async function () {
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+            }
+        },
+        mixins: [translateMixin],
+        components: {
+        }
+    }
+}
+</script>

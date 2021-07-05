@@ -1,0 +1,114 @@
+<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings"
+                    v-if="gridData">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <short-text slot="nameslot"
+                    slot-scope="{ item }"
+                    :text="item.name">
+        </short-text>
+        <menu-option slot="editmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'edit'">
+        </menu-option>
+        <menu-option slot="deletemenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'delete'">
+        </menu-option>
+    </flat-data-grid>
+    <group-modal>
+    </group-modal>
+    <delete-confirm-modal ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-template>
+
+<script>
+    module.exports = async function () {
+        const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+        const componentStyles = await require(`componentStyles`);
+
+        return {
+            data() {
+                return {
+                    settings: {
+                        columns: [
+                            this.addColumn(`Name`, `name`, { notFilterable: false, slot: `nameslot` })
+                        ],
+                        emptyMessage: null,
+                        urls: {
+                            grid: `/api/groups/grid?name=Other`,
+                        },
+                        gridItemActions: [
+                            {
+                                title: `Edit`,
+                                id: `edit`,
+                                slot: `editmenuoption`,
+                            },
+                            {
+                                title: `Delete`,
+                                id: `delete`,
+                                slot: `deletemenuoption`,
+                            }
+                        ],
+                        addButtonText: `Add Group`,
+                        defaultSortField: `name`,
+                        expandable: false,
+                        hidePageSize: true,
+                        defaultPageSize: 5,
+                        addButtonVisibilityHandler: this.isViewOnlyHandler,
+                        defaultSortFieldDescending: false,
+                        additionalOptions: {
+                            allDataAtOnce: true,
+                            minimumLimitAllItems: 500
+                        },
+                        actions: this
+                    }
+                }
+            },
+            async created() {
+                this.register('savegroup', this.save);
+            },
+            async beforeDestroy() {
+                this.unregister('savegroup', this.save);
+            },
+            methods: {
+                edit({ item }) {
+                    this.fireEvent('openmodalgroup', item);
+                },
+                add() {
+                    this.fireEvent('openmodalgroup', { name: '' });
+                },
+                async delete({ item }) {
+                    const result = await this.$refs.deleteConfirm.showConfirm();
+                    if (!result) return;
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: deleteResult } = await axios.delete(`/api/groups/delete`, { params: { name: item.name } });
+                    this.fireEvent(`globalBusy`, false);
+                    if (deleteResult) this.deleteFromGrid(item);
+                    return deleteResult;
+                },
+                deleteFromGrid(item) {
+                    this.$refs.grid.deleteItem(item, `name`);
+                },
+                save({ insertItem, deleteItem }) {
+                    this.deleteFromGrid(deleteItem);
+                    this.$refs.grid.addItem(insertItem);
+                } 
+            },
+            mixins: [translateMixin, globalObserver, gridHelperMixin],
+            components: {
+                FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+                MenuOption: staticBasicComponent(`MenuOption`),
+                ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+                GroupModal: localStaticComponent(`/components/infrastracture/GroupModal.html`),
+                DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            }
+        }
+    }
+</script>

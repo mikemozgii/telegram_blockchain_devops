@@ -1,0 +1,235 @@
+<vue-plain-template>
+    <form-modal
+        :title="modalTitle"
+        ref="formModal"
+        min-width="500px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout
+                :fields="fields">
+                <text-block-required
+                    slot="module"
+                    :not-valid="moduleValidate">
+                    Module
+                </text-block-required>
+                <select-box
+                    :options="moduleNames"
+                    slot="moduleinput"
+                    v-model="model.module"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="moduleValidate = $event">
+                </select-box>
+
+                <text-block-required
+                    slot="version"
+                    :not-valid="versionValidate">
+                    Version
+                </text-block-required>
+                <text-box 
+                    slot="versioninput"
+                    v-model="model.version"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="versionValidate = $event">
+                </text-box>
+
+                <text-block
+                    slot="versionfile">
+                    Version File
+                </text-block>
+                <div
+                    slot="versionfileinput">
+                    
+                    <green-button
+                        title="Select File"
+                        :action="selectFile"
+                        :styles="greenStyle"
+                    />
+                </div>
+
+                <text-block-required
+                    slot="description"
+                    :not-valid="descriptionValidate">
+                    Description
+                </text-block-required>
+                <multi-line
+                    clear-label="Clear"
+                    slot="descriptioninput"
+                    v-model="model.description"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="descriptionValidate = $event">
+                </multi-line>
+            </form-fields-layout>
+
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :delete-action="deleteItem"
+                :delete-visible="model && model.id"
+                :disable-save="!summary"
+            />
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-plain-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+    const moment = await require(`moment`);
+
+    return {
+        props: {
+            moduleName: {
+                type: String,
+                required: true
+            }
+        },
+        data() {
+            return {
+                model: {},
+                modalTitle: ``,
+                moduleValidate: false,
+                descriptionValidate: false,
+                versionValidate: false,
+                fields: [
+                    { labelSlot: "module", inputSlot: "moduleinput", showHandler: this.moduleShowHandler },
+                    { labelSlot: "version", inputSlot: "versioninput" },
+                    { labelSlot: "versionfile", inputSlot: "versionfileinput", showHandler: this.versionFileVisibleHandler },
+                    { labelSlot: "description", inputSlot: "descriptioninput", alignToTop: true  },
+                ],
+                moduleNames: getLotusModules(),
+                selectedFile: null,
+                devopsReleases: [],
+                devopsRelease: null,
+                releaseModule: null,
+                modalOpened: false,
+                releaseDescription: "",
+                greenStyle: componentStyles.buttons.successButton
+            }
+        },
+        methods: {
+            moduleShowHandler() {
+                return false;
+            },
+            versionFileVisibleHandler() {
+                return !this.model.id;
+            },
+            selectFile() {
+                this.fireEvent(
+                    `selectfile`,
+                    {
+                        fileTypes: `application/zip`,
+                        multiselect: false,
+                        callback: this.uploadFile
+                    }
+                );
+            },
+            uploadFile($event) {
+                if (!$event.length) return;
+
+                this.selectedFile = $event[0];
+            },
+            async saveFile(id) {
+                const file = this.selectedFile;
+                
+                const formData = new FormData();
+                formData.append(`versionfile`, file);
+                formData.append(`id`, id);
+                
+                await axios.post(
+                    `/api/moduleversions/uploadversion`,
+                    formData,
+                    {
+                        headers: {
+                            'Content-Type': `multipart/form-data`
+                        }
+                    }
+                );
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            add() {
+                this.model = {
+                    version: moment(new Date()).format(`YYYYMMDDHHmm`),
+                    module: this.moduleName,
+                    azureBuildId: ``
+                };
+
+                this.modalTitle = this.moduleNames.find(a => a.id === this.moduleName).title;
+                this.nameValidate = false;
+                this.domainValidate = false;
+                this.descriptionValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/moduleversions/delete`, { params: { id: item.id }});
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async getModel(id) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/moduleversions/single`, { params: { id: id } });
+                this.fireEvent(`globalBusy`, false);
+                model.id = id;
+                return model;
+            },
+            async edit(item) {
+                this.editedItem = item;
+                this.model = await this.getModel(item.id);
+                this.modalTitle = this.moduleNames.find(a => a.id === item.module).title;
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.post(`/api/moduleversions/addoredit`, this.model);
+                if (this.selectedFile) await this.saveFile(savedItem.id);
+                this.fireEvent(`globalBusy`, false);
+                this.$refs.formModal.closeModal();
+                this.$emit(`saved`, { isNew: !this.model.id, savedItem });
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`),
+            GreenButton: staticBasicComponent(`ActionButton`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`)
+        }
+    }
+}
+</script>

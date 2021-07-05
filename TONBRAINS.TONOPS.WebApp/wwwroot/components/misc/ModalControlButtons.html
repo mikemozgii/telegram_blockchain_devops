@@ -1,0 +1,82 @@
+<vue-template>
+    <slot name="additional-buttons"></slot>
+    <delete-button
+        v-if="deleteVisible"
+        :action="deleteAction"
+        :styles="coloredStyle">
+        <icon-box
+            icon="fa-trash"
+            title="Delete"
+        />
+    </delete-button>
+    <default-button
+        :action="cancel"
+        :styles="coloredStyle">
+        <icon-box
+            icon="fa-times"
+            :title="cancelTranslation"
+        />
+    </default-button>
+    <save-button
+        :action="save"
+        :disable="disableSave"
+        v-if="saveVisible"
+        :styles="primaryStyle">
+        <icon-box
+            icon="fa-save"
+            :title="saveTranslation"
+        />
+    </save-button>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            save: Function,
+            cancel: Function,
+            deleteAction: Function,
+            deleteVisible: [Boolean, String, Object],
+            disableSave: Boolean,
+            saveVisible: {
+                type: Boolean,
+                default: _ => true
+            },
+            saveTranslation: {
+                type: String,
+                default: _ => `Save`
+            },
+            cancelTranslation: {
+                type: String,
+                default: _ => `Cancel`
+            }
+        },
+        data() {
+            return {
+                primaryStyle: componentStyles.buttons.primaryButton,
+                coloredStyle: componentStyles.buttons.coloredButton,
+            }
+        },
+        components: {
+            IconBox: staticBasicComponent(`IconBox`),
+            SaveButton: staticBasicComponent(`ActionButton`),
+            DefaultButton: staticBasicComponent(`ActionButton`),
+            DeleteButton: staticBasicComponent(`ActionButton`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.container-component-id > *:not(:first-child) {
+    margin-left: 6px;
+}
+</style>
+

@@ -1,0 +1,766 @@
+﻿<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <short-text
+            slot="nameslot"
+            slot-scope="{ item }" 
+            :text="item.name"
+            :is-link="true"
+            @clicked="editItem({ item: item })">
+        </short-text>
+
+        <div slot="innerContent" slot-scope="{ item, expand }">
+            <ton-configuration-info v-if="item && expand"
+                :item="item">
+            </ton-configuration-info>
+
+        </div>
+        <menu-option
+            slot="editmenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            :mode="'edit'">
+        </menu-option>
+        <menu-option
+            slot="deletemenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            :mode="'delete'">
+        </menu-option>
+    </flat-data-grid>
+
+    <form-modal
+        :title="modalTitle"
+        ref="formModal"
+        min-width="700px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout
+                :fields="fields">
+                <text-block-required
+                    slot="name"
+                    :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box
+                    slot="nameinput"
+                    v-model="model.name"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block
+                    slot="description"
+                    :not-valid="true">
+                    Description
+                </text-block>
+                <div slot="descriptioninput">
+                    <multi-line
+                        v-model="model.description">
+                    </multi-line>
+                </div>
+
+                <text-block-required
+                    slot="global_id"
+                    :not-valid="globalIdValidate">
+                    Global Id
+                </text-block-required>
+                <digit-text-box
+                    slot="global_idinput"
+                    v-model="model.globalId"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="globalIdValidate = $event">
+                </digit-text-box>
+                
+                <text-block-required
+                    slot="default_subwallet_id"
+                    :not-valid="defaultSubwalletIdValidate">
+                    Default Subwallet Id Validate
+                </text-block-required>
+                <text-box
+                    slot="default_subwallet_idinput"
+                    v-model="model.defaultSubwalletId"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="defaultSubwalletIdValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="start_at"
+                    :not-valid="startAtValidate">
+                    Start At
+                </text-block-required>
+                <text-box
+                    slot="start_atinput"
+                    v-model="model.startAt"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="startAtValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="actual_min_split"
+                    :not-valid="actualMinSplitValidate">
+                    Actual Min Split
+                </text-block-required>
+                <digit-text-box
+                    slot="actual_min_splitinput"
+                    v-model="model.actualMinSplit"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="actualMinSplitValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="min_split_depth"
+                    :not-valid="minSplitDepthValidate">
+                    Min Split Depth
+                </text-block-required>
+                <digit-text-box
+                    slot="min_split_depthinput"
+                    v-model="model.minSplitDepth"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="minSplitDepthValidate = $event">
+                </digit-text-box>
+                
+                <text-block-required
+                    slot="max_split_depth"
+                    :not-valid="maxSplitDepthValidate">
+                    Max Split Depth
+                </text-block-required>
+                <digit-text-box
+                    slot="max_split_depthinput"
+                    v-model="model.maxSplitDepth"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="maxSplitDepthValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="work_chain_id"
+                    :not-valid="workChainIdValidate">
+                    Work Chain Id
+                </text-block-required>
+                <digit-text-box
+                    slot="work_chain_idinput"
+                    v-model="model.workChainId"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="workChainIdValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="rwallet_iinit_pubkey"
+                    :not-valid="rwalletIinitPubkeyValidate">
+                    Rwallet Iinit Pubkey
+                </text-block-required>
+                <text-box
+                    slot="rwallet_iinit_pubkeyinput"
+                    v-model="model.rwalletIinitPubkey"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="rwalletIinitPubkeyValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="st_a"
+                    :not-valid="stAValidate">
+                    St A
+                </text-block-required>
+                <text-box
+                    slot="st_ainput"
+                    v-model="model.stA"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="stAValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="st_b"
+                    :not-valid="stBValidate">
+                    St B
+                </text-block-required>
+                <text-box
+                    slot="st_binput"
+                    v-model="model.stB"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="stBValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="advanced_wallet_allocated_balance"
+                    :not-valid="advancedWalletAllocatedBalanceValidate">
+                    Advanced Wallet Allocated Balance
+                </text-block-required>
+                <digit-text-box
+                    slot="advanced_wallet_allocated_balanceinput"
+                    v-model="model.advancedWalletAllocatedBalance"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="advancedWalletAllocatedBalanceValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="advanced_wallet_tick_tock"
+                    :not-valid="advancedWalletTickTockValidate">
+                    Advanced Wallet Tick Tock
+                </text-block-required>
+                <digit-text-box
+                    slot="advanced_wallet_tick_tockinput"
+                    v-model="model.advancedWalletTickTock"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="advancedWalletTickTockValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="advanced_wallet_address"
+                    :not-valid="advancedWalletAddressValidate">
+                    Advanced Wallet Address
+                </text-block-required>
+                <text-box
+                    slot="advanced_wallet_addressinput"
+                    v-model="model.advancedWalletAddress"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="advancedWalletAddressValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="advanced_wallet_create_setaddr"
+                    :not-valid="advancedWalletCreateSetaddrValidate">
+                    Advanced Wallet Create Setaddr
+                </text-block-required>
+                <digit-text-box
+                    slot="advanced_wallet_create_setaddrinput"
+                    v-model="model.advancedWalletCreateSetaddr"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="advancedWalletCreateSetaddrValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="elector_allocated_balance"
+                    :not-valid="electorAllocatedBalanceValidate">
+                    Elector Allocated Balance
+                </text-block-required>
+                <digit-text-box
+                    slot="elector_allocated_balanceinput"
+                    v-model="model.electorAllocatedBalance"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electorAllocatedBalanceValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="elector_split_depth"
+                    :not-valid="electorSplitDepthValidate">
+                    Elector Split Depth
+                </text-block-required>
+                <digit-text-box
+                    slot="elector_split_depthinput"
+                    v-model="model.electorSplitDepth"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electorSplitDepthValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="elector_tick_tock"
+                    :not-valid="electorTickTockValidate">
+                    Elector Tick Tock
+                </text-block-required>
+                <digit-text-box
+                    slot="elector_tick_tockinput"
+                    v-model="model.electorTickTock"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electorTickTockValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="elector_address"
+                    :not-valid="electorAddressValidate">
+                    Elector Address
+                </text-block-required>
+                <text-box
+                    slot="elector_addressinput"
+                    v-model="model.electorAddress"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electorAddressValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="elector_create_setaddr"
+                    :not-valid="electorCreateSetaddrValidate">
+                    Elector Create Setaddr
+                </text-block-required>
+                <digit-text-box
+                    slot="elector_create_setaddrinput"
+                    v-model="model.electorCreateSetaddr"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electorCreateSetaddrValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="max_validators"
+                    :not-valid="maxValidatorsValidate">
+                    Max Validators
+                </text-block-required>
+                <digit-text-box
+                    slot="max_validatorsinput"
+                    v-model="model.maxValidators"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="maxValidatorsValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="max_main_validators"
+                    :not-valid="maxMainValidatorsValidate">
+                    Max Main Validators
+                </text-block-required>
+                <digit-text-box
+                    slot="max_main_validatorsinput"
+                    v-model="model.maxMainValidators"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="maxMainValidatorsValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="min_validators"
+                    :not-valid="minValidatorsValidate">
+                    Min Validators
+                </text-block-required>
+                <digit-text-box
+                    slot="min_validatorsinput"
+                    v-model="model.minValidators"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="minValidatorsValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="min_stake"
+                    :not-valid="minStakeValidate">
+                    Min Stake
+                </text-block-required>
+                <digit-text-box
+                    slot="min_stakeinput"
+                    v-model="model.minStake"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="minStakeValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="max_stake"
+                    :not-valid="maxStakeValidate">
+                    Max Stake
+                </text-block-required>
+                <digit-text-box
+                    slot="max_stakeinput"
+                    v-model="model.maxStake"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="maxStakeValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="min_total_stake"
+                    :not-valid="minTotalStakeValidate">
+                    Min Total Stake
+                </text-block-required>
+                <digit-text-box
+                    slot="min_total_stakeinput"
+                    v-model="model.minTotalStake"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="minTotalStakeValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="max_factor"
+                    :not-valid="maxFactorValidate">
+                    Max Factor
+                </text-block-required>
+                <digit-text-box
+                    slot="max_factorinput"
+                    v-model="model.maxFactor"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="maxFactorValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="elected_for"
+                    :not-valid="electedForValidate">
+                    Elected For
+                </text-block-required>
+                <digit-text-box
+                    slot="elected_forinput"
+                    v-model="model.electedFor"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electedForValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="elect_start_before"
+                    :not-valid="electStartBeforeValidate">
+                    Elect Start Before
+                </text-block-required>
+                <digit-text-box
+                    slot="elect_start_beforeinput"
+                    v-model="model.electStartBefore"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electStartBeforeValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="elect_end_before"
+                    :not-valid="electEndBeforeValidate">
+                    Elect End Before
+                </text-block-required>
+                <digit-text-box
+                    slot="elect_end_beforeinput"
+                    v-model="model.electEndBefore"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electEndBeforeValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="stakes_frozen_for"
+                    :not-valid="stakesFrozenForValidate">
+                    Stakes Frozen For
+                </text-block-required>
+                <digit-text-box
+                    slot="stakes_frozen_forinput"
+                    v-model="model.stakesFrozenFor"
+                    :only-integer="true"
+                    :only-positive="true"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="stakesFrozenForValidate = $event">
+                </digit-text-box>
+
+                <text-block-required
+                    slot="elector_config_address"
+                    :not-valid="electorConfigAddressValidate">
+                    Elector Config Address
+                </text-block-required>
+                <text-box
+                    slot="elector_config_addressinput"
+                    v-model="model.electorConfigAddress"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="electorConfigAddressValidate = $event">
+                </text-box>
+
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :delete-action="deleteItem"
+                :delete-visible="model && model.id"
+                :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { slot: `nameslot` }),
+                        this.addColumn(`Description`, `description`),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                        }
+                    ],
+                    expandable: true,
+                    addButtonText: `Add`,
+                    defaultSortField:`name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                globalIdValidate: false,
+                defaultSubwalletIdValidate: false,
+                startAtValidate: false,
+                actualMinSplitValidate: false,
+                minSplitDepthValidate: false,
+                maxSplitDepthValidate: false,
+                workChainIdValidate: false,
+                rwalletIinitPubkeyValidate: false,
+                stAValidate: false,
+                stBValidate: false,
+                advancedWalletAllocatedBalanceValidate: false,
+                advancedWalletTickTockValidate: false,
+                advancedWalletAddressValidate: false,
+                advancedWalletCreateSetaddrValidate: false,
+                electorAllocatedBalanceValidate: false,
+                electorSplitDepthValidate: false,
+                electorTickTockValidate: false,
+                electorAddressValidate: false,
+                electorCreateSetaddrValidate: false,
+                minValidatorsValidate: false,
+                maxValidatorsValidate: false,
+                maxMainValidatorsValidate: false,
+                maxStakeValidate: false,
+                minStakeValidate: false,
+                minTotalStakeValidate: false,
+                electedForValidate: false,
+                maxFactorValidate: false,
+                electStartBeforeValidate: false,
+                electEndBeforeValidate: false,
+                stakesFrozenForValidate: false,
+                electorConfigAddressValidate: false,
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "description", inputSlot: "descriptioninput", alignToTop: true },
+                    { labelSlot: "global_id", inputSlot: "global_idinput" },
+                    { labelSlot: "default_subwallet_id", inputSlot: "default_subwallet_idinput" },
+                    { labelSlot: "start_at", inputSlot: "start_atinput" },
+                    { labelSlot: "actual_min_split", inputSlot: "actual_min_splitinput" },
+                    { labelSlot: "min_split_depth", inputSlot: "min_split_depthinput" },
+                    { labelSlot: "max_split_depth", inputSlot: "max_split_depthinput" },
+                    { labelSlot: "work_chain_id", inputSlot: "work_chain_idinput" },
+                    { labelSlot: "rwallet_iinit_pubkey", inputSlot: "rwallet_iinit_pubkeyinput" },
+                    { labelSlot: "st_a", inputSlot: "st_ainput" },
+                    { labelSlot: "st_b", inputSlot: "st_binput" },
+                    { labelSlot: "advanced_wallet_allocated_balance", inputSlot: "advanced_wallet_allocated_balanceinput" },
+                    { labelSlot: "advanced_wallet_split_depth", inputSlot: "advanced_wallet_split_depthinput" },
+                    { labelSlot: "advanced_wallet_tick_tock", inputSlot: "advanced_wallet_tick_tockinput" },
+                    { labelSlot: "advanced_wallet_address", inputSlot: "advanced_wallet_addressinput" },
+                    { labelSlot: "advanced_wallet_create_setaddr", inputSlot: "advanced_wallet_create_setaddrinput" },
+                    { labelSlot: "elector_allocated_balance", inputSlot: "elector_allocated_balanceinput" },
+                    { labelSlot: "elector_split_depth", inputSlot: "elector_split_depthinput" },
+                    { labelSlot: "elector_tick_tock", inputSlot: "elector_tick_tockinput" },
+                    { labelSlot: "elector_address", inputSlot: "elector_addressinput" },
+                    { labelSlot: "elector_create_setaddr", inputSlot: "elector_create_setaddrinput" },
+                    { labelSlot: "max_validators", inputSlot: "max_validatorsinput" },
+                    { labelSlot: "max_main_validators", inputSlot: "max_main_validatorsinput" },
+                    { labelSlot: "min_validators", inputSlot: "min_validatorsinput" },
+                    { labelSlot: "min_stake", inputSlot: "min_stakeinput" },
+                    { labelSlot: "max_stake", inputSlot: "max_stakeinput" },
+                    { labelSlot: "min_total_stake", inputSlot: "min_total_stakeinput" },
+                    { labelSlot: "max_factor", inputSlot: "max_factorinput" },
+                    { labelSlot: "elected_for", inputSlot: "elected_forinput" },
+                    { labelSlot: "elect_start_before", inputSlot: "elect_start_beforeinput" },
+                    { labelSlot: "elect_end_before", inputSlot: "elect_end_beforeinput" },
+                    { labelSlot: "stakes_frozen_for", inputSlot: "stakes_frozen_forinput" },
+                    { labelSlot: "elector_config_address", inputSlot: "elector_config_addressinput" },
+                ],
+            }
+        },
+        methods: {
+            async gridCompleted() {
+                const { data: result } = await axios.get(`/api/tonconfigurations/grid`);
+                this.gridData = result;
+                this.$refs.grid.reloadData();
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            async add({ title }) {
+                this.hasPhrase = false;
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/tonconfigurations/zerostate`);
+                this.fireEvent(`globalBusy`, false);
+                this.model = model;
+                this.modalTitle = title;
+
+                this.nameValidate = false;
+
+                this.globalIdValidate = false;
+                this.defaultSubwalletIdValidate = false;
+                this.startAtValidate = false;
+                this.actualMinSplitValidate = false;
+                this.minSplitDepthValidate = false;
+                this.maxSplitDepthValidate = false;
+                this.workChainIdValidate = false;
+                this.rwalletIinitPubkeyValidate = false;
+                this.stAValidate = false;
+                this.stBValidate = false;
+                this.advancedWalletAllocatedBalanceValidate = false;
+                this.advancedWalletTickTockValidate = false;
+                this.advancedWalletAddressValidate = false;
+                this.advancedWalletCreateSetaddrValidate = false;
+                this.electorAllocatedBalanceValidate = false;
+                this.electorSplitDepthValidate = false;
+                this.electorTickTockValidate = false;
+                this.electorAddressValidate = false;
+                this.electorCreateSetaddrValidate = false;
+                this.minValidatorsValidate = false;
+                this.maxValidatorsValidate = false;
+                this.maxMainValidatorsValidate = false;
+                this.maxStakeValidate = false;
+                this.minStakeValidate = false;
+                this.minTotalStakeValidate = false;
+                this.electedForValidate = false;
+                this.maxFactorValidate = false;
+                this.electStartBeforeValidate = false;
+                this.electEndBeforeValidate = false;
+                this.stakesFrozenForValidate = false;
+                this.electorConfigAddressValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async edit({ item }) {
+                this.hasPhrase = false;
+
+                this.editedItem = item;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/tonconfigurations/single`, { params: { id: item.id } });
+                this.fireEvent(`globalBusy`, false);
+
+                this.model = model;
+                this.modalTitle = `Edit`;
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                const url = !this.model.id ? `/api/tonconfigurations/add` : `/api/tonconfigurations/edit`
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.post(url, this.model);
+                this.fireEvent(`globalBusy`, false);
+
+                this.$refs.formModal.closeModal();
+
+                if (!this.model.id) {
+                    this.$refs.grid.addItem(savedItem);
+                } else {
+                    this.$refs.grid.updateItem(savedItem, `id`);
+                }
+            },
+            async delete({ item }) {
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/tonconfigurations/softdelete`, { params: { id: item.id }});
+                this.fireEvent(`globalBusy`, false);
+
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            TonConfigurationInfo: localStaticComponent(`/components/assetsmanagement/TonConfigurationInfo.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            DigitTextBox: staticBasicComponent(`DigitTextBox`)
+        }
+    }
+}
+</script>

@@ -1,0 +1,98 @@
+<vue-template>
+    <black-wall :action="hide" :visible="visibleBlackWall" :need-overflow="false">
+        <transition :name="placement === 'left' ? 'sidebar-left-component-id' : 'sidebar-right-component-id'">
+            <div
+                :class="{'sidebar-container-component-id': placement === 'left', 'sidebar-right-container-component-id': placement !== 'left'}"
+                :style="{ 'width': width + 'px' }"
+                v-if="visible">
+                <slot></slot>
+            </div>
+        </transition>
+    </black-wall>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        placement: {
+            type: String,
+            default: _ => `left`
+        },
+        width: {
+            type: Number,
+            default: _ => 350
+        }
+    },
+    data: () => {
+        return {
+            visible: false,
+            needHide: false,
+            visibleBlackWall: 'collapsed'
+        }
+    },
+    methods: {
+        show () {
+            this.visibleBlackWall = `visible`;
+            this.$nextTick(() => {
+                this.visible = true;
+            })
+        },
+        hide () {
+            this.visible = false;
+            this.$nextTick(() => {
+                this.visibleBlackWall = `collapsed`;
+            });
+        },
+        toggle () {
+            if (this.visible){
+                this.hide();
+            } else {
+                this.show();
+            }
+        }
+    },
+    components: {
+        BlackWall: staticBasicComponent(`BlackWall`)
+    }
+}
+</script>
+
+<style scoped>
+.sidebar-container-component-id {
+    /*@Html.StyleProperty("background-color", @Model.OverrideStyle)
+    @Html.StyleProperty("color", @Model.OverrideStyle)*/
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0px;
+    height: 100vh;
+}
+.sidebar-left-component-id-enter-active {
+    transition: all .4s ease;
+}
+.sidebar-left-component-id-leave-active {
+    transition: all .2s ease;
+}
+.sidebar-left-component-id-enter, .sidebar-left-component-id-leave-to {
+  transform: translateX(-300px);
+}
+
+.sidebar-right-container-component-id {
+    /*@Html.StyleProperty("background-color", @Model.OverrideStyle)
+    @Html.StyleProperty("color", @Model.OverrideStyle)*/
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0px;
+    height: 100vh;
+}
+.sidebar-right-component-id-enter-active {
+    transition: all .4s ease;
+}
+.sidebar-right-component-id-leave-active {
+    transition: all .2s ease;
+}
+.sidebar-right-component-id-enter, .sidebar-right-component-id-leave-to {
+  transform: translateX(300px);
+}
+</style>

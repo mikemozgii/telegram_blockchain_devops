@@ -1,0 +1,103 @@
+<vue-template>
+    <row-layout class="field-options-component-id">
+        <div v-for="option in options"
+            :key="option.id"
+            :style="{'color': (selected === option.id) ? option.color : defaultColor, 'border-color': (selected === option.id) ? option.color : defaultColor, 'position' : (selected === option.id) ? 'relative' : 'normal'}"
+            :class="{'option-component-id selected-option-component-id': selected === option.id, 'option-component-id': selected !== option.id}"
+            @click="selectOption(option.id)">
+            <slot name="option" :option="option">
+                <span :style="{'font-size': fontSize}">
+                    {{option.title}}
+                </span>
+            </slot>
+        </div>
+    </row-layout>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            options: {
+                type: Array,
+                default: _ => []
+            }, 
+            value: {
+                type: String,
+                default: _ => ``
+            }, 
+            disable: {
+                type: Boolean,
+                default: _ => false
+            }, 
+            defaultColor: {
+                type: String,
+                default: _ => `#A4A4A4`
+            }, 
+            fontSize: {
+                type: String,
+                default: _ => `11px`
+            }
+        },
+        data() {
+            return {
+                selected: null
+            }
+        },
+        created() {
+            this.selected = this.value;
+
+            if (!!this.selected) {
+                this.validateValue();
+            }
+        },
+        methods: {
+            selectOption(id) {
+                if (!this.disable) {
+                    this.selected = id;
+                    this.validateValue();
+                }
+            }
+        },
+        watch: {
+            value(newValue) {
+                this.selected = newValue;
+            },
+            selected(newValue, oldValue) {
+                this.$emit(`input`, newValue);
+                
+                if (this.selected !== this.value)
+                    this.$emit(`changed`, { newValue, oldValue });
+            }
+        },
+        mixins: [validateMixin],
+        components: {
+            RowLayout: staticBasicComponent(`RowLayout`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.selected-option-component-id {
+    font-weight: 600;
+}
+.option-component-id {
+    border-style: solid;
+    border-width: 1px;
+    cursor: pointer;
+}
+.field-options-component-id div {
+    padding: 0 8px;
+    margin-left: -1px;
+}
+.field-options-component-id div:first-child {
+    border-radius: 5px 0px 0px 5px;
+    margin-left: 0;
+}
+.field-options-component-id div:last-child {
+    border-radius: 0px 5px 5px 0px;
+}
+</style>

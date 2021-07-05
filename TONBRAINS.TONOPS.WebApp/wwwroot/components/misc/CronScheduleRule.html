@@ -1,0 +1,647 @@
+<vue-template>
+    <column-layout>
+        <row-layout align-items="flex-start">
+            <radio-button-group
+                class="repeat-component-id"
+                v-model="rules.type"
+                :options="payload.repeatTypes"
+                @selected="selectRepeatType()">
+            </radio-button-group>
+            <flex-item>
+                <row-layout v-show="(rules.type > 0 && rules.type != 3) || rules.type === 5 || rules.type === 6" style="margin-bottom: 8px;">
+                    <span v-if="rules.type === 1 || rules.type === 5 || rules.type === 6" class="text-component-id">
+                        Every
+                    </span>
+                    <span v-else class="text-component-id">
+                        Recurence Every
+                    </span>
+                    <digit-text-box
+                        style="margin: 0 10px; min-width: 130px;"
+                        :only-integer="true"
+                        :only-positive="true"
+                        :minimum="0"
+                        :maximum="900"
+                        clear-label="Clear"
+                        v-model="rules.repeatEvery"
+                        @changed="generateCronRule()">
+                    </digit-text-box>
+                    <span v-if="rules.type === 1" class="text-component-id">
+                        day(s)
+                    </span>
+                    <span v-else-if="rules.type === 2" class="text-component-id">
+                        week(s) on
+                    </span>
+                    <span v-else-if="rules.type === 4" class="text-component-id">
+                        year(s)
+                    </span>
+                    <span v-else-if="rules.type === 5" class="text-component-id">
+                        hour(s)
+                    </span>
+                    <span v-else-if="rules.type === 6" class="text-component-id">
+                        minutes(s)
+                    </span>
+                </row-layout>
+
+                <flex-item v-show="rules.type === 1 || rules.type === 2">
+                    <row-layout :children-space="10">
+                        <span class="text-component-id">
+                            Time
+                        </span>
+                        <date-picker
+                            mode="time"
+                            v-model="rules.repeatTime"
+                            @changed="generateCronRule()">
+                        </date-picker>
+                    </row-layout>
+                </flex-item>
+
+                <flex-item v-show="rules.type === 2">
+                    <row-layout class="day-checkboxes-component-id">
+                        <check-box
+                            v-for="day in rules.repeatOn.days"
+                            v-model="day.selected"
+                            :key="day.alias"
+                            :header="day.name">
+                        </check-box>
+                    </row-layout>
+                </flex-item>
+
+                <flex-item v-show="rules.type === 3">
+                    <row-layout>
+                        <radio-button-group
+                            class="types-component-id"
+                            v-model="rules.repeatOn.type"
+                            :options="payload.repeatOnTypesMonthly"
+                            @selected="selectRepeatOnTypes($event)">
+                        </radio-button-group>
+                        <column-layout :children-space="2">
+                            <row-layout>
+                                <digit-text-box
+                                    style="min-width: 130px;"
+                                    :only-integer="true"
+                                    :only-positive="true"
+                                    :minimum="0"
+                                    :maximum="900"
+                                    clear-label="Clear"
+                                    v-model="rules.repeatOn.counter"
+                                    @changed="selectRepeatOnTypes(0, 'counter')">
+                                </digit-text-box>
+                                <span class="left-margin-component-id text-component-id">
+                                    of every
+                                </span>
+                                <digit-text-box
+                                    style="margin: 0 10px; min-width: 130px;"
+                                    :only-integer="true"
+                                    :only-positive="true"
+                                    :minimum="0"
+                                    :maximum="900"
+                                    clear-label="Clear"
+                                    v-model="rules.repeatEvery"
+                                    @changed="selectRepeatOnTypes(0)">
+                                </digit-text-box>
+                                <span class="text-component-id">
+                                    month(s)
+                                </span>
+                            </row-layout>
+                            <row-layout>
+                                <select-box
+                                    class="options-component-id"
+                                    :options="payload.weekdayOffsets"
+                                    clear-label="Clear"
+                                    v-model="rules.repeatOn.weekDayOffset"
+                                    @selected="selectRepeatOnTypes(1, 'weekDayOffset')">
+                                </select-box>
+                                <select-box
+                                    class="left-margin-component-id"
+                                    style="min-width: 150px;"
+                                    :options="weekdays"
+                                    clear-label="Clear"
+                                    v-model="rules.repeatOn.weekDay"
+                                    @selected="selectRepeatOnTypes(1, 'weekDay')">
+                                </select-box>
+                                <span class="left-margin-component-id text-component-id">
+                                    of every
+                                </span>
+                                <digit-text-box
+                                    style="margin: 0 10px; min-width: 130px;"
+                                    :only-integer="true"
+                                    :only-positive="true"
+                                    :minimum="0"
+                                    :maximum="900"
+                                    clear-label="Clear"
+                                    v-model="rules.repeatEvery"
+                                    @changed="selectRepeatOnTypes(1)">
+                                </digit-text-box>
+                                <span class="text-component-id">
+                                    month(s)
+                                </span>
+                            </row-layout>
+                        </column-layout>
+                    </row-layout>
+                </flex-item>
+
+                <flex-item v-show="rules.type === 4">
+                    <row-layout v-for="option in payload.repeatOnTypesYearly" :key="option.value" style="margin-bottom: 5px;">
+                        <radio-button 
+                            class="types-component-id"
+                            :checked="isCheckedRepeatOnTypes(option.value)"
+                            @input="selectRepeatOnTypes(option.value)"
+                            :label="option.label"
+                            :value="option.value">
+                        </radio-button>
+                        <select-box
+                            v-if="option.value === 2"
+                            class="options-component-id"
+                            :options="months"
+                            clear-label="Clear"
+                            v-model="month"
+                            @selected="selectRepeatOnTypes(2, 'month')">
+                        </select-box>
+                        <select-box
+                            v-if="option.value === 2"
+                            class="options-component-id left-margin-component-id"
+                            :options="mountDays"
+                            clear-label="Clear"
+                            v-model="rules.repeatOn.date"
+                            @selected="selectRepeatOnTypes(2, 'date')">
+                        </select-box>
+                        <select-box
+                            v-if="option.value === 1"
+                            class="options-component-id"
+                            :options="payload.weekdayOffsets"
+                            clear-label="Clear"
+                            v-model="rules.repeatOn.weekDayOffset"
+                            @selected="selectRepeatOnTypes(1, 'weekDayOffset')">
+                        </select-box>
+                        <select-box
+                            v-if="option.value === 1"
+                            class="left-margin-component-id"
+                            style="min-width: 150px;"
+                            :options="weekdays" 
+                            clear-label="Clear"
+                            v-model="weekDay"
+                            @selected="selectRepeatOnTypes(1, 'weekDay')">
+                        </select-box>
+                        <span v-if="option.value === 1" class="left-margin-component-id text-component-id">
+                            of
+                        </span>
+                        <select-box
+                            v-if="option.value === 1"
+                            class="options-component-id left-margin-component-id"
+                            :options="months" 
+                            clear-label="Clear"
+                            v-model="month"
+                            @selected="selectRepeatOnTypes(1, 'month')">
+                        </select-box>
+                    </row-layout>
+                </flex-item>
+            </flex-item>
+        </row-layout>
+
+    </column-layout>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const moment = await require(`moment`);
+
+    return {
+        props: {
+            item: {
+                type: Object,
+                default: _ => { }
+            },
+            ruleProperty: {
+                type: String,
+                default: _ => ''
+            },
+            dateStart: {
+                type: String,
+                default: _ => ''
+            },
+            dateEnd: {
+                type: String,
+                default: _ => ''
+            },
+            validation: {
+                type: Object,
+                default: _ => { }
+            },
+            hideAppointTime: {
+                type: Boolean,
+                default: _ => false
+            },
+            value: {
+                type: String,
+                default: _ => ``
+            }
+        },
+        data() {
+            return {
+                payload: {
+                    repeatTypes: [
+                        { title: `Never`, id: 0, unit: "" },
+                        { title: `Daily`, id: 1, unit: "Day" },
+                        { title: `Weekly`, id: 2, unit: "Week" },
+                        { title: `Monthly`, id: 3, unit: "Month" },
+                        { title: `Yearly`, id: 4, unit: "Year" },
+                        { title: `Hourly`, id: 5, unit: "Hour" },
+                        { title: `Minutes`, id: 6, unit: "Minutes" }
+                    ]
+                },
+                duration: 0,
+                startDate: '',
+                timeStart: '',
+                timeEnd: '',
+                weekdays: {},
+                months: {},
+                weekday: '',
+                month: '',
+            }
+        },
+        created() {
+            this.payload.endTypes = [
+                { title: `No end date`, id: 0 },
+                { title: `End after:`, id: 1 },
+                { title: `End by:`, id: 2 }
+            ];
+            this.payload.repeatOnTypesMonthly = [
+                { title: `Day`, id: 0, visible: true },
+                { title: `The`, id: 1, visible: true }
+            ];
+            this.payload.repeatOnTypesYearly = [
+                { label: `On:`, value: 2, visible: false },
+                { label: `On the:`, value: 1, visible: true },
+                { label: `No Rule`, value: null, visible: true },
+            ];
+            this.payload.weekdayOffsets = [
+                { title: "First", type: 0, id: 1 },
+                { title: "Second", type: 1, id: 2 },
+                { title: "Third", type: 2, id: 3 },
+                { title: "Fourth", type: 3, id: 4 }
+            ];
+            this.payload.days = [
+                { name: `sunday`, alias: 0 },
+                { name: `monday`, alias: 1 },
+                { name: `tuesday`, alias: 2 },
+                { name: `wednesday`, alias: 3 },
+                { name: `thursday`, alias: 4 },
+                { name: `friday`, alias: 5 },
+                { name: `saturday`, alias: 6 }
+            ];
+            this.payload.durations = [
+                { title: `5 minutes`, id: 1, type: `minutes`, range: 5 },
+                { title: `10 minutes`, id: 2, type: `minutes`, range: 10 },
+                { title: `15 minutes`, id: 3, type: `minutes`, range: 15 },
+                { title: `30 minutes`, id: 4, type: `minutes`, range: 30 },
+
+                { title: `1 hour`, id: 5, type: "hours", range: 1},
+                { title: `2 hours`, id: 6, type: "hours", range: 2},
+                { title: `3 hours`, id: 7, type: "hours", range: 3},
+                { title: `4 hours`, id: 8, type: "hours", range: 4},
+                { title: `5 hours`, id: 9, type: "hours", range: 5},
+                { title: `6 hours`, id: 10, type: "hours", range: 6},
+                { title: `7 hours`, id: 11, type: "hours", range: 7},
+                { title: `8 hours`, id: 12, type: "hours", range: 8},
+                { title: `9 hours`, id: 13, type: "hours", range: 9},
+                { title: `10 hours`, id: 14, type: "hours", range: 10},
+                { title: `11 hours`, id: 15, type: "hours", range: 11},
+
+                { title: `0.5 days`, id: 16, type: "hours", range: 12},
+                { title: `18 hours`, id: 17, type: "hours", range: 18},
+                { title: `1 day`, id: 18, type: "days", range: 1},
+                { title: `2 days`, id: 19, type: "days", range: 2},
+                { title: `3 days`, id: 20, type: "days", range: 3},
+                { title: `4 days`, id: 21, type: "days", range: 4 },
+
+                { title: `1 week`, id: 22, type: "weeks", range: 1 },
+                { title: `2 weeks`, id: 23, type: "weeks", range: 2 }
+            ];
+            this.weekdays = [
+                { title: `Day`, id: `0,1,2,3,4,5,6` },
+                { title: `Weekday`, id: `1,2,3,4,5` },
+                { title: `Weekend Day`, id: `6,0` },
+                { title: `Sunday`, id: 0 },
+                { title: `Monday`, id: 1 },
+                { title: `Tuesday`, id: 2 },
+                { title: `Wednesday`, id: 3 },
+                { title: `Thursday`, id: 4 } ,
+                { title: `Friday`, id: 5 },
+                { title: `Saturday`, id: 6 }
+            ];
+            this.months = [
+                { title: `january`, id: 1, days: 31 },
+                { title: `febrary`, id: 2, days: 28 },
+                { title: `march`, id: 3, days: 31 },
+                { title: `april`, id: 4, days: 30 },
+                { title: `may`, id: 5, days: 31 },
+                { title: `june`, id: 6, days: 30 },
+                { title: `july`, id: 7, days: 31 },
+                { title: `august`, id: 8, days: 31 },
+                { title: `september`, id: 9, days: 30 },
+                { title: `october`, id: 10, days: 31 },
+                { title: `november`, id: 11, days: 30 },
+                { title: `december`, id: 12, days: 31 }
+            ];
+            const repeatOnDays = [];
+            for (const day of this.payload.days) {
+                const existingDay = this.item[this.ruleProperty].repeatOn.days.find(a => a.alias === day.alias);
+                if (existingDay) {
+                    repeatOnDays.push(existingDay);
+                } else {
+                    repeatOnDays.push({
+                        name: day.name,
+                        alias: day.alias,
+                        selected: false
+                    });
+                }
+            }
+            this.item[this.ruleProperty].repeatOn.days = repeatOnDays;
+            this.startDate = this.dateStart ? this.dateStart : '';
+            this.timeStart = this.dateStart ? moment(this.dateStart).format('HH:mm') : ``;
+            this.timeEnd = this.dateEnd ? moment(this.dateEnd).format('HH:mm') : ``;
+            this.weekDay = this.rules.repeatOn.weekDay.alias;
+            this.month = this.rules.repeatOn.month.index;
+            this.setDuration();
+
+            if (this.value) {
+                //TODO: map string to objects
+            }
+        },
+        methods: {
+            changedStartDate() {
+                this.localDateStart = this.startDate;
+            },
+            changedTimeStart() {
+                var dateStart = this.localDateStart ? moment(this.localDateStart).format('YYYY-MM-DD') + ' ' + this.timeStart : '';
+                this.localDateStart = dateStart;
+                setTimeout(() => {
+                    this.setDuration(dateStart, '');
+                })
+            },
+            changedTimeEnd() {
+                var dateEnd = this.localDateEnd ? moment(this.localDateEnd).format('YYYY-MM-DD') + ' ' + this.timeEnd : '';
+                this.localDateEnd = dateEnd;
+                setTimeout(() => { 
+                    this.setDuration('', dateEnd);
+                })
+            },
+            selectDuration() {
+                if (this.duration == 0) {
+                    this.payload.durations.find(a => a.id == this.duration).title = '';
+                    return;
+                }
+                
+                var index = this.payload.durations.find(a => a.id == 0);
+                if (index > -1) this.payload.durations.splice(index, 1);
+
+                var duration = this.payload.durations.find(a => a.id == this.duration);
+                var dateEnd = moment(this.localDateStart, 'YYYY-MM-DD HH:mm').add(duration.range, duration.type).format('YYYY-MM-DD HH:mm');
+                this.localDateEnd = dateEnd;
+                this.timeEnd = moment(dateEnd).format('HH:mm');
+            },
+            setDuration(dateStart, dateEnd) {
+                dateStart = dateStart ? dateStart : this.dateStart;
+                dateEnd = dateEnd ? dateEnd : this.dateEnd;
+                this.duration = 0;
+                
+                var diff = moment(dateEnd).diff(moment(dateStart), 'hours');
+                var index = this.payload.durations.findIndex(a => a.id == 0);
+                if (index > -1)
+                    this.payload.durations[index].title = diff + " hours";
+                else {
+                    var customDuration = { id: 0, title: diff + " hours" };
+                    this.payload.durations.splice(0, 0, customDuration);
+                }
+            },
+            selectRepeatType() {
+                this.rules.repeatEvery = 1;
+                this.rules.repeatTime = null;
+
+                switch (this.rules.type) {
+                    case 2:
+                        this.rules.repeatOn.days.forEach(day => {
+                            day.selected = false;
+                            if (day.alias == this.currentWeekDay()) day.selected = true;
+                        });
+                        break;
+                    case 3:
+                        this.selectRepeatOnTypes(1, '', true);
+                        break;
+                    case 4:
+                        this.selectRepeatOnTypes(null, '', true);
+                        break;
+                }
+
+                this.generateCronRule();
+            },
+            getTime() {
+                if (this.rules.repeatTime) {
+                    const time = this.rules.repeatTime.split(` `)[1];
+                    const parts = time.split(`:`);
+                    return `${parseInt(parts[1])} ${parseInt(parts[0])} `; 
+                } else {
+                    return `0 1 `;
+                }
+            },
+            generateCronRule() {
+                let cronRuleString = `* * * * *`;
+                switch (this.rules.type) {
+                    case 1:
+                        cronRuleString = `${(this.getTime())}*/${this.rules.repeatEvery} * *`; // 1:00 every `repeatEvery` days
+                        break;
+                    case 2:
+                        const selectedDays = this.payload.days.filter(a => a.selected).map(a => a.alias).join(`,`);
+                        cronRuleString = `${(this.getTime())}*/${this.rules.repeatEvery * 7} * ${selectedDays}`; // 1:00 every `repeatEvery` week in days from selectedDays
+                        break;
+                    case 3:
+                        if (this.rules.repeatOn.type === 0) {
+                            const every = this.rules.repeatOn.counter;
+                            const repeat = this.rules.repeatEvery;
+                            cronRuleString = `0 1 ${every} */${repeat} *`; // 1:00 every `repeatEvery` month on `repeatOn.counter` day
+                        } else {
+                            const weekDayOffset = this.rules.repeatOn.weekDayOffset; //TODO: I don't know how to do that
+                            const weekDay = this.rules.repeatOn.weekDay;
+                            const repeat = this.rules.repeatEvery;
+                            cronRuleString = `0 1 * */${repeat} ${(weekDay ? weekDay : `*`)}`; // 1:00 every `repeatEvery` month on `repeatOn.counter` day
+                        }
+                        break;
+                    case 4:
+
+                        break;
+                    case 5:
+                        cronRuleString = `* ${this.rules.repeatEvery} * * *`;
+                        break;
+                    case 6:
+                        cronRuleString = `${this.rules.repeatEvery} * * * *`;
+                        break;
+                }
+                this.$emit(`input`, cronRuleString);
+            },
+            setStartValue() {
+                this.rules.repeatEvery = 1;
+                this.rules.end.type = this.payload.endTypes[0].value;
+                this.duration = 18;
+                
+                var index = this.payload.durations.findIndex(a => a.id == 0);
+                if (index > -1) this.payload.durations.splice(index, 1);
+            },
+            isCheckedRepeatOnTypes(value) {
+                return this.rules.repeatOn.type === value;
+            },
+            selectRepeatOnTypes(value, mode = '', changeParent = false) {
+                if (this.rules.repeatOn.type == value && !changeParent) {
+                    this.generateCronRule();
+                    return;
+                }
+                this.rules.repeatOn.type = value;
+
+                if (mode != 'month') this.month = Number(moment(this.item.dateStart).format('M'));
+                if (mode != 'weekDay') this.weekDay = this.currentWeekDay();
+                if (mode != 'weekDayOffset') this.rules.repeatOn.weekDayOffset = this.currentWeekDayOffset();
+                if (mode != 'date') this.rules.repeatOn.date = Number(moment(this.item.dateStart).format('D')) - 1;
+                if (mode != 'counter') this.rules.repeatOn.counter = Number(moment(this.item.dateStart).format('D'));
+
+                this.rules.repeatOn.weekDay = this.weekdays.find(a => a.id == this.weekDay);
+                this.rules.repeatOn.month = this.months.find(a => a.id == this.month);
+
+                this.generateCronRule();
+            },
+            currentWeekDayOffset() {
+                var offset = (Math.ceil(moment(this.item.dateStart, 'YYYY-MM-DD hh:mm').date() / 7));
+                return offset > 4 ? -1 : offset;
+            },
+            currentWeekDay() {
+                switch (moment(this.item.dateStart, 'YYYY-MM-DD hh:mm').toDate().getDay()) {
+                    case 0: return 'SU';
+                    case 2: return 'TU';
+                    case 3: return 'WE';
+                    case 4: return 'TH';
+                    case 5: return 'FR';
+                    case 6: return 'SA';
+                    default: return 'MO';
+                }
+            },
+            isCheckedEndType(value) {
+                console.log(this.rules.end.type, "-", value);
+                return this.rules.end.type === value;
+            },
+            selectEndType(value) {
+                this.rules.end.type = value;
+            },
+            getMounthDays(mount) {
+                const items = [];
+                for (let i = 0; i < mount.days; i++) {
+                    items.push({
+                        id: i,
+                        title: i + 1
+                    });
+                }
+                return items;
+            }
+        },
+        computed: {
+            rules() {
+                return this.item && this.ruleProperty ? this.item[this.ruleProperty] : {};
+            },
+            localDateStart: {
+                get() { return this.item && this.item.dateStart ? this.item.dateStart : ''; },
+                set(value) { this.item.dateStart = value; }
+            },
+            localDateEnd: {
+                get() { return this.item && this.item.dateEnd ? this.item.dateEnd : ''; },
+                set(value) { this.item.dateEnd = value; }
+            },
+            mountDays() {
+                const currentMount = this.months.find(a => a.id === this.month)
+
+                return currentMount ? this.getMounthDays(currentMount) : [];
+            }
+        },
+        watch: {
+            dateStart(newValue) {
+                this.startDate = newValue;
+                this.localDateStart = newValue;
+                this.timeStart = newValue ? moment(newValue).format('HH:mm') : '';
+            },
+            dateEnd(newValue) {
+                this.localDateEnd = newValue;
+                this.timeEnd = newValue ? moment(newValue).format('HH:mm') : '';
+            }
+        },
+        components: {
+            'SelectBox': staticBasicComponent(`SelectBox`),
+            'DigitTextBox': staticBasicComponent(`DigitTextBox`),
+            'CheckBox': staticBasicComponent(`CheckBox`),
+            'RowLayout': staticBasicComponent(`RowLayout`),
+            'ColumnLayout': staticBasicComponent(`ColumnLayout`),
+            'DatePicker': staticBasicComponent(`SeparatedDatePicker`),
+            'RadioButtonGroup': staticBasicComponent(`RadioButtonGroup`),
+            'RadioButton': staticBasicComponent(`RadioButton`),
+            'TextBlock': staticBasicComponent(`TextBlock`),
+            'FlexItem': staticBasicComponent(`FlexItem`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.repeat-component-id {
+    width: 105px;
+    border-right: 1px solid lightgray;
+    margin-right: 20px;
+    margin-bottom: 13px;
+    padding-top: 8px;
+}
+.end-repeat-component-id {
+    width: 130px;
+    margin-right: 20px;
+    margin-bottom: 13px;
+    padding-top: 8px;
+}
+.combo-box-component-id {
+    width: 180px;
+}
+.left-margin-component-id {
+    margin-left: 10px;
+}
+.options-component-id {
+    min-width: 130px;
+}
+.day-checkboxes-component-id {
+    flex-wrap: wrap;
+    margin-left: 20px;
+}
+.day-checkboxes-component-id > * {
+    min-width: 100px;
+    margin-top: 10px;
+    width: 15%;
+}
+.montly-rules-component-id > * {
+    margin-right: 10px;
+}
+.types-component-id {
+    padding-top: 8px;
+    width: 90px;
+}
+.end-types-component-id {
+    padding-top: 8px;
+    width: 112px;
+}
+.text-component-id {
+    font-size: 14px;
+    padding-bottom: 3px;
+}
+.date-start-component-id {
+    width: 120px !important;
+    margin-left: 10px;
+    margin-right: 20px;
+}
+.time-component-id {
+    width: 200px !important;
+    margin-left: 10px;
+}
+.margin-top-component-id {
+    margin-top: 58px;
+}
+</style>

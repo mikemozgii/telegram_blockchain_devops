@@ -1,0 +1,196 @@
+﻿<vue-template>
+    <form-modal
+        title="Deploy"
+        ref="formModal"
+        min-width="700px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <text-block>
+                Networks ({{ deployedNetworkIds ? deployedNetworkIds.length : 0 }})
+            </text-block>
+            <multi-select-box
+                v-model="deployedNetworkIds"
+                :options="deployNetworkOptions">
+            </multi-select-box>
+
+            <text-block>
+                Amount
+            </text-block>
+            <digit-text-box
+                v-model="amount"
+                only-integer
+                :minimum="0"
+                :maximum="9999999999999999999">
+            </digit-text-box>
+
+            <div
+                v-for="(input, index) in inputs"
+                :key="input.name">
+
+                <text-block
+                    class="input-name-component-id">
+                    {{ input.name }} ({{ input.type }})
+                </text-block>
+
+                <span
+                    v-if="input.type === `address` && addressKnown[input.name]">
+                    {{ constructor[input.name] }}
+                </span>
+
+                <text-box
+                    v-if="(input.type === `address` && !addressKnown[input.name]) || input.type === `cell` || input.type === `bytes`"
+                    v-model="constructor[input.name]">
+                </text-box>
+
+                <text-box
+                    v-if="input.type.indexOf(`[]`) !== -1"
+                    v-model="constructor[input.name]">
+                </text-box>
+
+                <digit-text-box
+                    v-else-if="input.type.indexOf(`uint`) >= 0 && input.type.indexOf(`[]`) === -1"
+                    v-model="constructor[input.name]"
+                    only-integer
+                    :minimum="0"
+                    :maximum="getMaxValueByType(input.type)">
+                </digit-text-box>
+
+                <labeled-switch-box
+                    v-else-if="input.type === `bool`"
+                    v-model="constructor[input.name]"
+                    left-text="true"
+                    right-text="false">
+                </labeled-switch-box>
+
+                <row-layout
+                    v-if="input.type === `address`"
+                    class="input-known-component-id"
+                    :children-space="5">
+                    <labeled-switch-box
+                        v-model="addressKnown[input.name]"
+                        left-text="yes"
+                        right-text="no"
+                        @changed="changedAddressKnown(input.name, index)">
+                    </labeled-switch-box>
+                    <span>
+                        Select from known
+                    </span>
+                </row-layout>
+
+            </div>
+
+            <row-layout
+                v-if="!inputs || !inputs.length"
+                class="input-name-component-id"
+                justify-content="center">
+                No Inputs
+            </row-layout>
+        </div>
+        <modal-control-buttons
+            slot="buttons"
+            save-translation="Ok"
+            :save="selectDeploy"
+            :cancel="cancelDeploy"
+            :delete-visible="false">
+        </modal-control-buttons>
+    </form-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        data() {
+            return {
+                model: {},
+                constructor: {},
+                inputs: [],
+                addressKnown: {},
+                deployedNetworkIds: [],
+                deployNetworkOptions: [],
+                deployItem: null,
+                amount: 0,
+            }
+        },
+        methods: {
+            async selectDeploy() {
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.post(
+                    `/api/smartaccounts/deploynetworks`,
+                    this.deployedNetworkIds,
+                    { params: { id: this.deployItem.id, amount: this.amount } }
+                );
+                this.fireEvent(`globalBusy`, false);
+
+                this.cancelDeploy();
+
+                this.$emit('select-deploy', savedItem);
+            },
+            async deploy(item, networkOptions) {
+                this.deployItem = item;
+                this.deployedNetworkIds = [];
+                this.amount = 0;
+                this.constructor = {};
+                this.addressKnown = {};
+
+                const deployedNetworkIds = this.deployItem.networks.filter(i => i.isDeployed).map(i => i.id);
+                //this.deployNetworkOptions = networkOptions.filter(i => this.deployItem.networkIds.includes(i.id) && !deployedNetworkIds.includes(i.id));
+
+                this.deployNetworkOptions = networkOptions;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: inputs } = await axios.get(
+                    `/api/smartaccounts/getconstructor`, { params: { contractId: item.contractId } }
+                );
+                this.inputs = inputs;
+                this.fireEvent(`globalBusy`, false);
+
+                this.$refs.formModal.openModal();
+            },
+            cancelDeploy() {
+                this.deployItem = '';
+                this.$refs.formModal.closeModal();
+            },
+            changedAddressKnown(inputName, index) {
+                this.model[inputName] = this.addressKnown[inputName] ? this.account.address : ``;
+            },
+            getMaxValueByType(type) {
+                switch (type) {
+                    case `uint32`: return 4294967295;
+                    case `uint64`: return 18446744073709551615;
+                    case `uint128`: return 340282366920938463463374607431768211356;
+                    case `uint8`: return 255;
+                }
+            },
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            FormModal: staticBasicComponent(`FormModal`),
+            TextBox: staticBasicComponent(`TextBox`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            DigitTextBox: staticBasicComponent(`DigitTextBox`),
+            LabeledSwitchBox: staticBasicComponent(`LabeledSwitchBox`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`),
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .input-known-component-id {
+        padding-top: 5px;
+    }
+    .input-name-component-id {
+        padding-top: 15px;
+    }
+</style>

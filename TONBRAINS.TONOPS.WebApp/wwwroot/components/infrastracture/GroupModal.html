@@ -1,0 +1,91 @@
+<vue-template>
+    <form-modal :title="modalTitle"
+                ref="formModal"
+                min-width="500px">
+        <div slot="content"
+             class="form-container-component-id local-size"
+             slot-scope="{ validation }">
+            <form-fields-layout :fields="fields">
+                <text-block-required slot="name" :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box clear-label="Clear"
+                          slot="nameinput"
+                          v-model="model.name"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="nameValidate = $event">
+                </text-box>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons :save="save"
+                                   :cancel="cancel"
+                                   :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-template>
+
+<script>
+    module.exports = async function () {
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+        const componentStyles = await require(`componentStyles`);
+
+        return {
+            data() {
+                return {
+                    model: {name: ''},
+                    after: { name: '' },
+                    modalTitle: ``,
+                    nameValidate: false,
+                    fields: [
+                        { labelSlot: "name", inputSlot: "nameinput" }
+                    ]
+                }
+            },
+            async created() {
+                this.register('openmodalgroup', this.open);
+            },
+            beforeDestroy() {
+                this.unregister('openmodalgroup', this.open);
+            },
+            methods: {
+                cancel() {
+                    this.model = { name: '' };
+                    this.after = { name: '' };
+                    this.$refs.formModal.closeModal();
+                },
+                open(item) {
+                    if (item.name === '') {
+                        this.modalTitle = `Create Group`;
+                        this.nameValidate = false
+                    }
+                    else {
+                        this.after = { name: item.name };
+                        this.modalTitle = `Edit group ${item.name}`;
+                        this.nameValidate = true;
+                    }
+                    this.model = {name: item.name };
+                    this.$refs.formModal.openModal();
+                },
+                async save() {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: savedItem } = await axios.get(`/api/groups/addoredit`, { params: { after: this.after.name, before: this.model.name } });
+                    this.fireEvent(`globalBusy`, false);
+                    this.fireEvent('savegroup', { insertItem: savedItem, deleteItem: this.after });
+                    this.$refs.formModal.closeModal();
+                    this.$emit(`groupsaved`)
+                }
+            },
+            mixins: [translateMixin, globalObserver],
+            components: {
+                TextBox: staticBasicComponent(`TextBox`, componentStyles.textBoxes.default),
+                TextBlockRequired: staticBasicComponent(`ValidateLabelBox`, componentStyles.textBlocks.defaultValidateLabelBox),
+                FormModal: staticBasicComponent(`FormModal`, componentStyles.modals.defaultFormModal),
+                ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+                FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            }
+        }
+    }
+</script>

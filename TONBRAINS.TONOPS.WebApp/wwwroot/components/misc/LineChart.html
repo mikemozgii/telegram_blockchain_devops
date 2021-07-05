@@ -1,0 +1,167 @@
+﻿<vue-template>
+    <basic-chart
+        ref="basicchart"
+        :options="options"
+        :labels="labels"
+        :type="`line`"
+        :data="sets"
+        :width="width"
+        :height="height">
+    </basic-chart>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        datasets: {
+            type: Array,
+            default: _ => []
+        },
+        labels: {
+            type: Array,
+            default: _ => []
+        },
+        showLegend: {
+            type: Boolean,
+            default: _ => true
+        },
+        legendPosition: {
+            type: String,
+            default: _ => `top`
+        },
+        width: {
+            type: Number,
+            default: _=> 200
+        },
+        height: {
+            type: Number,
+            default: _=> 200
+        },
+        horizontal: {
+            type: Boolean,
+            default: _ => false
+        },
+        hideLeftAxis: {
+            type: Boolean,
+            default: _ => false
+        },
+        hideBottomAxis: {
+            type: Boolean,
+            default: _ => false
+        },
+        showTooltips: {
+            type: Boolean,
+            default: _ => false
+        },
+        labelCountBar: {
+            type: String,
+            default: _ => ``
+        },
+        title: {
+            type: String,
+            default: _ => ``
+        }
+    },
+    data() {
+        return {
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    yAxes: [{
+                        display: !this.hideLeftAxis,
+                        gridLines: {
+                            display: !this.hideLeftAxis
+                        },
+                        ticks: {
+                            max: this.hideLeftAxis ? this.heightBar() : undefined,
+                            display: !this.hideLeftAxis,
+                            beginAtZero: true
+                        }
+                    }],
+                    xAxes: [{
+                        display: !this.hideBottomAxis,
+                        gridLines: {
+                            display: !this.hideBottomAxis
+                        },
+                        ticks: {
+                            beginAtZero: true,
+                        }
+                    }]
+                },
+                legend: {
+                    display: this.showLegend,
+                    position: this.legendPosition,
+                    labels: {
+                        fontColor: 'black',
+                        fontFamily: "Arial",
+                        boxWidth: 15,
+                        filter: function(item, chart) {
+                            return !item.text.includes('~');
+                        }
+                    },
+                    onClick: (e) => e.stopPropagation()
+                },
+                tooltips: {
+                    enabled: this.showTooltips
+                },
+            },
+            sets: null
+        }
+    },
+    created() {
+        this.sets = this.getDatasets();
+        if(this.title) {
+            this.options.title = {
+                display: true,
+                position: 'left',
+                fontColor: 'gray',
+                fontSize: 10,
+                padding: 3,
+                text: this.title
+            };
+        }
+    },
+    methods: {
+        heightBar() {
+            var height = 3;
+
+            this.datasets.forEach(a => {
+                a.set.forEach(x => {
+                    if (x > height) height = x;
+                });
+            });
+
+            return height + (height * 0.15); // + 15%
+        },
+        getDatasets(){
+            return this.datasets.map(a => {
+                return {
+                    label: a.label,
+                    data: a.set,
+                    backgroundColor: a.backgroundColor,
+                    borderColor: a.borderColor,
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    lineTension: 0,
+                    fill: a.fill || false,
+                    steppedLine: a.steppedLine || false,
+                }
+            });
+        },
+        refresh() {
+            this.sets = this.getDatasets();
+            setTimeout(() => {
+                if(this.$refs.basicchart) this.$refs.basicchart.refreshChartDataset();
+            });
+        }
+    },
+    watch: {
+        datasets(val, oldVal) {
+            if (val != oldVal) this.refresh();
+        }
+    },
+    components: {
+        BasicChart: staticBasicComponent(`Chart`),
+    }
+}
+</script>

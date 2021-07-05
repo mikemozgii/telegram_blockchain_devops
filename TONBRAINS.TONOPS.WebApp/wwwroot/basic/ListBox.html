@@ -1,0 +1,101 @@
+<vue-template>
+    <div 
+         v-for="(item, index) in innerItems.filter(a => !a.hidden)"
+         :ref="`item${index}`"
+         class="listbox-item"
+         :draggable="dragPayload ? 'true' : 'false'"
+         :class="{'selected-component-id': checkSelected(item)}"
+         @dragstart="dragStart($event, item)"
+         @click="select($event, item)">
+        <slot name="item" :item="item"><span>{{ item.title }}</span></slot>
+    </div>
+</vue-template>
+
+<script vuescript>
+    module.exports = {
+        props: ['items', 'multipleSelect', 'value', 'disable', 'dragPayload'],
+        data: function () {
+            return {
+                selected: null,
+                selectedItems: [],
+                innerItems: [],
+                lastSelectedItem: null
+            }
+        },
+        mounted() {
+            this.$emit("mounted");
+            if (this.multipleSelect && this.value) this.selectedItems = this.value;
+            this.innerItems = this.items;
+        },
+        methods: {
+            scrollToItem(item) {
+                const index = this.items.indexOf(item);
+                const element = this.$refs['item' + index][0];
+                element.scrollIntoView();
+            },
+            dragStart($event, item) {
+                $event.dataTransfer.setData(this.dragPayload.transferKey, this.dragPayload.getData(item));
+            },
+            checkSelected(item) {
+                if (this.multipleSelect) return this.selectedItems.find(a => a === item);
+
+                return this.selected === item;
+            },
+            select($event, item) {          
+                if (this.disable) return;
+
+                if (this.multipleSelect) {
+                    if ($event.shiftKey && this.lastSelectedItem != null && this.lastSelectedItem != item && this.innerItems.indexOf(this.lastSelectedItem) > -1) {
+                        let lastSelectedItemIndex = this.innerItems.indexOf(this.lastSelectedItem);
+                        let currentSelectedItemIndex = this.innerItems.indexOf(item);
+                        for (let i = lastSelectedItemIndex; i !== currentSelectedItemIndex; (currentSelectedItemIndex > lastSelectedItemIndex ? i++ : i--)) {
+                            var addedItem = this.innerItems[i];
+                            if (this.selectedItems.indexOf(addedItem) == -1) {
+                                this.selectedItems.push(addedItem);
+                            }
+                        }
+                    } 
+                    if (this.selectedItems.find(a => a === item)) {
+                        this.selectedItems = this.selectedItems.filter(a => a !== item);
+                    } else {
+                        this.selectedItems.push(item);
+                    }
+                    this.lastSelectedItem = item;
+                    this.$emit('input', this.selectedItems);
+                    this.$emit('selected', this.selectedItems);
+                } else {
+                    this.selected = item;
+                    this.$emit('input', this.selected);
+                    this.$emit('selected', this.selected);
+                }
+            }
+        },
+        watch: {
+            value(newValue) {
+                if (this.multipleSelect) {
+                    this.selectedItems = newValue;
+                } else {
+                    this.selected = newValue;
+                }
+            },
+            items(newValue) {
+                this.innerItems = newValue;
+            }
+        }
+    }
+</script>
+
+<style scoped>
+.container-component-id .listbox-item {
+    padding: 3px;
+}
+.container-component-id .listbox-item:hover {
+    user-select: none;
+    background-color: lightgray
+}
+
+.selected-component-id {
+    color: gray;
+}
+</style>
+

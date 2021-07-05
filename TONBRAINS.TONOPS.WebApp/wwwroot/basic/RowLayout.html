@@ -1,0 +1,56 @@
+<vue-template>
+    <slot></slot>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        alignItems: {
+            type: String,
+            default: _ => `center`
+        },
+        justifyContent: {
+            type: String,
+            default: _ => `flex-start`
+        },
+        childrenSpace: {
+            type: Number,
+            default: _ => null
+        }
+    },
+    mounted() {
+        this.refreshAlignItems(this.alignItems);
+        this.refreshJustifyContent(this.justifyContent);
+    },
+    updated() {
+        if (this.$el.children.length === 0 || this.$el.children.length === 1 || this.childrenSpace === null) return;
+
+        const childrens = [...this.$el.children];
+        childrens.splice(childrens.length - 1);
+        for (const children of childrens) {
+            children.style["margin-right"] = `${this.childrenSpace}px`;
+        }
+    },
+    methods: {
+        refreshAlignItems(value) {
+            this.$el.style['align-items'] = value;
+        },
+        refreshJustifyContent(value) {
+            this.$el.style['justify-content'] = value;
+        }
+    },
+    watch: {
+        alignItems(newValue) {
+            this.refreshAlignItems(newValue);
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    flex-direction: row;
+    min-width: 0;
+}
+</style>

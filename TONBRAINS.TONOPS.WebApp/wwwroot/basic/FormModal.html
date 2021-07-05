@@ -1,0 +1,100 @@
+<vue-template>
+    <content-modal
+        ref="contentModal"
+        :title="title"
+        :open-immediatly="openImmediatly"
+        :lock-close="lockClose"
+        @closed="closed()"
+        @opened="opened()"
+        :need-centered="needCentered"
+        :auto-centered="autoCentered"
+        :need-overflow="needOverflow"
+        :hide-header="hideHeader"
+        :always-show-content="alwaysShowContent"
+        :min-width="minWidth">
+        <div slot="content" :style="{'padding-bottom': needBottomPadding ? '60px' : '' }">
+            <slot name="content" :validation="validateResult" :summary="validateSummary"></slot>
+        </div>
+        <div slot="headerslot">
+            <slot name="headerslot">{{ title }}</slot>
+        </div>
+        <template v-if="!hideButtons" slot="buttons">
+            <slot name="buttons" :validation="validateResult" :summary="validateSummary"></slot>
+        </template>
+    </content-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validateHost`);
+
+    return {
+        props: {
+            title: {
+                type: String,
+                required: true
+            },
+            openImmediatly: {
+                type: Boolean,
+                default: _ => false
+            },
+            lockClose: {
+                type: Boolean,
+                default: _ => true
+            },
+            hideButtons: {
+                type: Boolean,
+                default: _ => false
+            },
+            needCentered: {
+                type: Boolean,
+                default: _ => true
+            },
+            needOverflow: {
+                type: Boolean,
+                default: _ => true
+            },
+            needBottomPadding: {
+                type: Boolean,
+                default: _ => true
+            },
+            autoCentered: {
+                type: Boolean,
+                default: _ => true
+            },
+            hideHeader: {
+                type: Boolean,
+                default: _ => false
+            },
+            alwaysShowContent: {
+                type: Boolean,
+                default: _ => false
+            },
+            minWidth: {
+                type: String,
+                default: _ => `80%`
+            }
+        },
+        methods: {
+            closed() {
+                this.validateReset();
+                this.$emit('closed');
+            },
+            opened() {
+                if (this.validateReset) this.validateReset();
+                this.$emit('opened');
+            },
+            openModal () {
+                this.$refs.contentModal.openModal();
+            },
+            closeModal () {
+                this.$refs.contentModal.closeModal();
+            }
+        },
+        mixins: [validateMixin],
+        components: {
+            ContentModal: staticBasicComponent(`ContentModal`)
+        }
+    }
+}
+</script>

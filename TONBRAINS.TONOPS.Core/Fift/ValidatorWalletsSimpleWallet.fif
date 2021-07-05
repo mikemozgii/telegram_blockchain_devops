@@ -1,0 +1,56 @@
+library ValidatorWallets
+
+// Create new simple wallet
+<{ SETCP0 DUP IFNOTRET // return if recv_internal
+   DUP 85143 INT EQUAL OVER 78748 INT EQUAL OR IFJMP:<{ // "seqno" and "get_public_key" get-methods
+     1 INT AND c4 PUSHCTR CTOS 32 LDU 256 PLDU CONDSEL  // cnt or pubk
+   }>
+   INC 32 THROWIF  // fail unless recv_external
+   512 INT LDSLICEX DUP 32 PLDU   // sign cs cnt
+   c4 PUSHCTR CTOS 32 LDU 256 LDU ENDS  // sign cs cnt cnt' pubk
+   s1 s2 XCPU            // sign cs cnt pubk cnt' cnt
+   EQUAL 33 THROWIFNOT   // ( seqno mismatch? )
+   s2 PUSH HASHSU        // sign cs cnt pubk hash
+   s0 s4 s4 XC2PU        // pubk cs cnt hash sign pubk
+   CHKSIGNU              // pubk cs cnt ?
+   34 THROWIFNOT         // signature mismatch
+   ACCEPT
+   SWAP 32 LDU NIP 
+   DUP SREFS IF:<{
+     8 LDU LDREF         // pubk cnt mode msg cs
+     s0 s2 XCHG SENDRAWMSG  // pubk cnt cs ; ( message sent )
+   }>
+   ENDS
+   INC NEWC 32 STU 256 STU ENDC c4 POPCTR
+}>c 
+=: SimpleWalletCode
+
+{ over ."W0 Key " pubkey>$ type space dup .GR ." -> "
+  SimpleWalletCode  // code
+  <b 0 32 u, 3 roll 256 u, b>  // data
+  empty_cell  // libs
+  3 roll      // balance
+  0 // split_depth
+  0 // ticktock
+  2 // mode: create
+  register_smc
+  Masterchain swap 6 .Addr cr
+} : create-simple-wallet
+
+{
+// -1:b15b59120728a7e3bf47da46f427aea21ddb64826021fe9643bcf33e6b4578cc
+PK'Pua4X9JkwHAuWqYLwjty+Wh6UZpyxtWDsO4x9PUdmmrVms65 GR$300000 create-simple-wallet
+
+// -1:be3668de9f3be74f78c9b280b794dcee58594bcda25ea5447239d227b16b8ce1
+PK'PuYU7e0i58PJd3t9WaAaTf/D9KNcBK7Ue9mGcuyP384NsDtJ GR$300000 create-simple-wallet
+
+// -1:b5f998a325b0b0e3560880439bd63f34210b57918e9ecccefa51a5e5c48aa809
+PK'PuYrKskX7/eJoqezXYGDtIEQstAE9Uu/nP4SJrnHgWGDKQzS GR$300000 create-simple-wallet
+
+// -1:65eedd42dfb47a449c1da0833e569862fb70c7da79d074a16c3338b4a3e7e77f
+PK'Pua0ljJya9E8oJYCI5no0OygzfxsOmph8BkCRelhb7XFpNf7 GR$300000 create-simple-wallet
+
+// -1:a2cd79624de7cfed6c949246464a330f3f24a679c7d656ef00e71c83e22ef02c
+PK'PuZv/hj7RlPrfiz5A/5swEX1QdaVwT0YGF+ham6SHE6GTseX GR$300000 create-simple-wallet
+
+} : create-validator-wallets

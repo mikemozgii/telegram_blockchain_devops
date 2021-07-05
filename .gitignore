@@ -1,0 +1,17 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/TONBRAINS.TONOPS.WebApp/bin
+/TONBRAINS.TONOPS.WebApp/obj
+/TONBRAINS.TONOPS.Core/bin/Debug/net5.0
+/TONBRAINS.TONOPS.Core/obj
+/TONBRAINS.TONOPS.Ffi/bin/Debug/net5.0
+/TONBRAINS.TONOPS.Ffi/obj
+/TONBRAINS.TONOPS.UnitTest/bin/Debug/net5.0
+/TONBRAINS.TONOPS.Ffi/TLTonClient.cs
+/TONBRAINS.TONOPS.UnitTest/obj
+/TONBRAINS.MOBILE/bin/Debug/net5.0
+/TONBRAINS.MOBILE/obj
+/TONBRAINS.TONOPS.Core/bin/Release/net5.0

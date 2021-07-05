@@ -1,0 +1,349 @@
+<vue-template>
+    <form-modal :title="modalTitle"
+                ref="formModal"
+                min-width="700px">
+
+        <div v-if="node" slot="content" class="form-container-component-id local-size">
+            <table width="100%" cellpadding="4">
+                <tbody>
+                    <!--<tr>
+                        <td colspan="3">
+                            <h3>Manage Credentials</h3>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <select-box v-model="credential"
+                                        :options="credentials">
+                            </select-box>
+                        </td>
+                        <td>
+                            <save-button :title="node.isRoot ?  'Change Root Password' : 'Deploy Root'"
+                                         @pressed="setupRoot()">
+                            </save-button>
+                        </td>
+                    </tr>-->
+                      <tr>
+                        <td colspan="3">
+
+                            <h3>Manage Host Name</h3>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                             <text-box clear-label="Clear"
+                                        v-model="node.hostName">
+                            </text-box>
+                        </td>
+                        <td colspan="1">
+                            <save-button :title="'Change Host Name'"
+                                            @pressed="setupHostName()">
+                            </save-button>
+                        </td>
+                    </tr>
+                    <!--<tr>
+                        <td colspan="3">
+
+                            <h3>Manage Network</h3>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <text-block>IP</text-block>
+                            <text-box clear-label="Clear"
+                                      v-model="staticIp.ip">
+                            </text-box>
+                        </td>
+                        <td>
+                            <text-block>Gateway</text-block>
+                            <text-box clear-label="Clear"
+                                      v-model="staticIp.gateway">
+                            </text-box>
+                        </td>
+                    </tr>
+                    <tr>
+                         <td>
+                            <text-block>DNS 1</text-block>
+                            <text-box clear-label="Clear"
+                                      v-model="staticIp.dns1">
+                            </text-box>
+                        </td>
+                         <td>
+                            <text-block>DNS 2</text-block>
+                            <text-box clear-label="Clear"
+                                      v-model="staticIp.dns2">
+                            </text-box>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <save-button :title="node.isStaticIp ? 'Change Static IP' : 'Deploy Static IP'"
+                                         @pressed="setupStaticIp()">
+                            </save-button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="3">
+
+                            <h3>Manage Time</h3>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <save-button title="Set timezone UTC"
+                                         @pressed="setupDateTime()">
+                            </save-button>
+                        </td>
+                    </tr>-->
+                    <tr>
+                        <td colspan="3">
+                            <h3>Manage Deployment</h3>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <save-button v-if="node.type == 6" title="QUNATON Predeploy 1">
+                            </save-button>
+                            <save-button v-if="node.type == 6" title="QUNATON Predeploy 2">
+                            </save-button>
+                            <save-button title="Upgrade Node"
+                                         @pressed="upgrade()">
+                            </save-button>
+                            <!--<save-button v-if="node.type == 3" title="Setup Elk"
+                                         @pressed="setupElk()">
+                            </save-button>-->
+                            
+                        </td>
+                    </tr>
+
+                     <!--<tr v-if="node.type == 4">
+                        <td>
+                            
+                            <save-button  title="Setup PostgreSQL"
+                                         @pressed="setupPostgreSQL()">
+                            </save-button>
+                        </td>
+                    </tr>-->
+                    <tr v-if="node.type == 2">
+                        <td colspan="3">
+                            <h3>Zabbix</h3>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            
+                            <save-button v-if="node.type == 2" title="Setup Zabbix Server"
+                                         @pressed="setupZabbixServer()">
+                            </save-button>
+                        </td>
+                    </tr>
+
+                    <tr v-if="node.type !== 2">
+                        <td colspan="3">
+                            <h3>Zabbix Agent</h3>
+                        </td>
+                    </tr>
+                    <tr v-if="node.type !== 2">
+                        <td>
+                            <select-box v-model="zabbixServerId"
+                                        :options="zabbixServers">
+                            </select-box>
+                        </td>
+                        <td>
+                            <save-button :title="node.zabbixHostId ? `Change Zabbix Server` : `Setup Zabbix Agent`"
+                                         @pressed="node.zabbixHostId ? changeZabbixServer() : setupZabbixAggent()">
+                            </save-button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div slot="buttons">
+            <modal-control-buttons :cancel="cancel" :save="saveTest">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-template>
+
+<script>
+    module.exports = async function () {
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+
+        return {
+            props: {
+                credentials: Array,
+                zabbixServers: Array
+            },
+            data() {
+                return {
+                    node: null,
+                    opened: false,
+                    credential: 'default',
+                    credentialBefore: 'default',
+                    staticIp: {
+                        ip: '',
+                        gateway:'',
+                        dns1: '8.8.8.8',
+                        dns2: '8.8.4.4',
+                    },
+                    datetime: {
+
+                    },
+                    modalTitle: '',
+                    zabbixServerId: null,
+                }
+            },
+            created() {
+                this.register('openinitnode', this.open);
+            },
+            beforeDestroy() {
+                this.unregister('openinitnode', this.open);
+            },
+            methods: {
+                cancel() {
+                    this.node = null;
+                    this.opened = false;
+                    this.fireEvent(`globalBusy`, false);
+                    this.credential = 'default';
+                    this.staticIp = {
+                        ip: '',
+                        dns1: '',
+                        dns2: '',
+                    };
+                    this.$refs.formModal.closeModal();
+                },
+                async open(item) {
+                    this.node = item;
+                    this.zabbixServerId = this.node.zabbixServerId
+                    this.credentialBefore = item.credentialId;
+                    this.opened = true;
+                    this.modalTitle = `Init node ${item.name}`;
+                    this.staticIp = {
+                        ip: item.ip,
+                        gateway: '',
+                        dns1: '8.8.8.8',
+                        dns2: '1.1.1.1',
+                    }
+                    this.$refs.formModal.openModal();
+                },
+                //async setupRoot() {
+                //    this.fireEvent(`globalBusy`, true);
+                //    const { data: savedItem } = await axios.get(`/api/nodes/setuproot`, {
+                //        params: {
+                //            nodeId: this.node.id,
+                //            credentialId: this.credential
+                //        }
+                //    });
+                //    this.fireEvent('UpdateGrid', savedItem, !this.node.id);
+                //    this.fireEvent(`globalBusy`, false);
+                //},
+                //async setupStaticIp() {
+                //    this.fireEvent(`globalBusy`, true);
+                //    const { data: savedItem } = await axios.get(`/api/nodes/setupstaticip`, {
+                //        params: {
+                //            nodeId: this.node.id,
+                //            ...this.staticIp
+                //        }
+                //    });
+                //    this.fireEvent('UpdateGrid', savedItem, !this.node.id);
+                //    this.fireEvent(`globalBusy`, false);
+                //},
+                async setupHostName() {
+                    if (!this.node.hostName) return;
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: savedItem } = await axios.get(`/api/nodes/setuphostname`, {
+                        params: {
+                            nodeId: this.node.id,
+                            hostName: this.node.hostName
+                        }
+                    });
+                    this.fireEvent(`UpdateGrid-${this.node.groupId}`, savedItem, !this.node.id);
+                    this.fireEvent(`globalBusy`, false);
+                },
+                async setupZabbixServer() {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: savedItem } = await axios.get(`/api/nodes/setupzabbixserver`, {
+                        params: {
+                            nodeId: this.node.id
+                        }
+                    });
+                    this.fireEvent(`UpdateGrid-${this.node.groupId}`, savedItem, !this.node.id);
+                    this.fireEvent(`globalBusy`, false);
+                },
+                //async setupPostgreSQL() {
+                //    this.fireEvent(`globalBusy`, true);
+                //    const { data: savedItem } = await axios.get(`/api/nodes/setuppostgresql`, {
+                //        params: {
+                //            nodeId: this.node.id
+                //        }
+                //    });
+                //    this.fireEvent('UpdateGrid', savedItem, !this.node.id);
+                //    this.fireEvent(`globalBusy`, false);
+                //},
+                saveTest() {
+                    this.fireEvent(`UpdateGrid-${this.node.groupId}`, this.node, !this.node.id);
+                },
+                async upgrade() {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: savedItem } = await axios.get(`/api/nodes/upgrade`, {
+                        params: {
+                            nodeId: this.node.id
+                        }
+                    });
+                    this.fireEvent(`UpdateGrid-${this.node.groupId}`, savedItem, !this.node.id);
+                    this.fireEvent(`globalBusy`, false);
+                },
+                //async setupElk() {
+                //    this.fireEvent(`globalBusy`, true);
+                //    const { data: savedItem } = await axios.get(`/api/nodes/setupelk`, {
+                //        params: {
+                //            nodeId: this.node.id
+                //        }
+                //    });
+                //    this.fireEvent('UpdateGrid', savedItem, !this.node.id);
+                //    this.fireEvent(`globalBusy`, false);
+                //},
+                async setupZabbixAggent() {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: savedItem } = await axios.get(`/api/nodes/setupzabbixagent`, {
+                        params: {
+                            nodeId: this.node.id,
+                            zabbixServerId: this.zabbixServerId
+                        }
+                    });
+                    this.fireEvent(`UpdateGrid-${this.node.groupId}`, savedItem, !this.node.id);
+                    this.fireEvent(`globalBusy`, false);
+                },
+                async changeZabbixServer() {
+                    this.fireEvent(`globalBusy`, true);
+
+                    const { data: savedItem } = await axios.get(`/api/nodes/changezabbixserver`, {
+                        params: {
+                            nodeId: this.node.id,
+                            zabbixHostId: zabbixHostId
+                        }
+                    });
+                    this.zabbixServerId = this.node.zabbixServerId = this.zabbixServerId;
+                    this.node.zabbixHostId = zabbixHostId;
+                    this.fireEvent(`UpdateGrid-${this.node.groupId}`, savedItem, !this.node.id);
+                    this.fireEvent(`globalBusy`, false);
+                }
+            },
+            mixins: [translateMixin, globalObserver],
+            components: {
+                TextBox: staticBasicComponent(`TextBox`),
+                FormModal: staticBasicComponent(`FormModal`),
+                FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+                FormModal: staticBasicComponent(`FormModal`),
+                TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+                ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+                SelectBox: staticBasicComponent(`SelectBox`),
+                Terminal: localStaticComponent(`/components/infrastracture/Terminal.html`),
+                TextBlock: staticBasicComponent(`TextBlock`),
+                SaveButton: staticBasicComponent(`ActionButton`),
+
+            }
+        }
+    }
+</script>

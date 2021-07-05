@@ -1,0 +1,36 @@
+<template>
+    <div :style="{ 'margin': styles['container-margin'] }">
+        <span
+            :style="{ 'font-size': styles['font-size'], 'background-color': styles['background-color'], 'font-weight': styles['font-weight'], 'color': notValid ? styles['not-valid'] : styles['color'] }"
+        :class="{'not-valid-component-id': notValid}">
+            {{ text }}
+            <slot></slot>
+        </span>
+        <span
+            class="text-block-component-id"
+            v-if="!notValid">
+        </span>
+    </div>
+</template>
+
+<script>
+module.exports = {
+    props: {
+        text: String,
+        notValid: Boolean,
+        styles: {
+            type: Object,
+            default: _ => {
+                return {
+                    "container-margin": "0 0 0 0",
+                    "font-size": "0.8rem",
+                    "color": "#ee1c29",
+                    "background-color": "transparent",
+                    "font-weight": "bold",
+                    "not-valid": "#000"
+                };
+            }
+        }
+    },
+}
+</script>

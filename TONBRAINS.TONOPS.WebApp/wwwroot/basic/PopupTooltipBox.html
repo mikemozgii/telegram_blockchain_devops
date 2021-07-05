@@ -1,0 +1,144 @@
+﻿<vue-template>
+    <div
+        ref="content"
+        :class="[showed ? 'active-component-id' : 'not-active-component-id', {'tooltip-popup-component-id': true}]"
+        :style="styleObj">
+        <slot></slot>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        disablePointerEvents: {
+            type: Boolean,
+            default: _ => false
+        },
+        bottom: {
+            type: Boolean,
+            default: _ => false
+        },
+        left: {
+            type: Boolean,
+            default: _ => false
+        },
+        right: {
+            type: Boolean,
+            default: _ => false
+        },
+        top: {
+            type: Boolean,
+            default: _ => false
+        },
+    },
+    data() {
+        return {
+            showed: false,
+            leftPosition: '',
+            topPosition: '',
+            rightPosition: '',
+            bottomPosition: '',
+            widthPosition: '',
+            heightPosition: '',
+            styleObj: null
+        }
+    },
+    mounted() {
+        this.$emit(`completed`);
+        if (this.disablePointerEvents) this.$el.style['pointer-events'] = `none`;
+    },
+    methods: {
+        showBasedOnElement(element, width = null, leftOffset = 0, topOffset = 0) {
+
+            const rect = element.getBoundingClientRect(),
+                rectContent = this.$refs.content.getBoundingClientRect(),
+                widthContent = width ? width : rectContent.width,
+                docHeight = document.documentElement.clientHeight,
+                fitHeight = rect.bottom + 100 > docHeight || rect.bottom + 100 > document.body.clientHeight,
+                moveToTop = this.bottom && fitHeight;
+
+            if (this.top || moveToTop) {
+                this.bottomPosition = docHeight - rect.top + 2 + topOffset;
+                this.leftPosition = rect.left + (rect.width - widthContent) / 2 + leftOffset;
+            }
+            else if (this.left) {
+                this.topPosition = rect.top + (rect.height - rectContent.height) / 2 + topOffset;
+                this.leftPosition = rect.left - widthContent - 2 + leftOffset;
+            }
+            else if (this.right) {
+                this.topPosition = rect.top + (rect.height - rectContent.height) / 2 + topOffset;
+                this.leftPosition = rect.left + rect.width + 2 + leftOffset;
+            }
+            else {
+                this.topPosition = rect.top + rect.height + topOffset;
+                this.leftPosition = rect.left + (rect.width - widthContent) / 2 + leftOffset;
+            }
+
+            this.widthPosition = width ? `${widthContent}px` : 'auto';
+            
+            this.configureStyle(true);
+            this.showed = true;
+            this.$emit('showed');
+        },
+        showBasedOnPosition(position) {
+            this.leftPosition = position.left ? position.left : '';
+            this.rightPosition = position.right ? position.right : '';
+            this.bottomPosition = position.bottom ? position.bottom : '';
+            this.topPosition = position.top ? position.top : '';
+            this.widthPosition = position.width ? position.width : '';
+            this.heightPosition = position.height ? position.height : '';
+
+            this.configureStyle(false);
+
+            this.showed = true;
+            this.$emit('showed');
+        },
+        hide() {
+            this.showed = false;
+            this.$emit('hided');
+        },
+        configureStyle(basedOnElement) {
+            if (basedOnElement) {
+                this.styleObj = {
+                    left: `${this.leftPosition}px`,
+                    top: `${this.topPosition}px`,
+                    bottom: `${this.bottomPosition}px`,
+                    width: this.widthPosition
+                };
+            }
+            else {
+                this.styleObj = {
+                    left: `${this.leftPosition}px`,
+                    right: `${this.rightPosition}px`,
+                    bottom: `${this.bottomPosition}px`,
+                    top: `${this.topPosition}px`,
+                    width: `${this.widthPosition}px`,
+                    height: `${this.heightPosition}px`,
+                    width: this.widthPosition
+                };
+            }
+        }
+    }
+}
+</script>
+
+<style scoped>
+.active-component-id {
+    visibility: visible;
+}
+.not-active-component-id {
+    visibility: hidden;
+}
+.tooltip-popup-component-id {
+    position: fixed;
+    z-index: 1000;
+    background: #616161;
+    border-radius: 2px;
+    color: white;
+    font-size: 12px;
+    display: inline-block;
+    padding: 5px 8px;
+    box-shadow: 0 3px 1px -2px rgba(0,0,0,.2), 0 2px 2px 0 rgba(0,0,0,.14), 0 1px 5px 0 rgba(0,0,0,.12);
+    text-align: center;
+}
+</style>

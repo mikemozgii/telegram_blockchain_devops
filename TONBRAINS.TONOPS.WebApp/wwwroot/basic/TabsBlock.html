@@ -1,0 +1,183 @@
+<vue-template>
+    <div class="blocks-component-id">
+        <div
+            v-for="(item, index) in blockItems"
+            :key="index"
+            :ref="`tabcontent${index}`"
+            class="tab-block-component-id"
+            :class="{ 'tab-block-component-id': true, 'lefttoright-component-id': isAnimated('lefttoright', item), 'lefttoright-current-component-id': isAnimated('lefttorightoffset', item), 'righttoleft-component-id': isAnimated('righttoleft', item), 'righttoleft-current-component-id': isAnimated('righttoleftoffset', item) }"
+            :style="{ 'transform': blockTransform(item, index) }">
+            <slot :name="item.slot"></slot>
+        </div>
+    </div>
+</vue-template>
+
+<script vuescript>
+module.exports = async function () {
+    const tabsMixin = await require(`globalMixins/tabs`);
+
+    return {
+        props: {
+            items: {
+                type: Array,
+                default: _ => []
+            },
+            value: [String, Number, Object]
+        },
+        data() {
+            return {
+                selected: null,
+                newAnimationItem: null,
+                goneAnimationItem: null,
+                animationDirection: null,
+                intervalId: null,
+                tabsContainerHeight: 300
+            }
+        },
+        created() {
+            if (this.value) this.selected = this.items.find(a => a.id === this.value);
+            this.intervalId = setInterval(this.fixTabSizes, 10);
+        },
+        beforeDestroy() {
+            clearInterval(this.intervalId);
+        },
+        methods: {
+            fixTabSizes() {
+                if (!this.selected) return;
+
+                const index = this.items.indexOf(this.selected);
+                const tabIndex = `tabcontent${index}`;
+                this.$el.style.height = `${this.$refs[tabIndex][0].offsetHeight}px`;
+            },
+            isAnimated(mode, item) {
+                if (!(this.newAnimationItem === item || this.goneAnimationItem === item)) return;
+
+                if (this.animationDirection === `lefttoright`) {
+                    switch (mode) {
+                        case `lefttoright`:
+                            return this.newAnimationItem === item;
+                        case `righttoleftoffset`:
+                            return this.goneAnimationItem === item;
+                            break;
+                        default: false;
+                    }
+                }
+                if (this.animationDirection === `righttoleft`) {
+                    switch (mode) {
+                        case `righttoleft`:
+                            return this.newAnimationItem === item;
+                        case `lefttorightoffset`:
+                            return this.goneAnimationItem === item;
+                            break;
+                        default: false;
+                    }
+                }
+
+                return false;
+            },
+            blockTransform(item, index) {
+                if (this.selected === item) return null;
+
+                const selectedIndex = this.blockItems.indexOf(this.selected);
+                return index < selectedIndex ? `translateX(-100%)` : `translateX(100%)`;
+            }
+        },
+        watch: {
+            value(newValue) {
+                const newItem = this.items.find(a => a.id === newValue);
+                const currentIndex = this.items.indexOf(this.selected);
+                const newIndex = this.items.indexOf(newItem);
+                this.newAnimationItem = newItem;
+                this.goneAnimationItem = this.selected;
+                this.animationDirection = currentIndex < newIndex ? `righttoleft` : `lefttoright`;
+                setTimeout(() => {
+                    this.selected = newItem;
+                }, 280);
+            },
+            items(newValue) {
+                if (!this.items || !this.items.length) return;
+
+                this.selected = newValue.find(a => a.id === this.selected.id);
+            },
+        },
+        computed: {
+            blockItems() {
+                return this.items.filter(a => (a.visibleHandler && a.visibleHandler()) || !a.visibleHandler);
+            }
+        },
+        mixins: [tabsMixin]
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    width: 100%;
+    min-height: 0;
+    height: 1000px;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+.blocks-component-id {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+}
+.tab-block-component-id {
+    width: 100%;
+    position: absolute;
+}
+@keyframes left-to-right-component-id {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(0%);
+    }
+}
+@keyframes right-to-left-component-id {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0%);
+    }
+}
+@keyframes left-to-right-offset-component-id {
+    from {
+        transform: translateX(0%);
+    }
+
+    to {
+        transform: translateX(-100%);
+    }
+}
+@keyframes right-to-left-offset-component-id {
+    from {
+        transform: translateX(0%);
+    }
+
+    to {
+        transform: translateX(100%);
+    }
+}
+.lefttoright-component-id {
+  animation-name: left-to-right-component-id;
+  animation-duration: .3s;
+}
+.lefttoright-current-component-id {
+  animation-name: left-to-right-offset-component-id;
+  animation-duration: .3s;
+}
+.righttoleft-component-id {
+  animation-name: right-to-left-component-id;
+  animation-duration: .3s;
+}
+.righttoleft-current-component-id {
+  animation-name: right-to-left-offset-component-id;
+  animation-duration: .3s;
+}
+</style>

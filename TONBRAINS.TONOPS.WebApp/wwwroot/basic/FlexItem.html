@@ -1,0 +1,19 @@
+<vue-template>
+    <slot></slot>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        size: {
+            type: String,
+            default: _ => null
+        }
+    },
+    updated() {
+        if (!this.size) return;
+
+        this.$el.style.flex = this.size;
+    }
+}
+</script>

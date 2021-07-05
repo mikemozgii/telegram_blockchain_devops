@@ -1,0 +1,155 @@
+<vue-template>
+    <div class="switch-component-id">
+        <label :class="{ 'disabled-component-id': disable }">
+            <slot name="precontent">
+            </slot>
+            <input
+                type="checkbox"
+                v-model="checked"
+            />
+            <span
+                class="lever-component-id"
+                @click="toggle()"
+                :disabled="disable">
+            </span>
+            <slot name="postcontent">
+            </slot>
+        </label>
+    </div>
+    <validate-box
+        v-show="validate && validateErrors && validateErrors.length"
+        :title="validateErrors[0]">
+    </validate-box>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            value: {
+                type: Boolean,
+                default: _ => false
+            },
+            disable: {
+                type: Boolean,
+                default: _ => false
+            }
+        },
+        data: () => {
+            return {
+                checked: false
+            }
+        },
+        created() {
+            this.checked = this.value ? true: false;
+            this.defaultValidateRules = {
+                'required': this.required
+            };
+        },
+        methods: {
+            toggle() {
+                if (this.disable) return;
+
+                this.checked = !this.checked;
+                this.$emit(`toggled`, this.checked);
+            },
+            required(rule) {
+                if (this.checked == null) this.validateMessage(rule, 'This field is required');
+
+                return this.checked;
+            }
+        },
+        watch: {
+            value(newValue) {
+                this.checked = newValue;
+            },
+            checked(newValue) {
+                this.validateValue();
+
+                this.$emit(`input`, this.checked);
+                this.$emit(`changed`, this.checked);
+            }
+        },
+        mixins: [validateMixin],
+        components: {
+            ValidateBox: staticBasicComponent(`ValidateBox`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    width: 100%;
+}
+.switch-component-id {
+    height: 31px;
+    width: 100%;
+    min-width: 40px;
+}
+.switch-component-id label {
+    user-select: none;
+    top: 6px;
+    right: 6px;
+    position: relative;
+    margin: 0 1rem;
+}
+.switch-component-id label input[type=checkbox] {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    display: none
+}
+.switch-component-id label .lever-component-id {
+    cursor: pointer;
+    content: "";
+    display: inline-block;
+    position: relative;
+    background-color: #ccc;
+    border-radius: 1.2rem;
+    vertical-align: middle;
+    width: 2.2rem;
+    height: 0.93rem;
+    transition: background .3s ease;
+}
+.switch-component-id label input[type=checkbox]:checked+.lever-component-id {
+    background-color: white;
+}
+.switch-component-id label input[type=checkbox]:checked+.lever-component-id:after {
+    background-color: green;
+    left: 1.3rem;
+}
+.switch-component-id label .lever-component-id:after {
+    content: "";
+    position: absolute;
+    display: inline-block;
+    background-color: #fff;
+    border-radius: 1.17rem;
+    left: -0.15rem;
+    top: -0.19rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    width: 1.17rem;
+    height: 1.17rem;
+    transition: left .3s ease,background .3s ease,box-shadow 1s ease;
+}
+.disabled-component-id {
+    pointer-events: none;
+    opacity: 0.6;
+}
+.text-component-id {
+    font-size: 8px;
+    margin-top: 1px;
+    display: flex;
+}
+.left-text-component-id {
+    margin-left: 3px;
+    justify-content: flex-start;
+}
+.right-text-component-id {
+    color: black;
+    margin-right: 3px;
+    justify-content: flex-end;
+}
+</style>

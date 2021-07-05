@@ -1,0 +1,105 @@
+<vue-template>
+    <form-modal
+        title="Edit Configuration"
+        ref="formModal"
+        min-width="500px">
+        <div
+            slot="content"
+            style="height: 60vh"
+            slot-scope="{ validation }">
+            <p>Configuration Values</p>
+            <!--<form-fields-layout :fields="fields">
+                <text-block
+                    slot="type" >
+                    Configuration Values
+                </text-block>
+                <multi-select-box
+                    slot="typeinput"
+                    :options="types"
+                    v-model="selectedConfigurations">
+                </multi-select-box>
+            </form-fields-layout>-->
+            <check-box
+                v-for="type in types"
+                v-model="selectedConfigurations[type.id]"
+                :key="type.id"
+                :header="type.title">
+            </check-box>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :disable-save="false">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                objectId: ``,
+                types: [],
+                selectedConfigurations: {},
+                typeValidate: false,
+            }
+        },
+        methods: {
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            async editObjectConfiguration(objectId) {
+                this.objectId = objectId;
+                this.typeValidate = false;
+
+                this.fireEvent(`globalBusy`, true);
+                
+                const { data: links } = await axios.get(`/api/configurations/links`, { params: { id: this.objectId } });
+                const { data: types } = await axios.get(`/api/configurations/all`);
+
+                this.types = types.map(
+                    a => {
+                        a.title = a.name;
+                        return a;
+                    }
+                );
+                this.selectedConfigurations = {};
+                links.map(a => this.selectedConfigurations[a.id] = true);
+
+                this.fireEvent(`globalBusy`, false);
+
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.fireEvent(`globalBusy`, true);
+                const selectedConfigurations = Object.getOwnPropertyNames(this.selectedConfigurations).filter(i => i !== "__ob__" && this.selectedConfigurations[i]);
+                await axios.post(`/api/configurations/addlinks`, {
+                    id: this.objectId,
+                    configurations: selectedConfigurations
+                });
+
+                this.fireEvent(`globalBusy`, false);
+
+                this.cancel();
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FormModal: staticBasicComponent(`FormModal`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`),
+            CheckBox: staticBasicComponent(`CheckBox`),
+        }
+    }
+}
+</script>

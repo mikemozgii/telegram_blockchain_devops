@@ -1,0 +1,104 @@
+﻿<vue-template>
+    <div v-for="item in items.filter(a => !a.hidden)">
+        <div @click="select(item)">
+            <tool-tip-box bottom 
+                width-tooltip="80px"
+                class="listbox-item-component-id"
+                :class="{'selected-component-id': checkSelected(item)}">
+
+                <slot name="item" :item="item">
+                    <span>{{ item.title }}</span>
+                </slot>
+
+                <div 
+                    slot="tooltip" 
+                    v-html="item.title" 
+                    class="tooltip-content-component-id">
+                </div>
+
+            </tool-tip-box>
+        </div>
+    </div>
+</vue-template>
+
+<script>
+    module.exports = {
+        props: ['items', 'value', 'disable'],
+        data: function () {
+            return {
+                selected: null,
+                selectedItems: []
+            }
+        },
+        mounted() {
+            this.$emit("mounted");
+        },
+        methods: {
+            checkSelected(item) {
+
+                return this.selected === item;
+            },
+            select(item) {
+                if (this.disable) return;
+
+                if (this.multipleSelect) {
+                    if (this.selectedItems.find(a => a === item)) {
+                        this.selectedItems = this.selectedItems.filter(a => a !== item);
+                    } else {
+                        this.selectedItems.push(item);
+                    }
+                    this.$emit('input', this.selectedItems);
+                    this.$emit('selected', this.selectedItems);
+                } else {
+                    this.selected = item;
+                    this.$emit('input', this.selected);
+                    this.$emit('selected', this.selected);
+                }
+            }
+        },
+        watch: {
+            value(newValue) {
+               this.selected = newValue;
+            }
+        },
+        components: {
+           ToolTipBox: staticBasicComponent(`ToolTipBox`),
+        }
+    }
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+
+}
+.listbox-item-component-id:hover {
+    user-select: none;
+    background-color: #F8F8F8;
+    opacity: 1;
+
+    border-radius:25px;
+    -moz-border-radius:25px;
+    -webkit-border-radius:25px;
+    -khtml-border-radius:25px;
+}
+
+.listbox-item-component-id {
+    opacity: 0.7;
+    padding: 8px 5px 5px 5px;
+    margin: 11px 2px 5px 1px;
+    cursor: pointer;
+}
+.selected-component-id {
+    color: #4285f4;
+}
+        
+.tooltip-content-component-id {
+    word-wrap: normal;
+    text-align: center;
+}
+</style>
+

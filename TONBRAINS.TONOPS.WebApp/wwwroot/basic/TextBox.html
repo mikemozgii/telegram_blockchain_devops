@@ -1,0 +1,214 @@
+<vue-template>
+    <div 
+        v-if="!disable"
+        @@mouseenter="mouseEntersInput($event)"
+        @@mouseleave="mouseLeavesInput($event)">
+        <input
+            v-if="!disable"
+            ref="textinput"
+            :autocomplete="autocomplete"
+            :type="inputType || 'text'"
+            :placeholder="watermark"
+            v-model="content"
+            :disabled="disable"
+            :pattern="pattern"
+            :class="{ 'not-valid-input': validate && validateErrors && validateErrors.length }"
+            :style="{'letter-spacing': letterSpacing }"
+            v-on:blur="onBlur"
+            v-on:keyup.enter="keyupEnter"
+        />
+        <clear-button-pop-up
+            ref="clearButtonPopUp"
+            v-if="content && content.length && !disable && showClearButton"
+            :action="clear">
+        </clear-button-pop-up>
+    </div>
+    <div
+        class="disable-area-component-id"
+        v-if="disable">
+        {{ content }}
+    </div>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            watermark: {
+                type: String,
+                default: _ => ``
+            },
+            value: {
+                type: String,
+                default: _ => ``
+            },
+            inputType: {
+                type: String,
+                default: _ => `text`
+            },
+            disable: {
+                type: Boolean,
+                default: _ => false
+            },
+            pattern: {
+                type: String,
+                default: _ => null
+            },
+            autocomplete: {
+                type: String,
+                default: _=> `on`
+            },
+            showClearButton: {
+                type: Boolean,
+                default: () => true
+            },
+            clearLabel: {
+                type: String,
+                default: () => `Clear`
+            },
+
+            letterSpacing: {
+                type: String,
+                default: _=> `0`
+            }
+        },
+        data: () => {
+            return {
+                content: this.value,
+                defaultValidateRules: {}
+            }
+        },
+        created() {
+            if (this.value && this.content !== this.value) this.content = this.value;
+
+            this.defaultValidateRules = {
+                'required': this.required,
+                'minLength': this.minLength,
+                'maxLength': this.maxLength,
+                'format': this.checkFormat
+            };
+
+            this.validateValue();
+        },
+        methods: {
+            mouseEntersInput(e) {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                let rect = e.target.getBoundingClientRect();
+                let position = {
+                    left: rect.right - 30,
+                    top: rect.bottom - 24,
+                };
+                this.$refs.clearButtonPopUp.show(position);
+            },
+
+            mouseLeavesInput(e) {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                this.$refs.clearButtonPopUp.hide();
+            },
+
+            onBlur() {
+                this.$emit('blur');
+            },
+            keyupEnter() {
+                this.$emit('keyup-enter');
+            },
+            checkFormat(rule) {
+                if (!this.content) return true;
+                const result = this.content.match(rule.parameter);
+
+                if (!result) this.validateMessage(rule, 'This field is not in the correct format.');
+                return result;
+            },
+            required(rule) {
+                var valid = this.content && this.content.trim();
+                if (!valid) this.validateMessage(rule, 'This field is required');
+
+                return valid;
+            },
+            minLength(rule) {
+                if (!this.content) return true;
+
+                const valid = this.content.length >= rule.parameter;
+                if (!valid) this.validateMessage(rule, `Field contains less then ${rule.parameter} characters`);
+                return valid;
+            },
+            maxLength(rule) {
+                if (!this.content) return true;
+
+                const valid = this.content.length <= rule.parameter;
+                if (!valid) this.validateMessage(rule, `Field contains greather then ${rule.parameter} characters`);
+                return valid;
+            },
+            focus() {
+                this.$refs.textinput.focus();
+            },
+            clear() {
+                this.content = ``;
+                this.$emit('input', this.content);
+                this.$emit('changed', this.content);
+            }
+        },
+        watch: {
+            value(newValue) {
+                this.content = newValue;
+            },
+            content(newValue) {
+                this.$emit('input', newValue);
+                this.$emit('changed', newValue);
+
+                this.validateValue();
+            }
+        },
+        mixins: [validateMixin],
+        components: {
+            ClearButtonPopUp: staticBasicComponent(`ClearButtonPopUp`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id input {
+    height: 32px;
+    box-shadow: none;
+    padding: 5px 6px;
+    font-size: .8rem;
+    font-weight: normal;
+    transition: none;
+    display: block;
+    width: 100%;
+    line-height: 1.428571429;
+    color: #424242;
+    background-clip: padding-box;
+    overflow: visible;
+    box-sizing: border-box;
+    border: 1px solid #e7eaf3;
+    border-radius: 3px;
+    font-family: inherit;
+    
+}
+.container-component-id input:focus, input:active {
+    border-color: rgba(51, 204, 255, 0.30);
+    background-image: none;
+    outline: 0;
+}
+.container-component-id input.not-valid-input {
+     border-color: #ee1c29;
+}
+.disable-area-component-id {
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+::placeholder { 
+    opacity: .5; 
+}
+</style>

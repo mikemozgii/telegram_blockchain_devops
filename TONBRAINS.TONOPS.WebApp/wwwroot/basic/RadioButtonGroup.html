@@ -1,0 +1,92 @@
+﻿<vue-template>
+    <div 
+        class="element-container-component-id"
+        :class="{ 'not-valid-input-component-id':validate && validateErrors && validateErrors.length && !disable,'row-layout-component-id':row}">
+        <slot>
+            <radio-button
+                v-for="option in options"
+                :key="option.id"
+                :disable="disable"
+                :label="option.title"
+                :id="option.id"
+                @selected="selected($event)">
+                <template slot="content" slot-scope="{ item }">
+                    <slot name="content" :item="item">{{ item.title }}</slot>
+                </template>
+            </radio-button>
+        </slot>
+    </div>
+</vue-template>
+
+<script>
+    module.exports = async function component () {
+        const validateMixin = await require(`globalMixins/validate`);
+        return {
+            props: {
+                value: [Object, String, Number, Boolean],
+
+                disable: {
+                    type: Boolean,
+                    default: _ => false
+                },
+
+                row: {
+                    type: Boolean,
+                    default: _ => false
+                },
+
+                options: {
+                    type: Array,
+                    default: _ => []
+                }
+            },
+            data() {
+                return {
+                    defaultValidateRules: {}
+                }
+            },
+            created() {
+                this.defaultValidateRules = {
+                    'required': this.required
+                };
+                this.validateValue();
+            },
+            methods: {
+                required(rule) {
+                    const isNotValid = !this.value;
+                    if (isNotValid) this.validateMessage(rule, 'This field is required');
+                    return !isNotValid;
+                },
+                selected($event) {
+                    parent.$emit(`selected`, $event);
+                }
+            },
+            watch: {
+                value(newValue) {
+                    this.validateValue();
+                }
+            },
+            mixins: [validateMixin],
+            components: {
+                RadioButton: staticBasicComponent(`RadioButton`)
+            }
+        }
+    }
+</script>
+
+<style scoped>
+.element-container-component-id {
+    display: flex;
+    flex-direction: column;
+}
+.element-container-component-id.not-valid-input-component-id {
+    border: 2px solid #ee1c29;
+    border-radius: 3px;
+    padding-left: 6px;
+}
+
+.element-container-component-id.row-layout-component-id {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+</style>

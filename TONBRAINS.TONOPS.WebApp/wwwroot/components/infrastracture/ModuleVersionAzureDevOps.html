@@ -1,0 +1,113 @@
+<vue-plain-template>
+    <form-modal
+        title="Add From Azure DevOps Release"
+        ref="devOpsModal"
+        min-width="500px">
+        <div slot="content" class="form-container-component-id local-size" slot-scope="{ validation }">
+            <form-fields-layout :fields="[{ labelSlot: 'releases', inputSlot: 'releasesinput' }, { labelSlot: 'module', inputSlot: 'moduleinput' }, { labelSlot: 'description', inputSlot: 'descriptioninput' }]">
+                <text-block slot="releases">
+                    Select release
+                </text-block>
+                <select-box
+                    :options="devopsReleases"
+                    slot="releasesinput"
+                    v-model="devopsRelease"
+                    @@selected="releaseDescription = $event;">
+                </select-box>
+                <text-block slot="module"
+                            :not-valid="moduleValidate">
+                    Module
+                </text-block>
+                <select-box :options="moduleNames"
+                            slot="moduleinput"
+                            v-model="releaseModule">
+                </select-box>
+                <text-block slot="description">
+                    Description
+                </text-block>
+                <multi-line clear-label="Clear"
+                            slot="descriptioninput"
+                            v-model="releaseDescription">
+                </multi-line>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="addFromRelease"
+                :disable-save="!devopsRelease || !releaseModule"
+                save-translation="Add From Release"
+                :cancel="cancelReleases">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-plain-template>
+
+<script>
+    module.exports = async function () {
+        const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+        const componentStyles = await require(`componentStyles`);
+        const moment = await require(`moment`);
+    
+        return {
+            props: {
+                moduleName: {
+                    type: String,
+                    required: true
+                }
+            },
+            data() {
+                return {
+                    model: {},
+                    moduleNames: getLotusModules(),
+                    devopsReleases: [],
+                    devopsRelease: null,
+                    releaseModule: null,
+                    modalOpened: false,
+                    releaseDescription: "",
+                    moduleValidate: false
+                }
+            },
+            methods: {
+                cancelReleases() {
+                    this.$refs.devOpsModal.closeModal();
+                },
+                async addFromRelease() {
+                    this.fireEvent(`globalBusy`, true);
+
+                    const devOpsReleaseItem = this.devopsReleases.find(a => a.id === this.devopsRelease);
+
+                    await axios.get(`/api/azuredevops/addbuild`, { params: { releaseId: this.devopsRelease, serviceId: this.releaseModule, description: this.releaseDescription, buildId: devOpsReleaseItem.title } });
+
+                    this.fireEvent(`globalBusy`, false);
+
+                    this.cancelReleases();
+
+                    this.$emit(`saved`);
+                },
+                async addFromDevOpsReleases() {
+                    this.devopsRelease = null;
+                    this.releaseDescription = ``;
+                    this.releaseModule = this.moduleName;
+                    this.modalOpened = true;
+                    const { data: result } = await axios.get(`/api/azuredevops/getbuilds`);
+                    this.modalOpened = false;
+                    this.devopsReleases = result.map(a => { return { id: a.id, title: a.name }; });
+                    this.$refs.devOpsModal.openModal();
+                },
+            },
+            mixins: [translateMixin, globalObserver, gridHelperMixin],
+            components: {
+                TextBox: staticBasicComponent(`TextBox`),
+                TextBlock: staticBasicComponent(`TextBlock`),
+                TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+                SelectBox: staticBasicComponent(`SelectBox`),
+                FormModal: staticBasicComponent(`FormModal`),
+                MultiLine: staticBasicComponent(`MultiLineTextBox`),
+                FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+                ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`)
+            }
+        }
+    }
+    </script>

@@ -1,0 +1,84 @@
+﻿<vue-template>
+    <div class="clear-button-container-component-id">
+        <div @click="runAction()"
+                class="action-component-id">
+            <slot name="icon">
+            </slot>
+            <font-awesome-icon v-if="!hideStandartIcon" :icon="'fas fa-times'" :icon4="'fa-times'" class="red-component-id">
+            </font-awesome-icon>
+            <span v-if="title">
+                <strong>{{ title }}</strong>
+            </span>
+        </div>
+    </div>
+</vue-template>
+
+<script>
+    module.exports = async function () {
+        return {
+            props: {
+                action: {
+                    type: Function,
+                    default: _ => null
+                },
+                title: {
+                    type: String,
+                    default: _ => ``
+                },
+                hideStandartIcon: {
+                    type: Boolean,
+                    default: _ => false
+                }
+            },
+
+            methods: {
+                runAction() {
+                    this.$emit('pressed');
+                    if (!this.action) return;
+                    this.action();
+                },
+            },
+
+            components: {
+                FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`)
+            }
+        }
+    }
+
+</script>
+
+<style scoped>
+    .clear-button-container-component-id {
+        background-color: white;
+        border-radius: 50%;
+        height: 16px;
+        width: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .clear-button-container-component-id:hover {
+        background-color: #dfdfdf;
+        opacity: 1;
+     }
+
+    .action-component-id {
+        color: #FF2757;
+    }
+
+    .action-component-id span {
+        opacity: .8;
+        font-size:12px;
+        line-height: 0;
+    }
+
+    .action-component-id span:hover {
+       opacity: 1;
+     }
+
+    .red-component-id {
+        color: #FF2757;
+    }
+</style>

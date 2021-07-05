@@ -1,0 +1,477 @@
+﻿<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings">
+
+
+        <slot slot="leftedgecontent"
+              name="leftedgecontent">
+        </slot>
+
+        <short-text slot="nameslot"
+                    slot-scope="{ item }"
+                    :text="item.name"
+                    :is-link="true"
+                    @clicked="editItem({ item: item })">
+        </short-text>
+
+        <row-layout slot="diskErrslot"
+            slot-scope="{ item }">
+            <span v-show="item.diskAgv">
+                {{item.diskAgv}}%
+            </span>
+            <font-awesome 
+                v-if="item.diskErr"
+                icon="fa-exclamation-triangle"
+                icon-set="far"
+                color="red">
+            </font-awesome>
+            <span v-if="item.diskErr">
+                {{item.diskErr}}
+            </span>
+        </row-layout>
+        
+        <row-layout slot="difErrslot"
+                    slot-scope="{ item }">
+            <!--<font-awesome v-if="item.difErr"
+                          icon="fa-exclamation-triangle"
+                          icon-set="far"
+                          color="red">
+            </font-awesome>-->
+            <span v-show="item.diffAgv" style="color: red;">
+                {{item.diffAgv}}
+            </span>
+
+            <!--<span v-if="item.difErr">
+        {{item.difErr}}
+    </span>-->
+        </row-layout>
+       
+
+        <div
+            slot="activeslot"
+            slot-scope="{ item }">
+            {{ item.active ? `Active` : `Not Active` }}
+        </div>
+
+        <div slot="innerContent" slot-scope="{ item, expand }">
+            <ton-network-info v-if="item"
+                              :ref="`network-${item.id}`"
+                              :item="item"
+                              @node-error="updateItemOnError($event)">
+            </ton-network-info>
+
+        </div>
+
+        <menu-option slot="refreshmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'sync-alt'">
+        </menu-option>
+
+        <menu-option slot="tonstartmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'rocket'">
+        </menu-option>
+
+        <menu-option slot="editmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'edit'">
+        </menu-option>
+        <menu-option slot="deletemenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'delete'">
+        </menu-option>
+        <menu-option slot="startmenuoption"
+                slot-scope="{ item }"
+                :title="item.title"
+                :mode="'play'">
+        </menu-option>
+        <menu-option slot="stopmenuoption"
+                    slot-scope="{ item }"
+                    :title="item.title"
+                    :mode="'stop'">
+        </menu-option>
+        <menu-option slot="zabbixoption"
+                    slot-scope="{ item }"
+                    :title="item.title"
+                    :mode="'view'">
+        </menu-option>
+    </flat-data-grid>
+
+    <form-modal
+        :title="modalTitle"
+        ref="formModal"
+        min-width="700px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout
+                :fields="fields">
+                <text-block-required
+                    slot="name"
+                    :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box
+                    slot="nameinput"
+                    v-model="model.name"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block
+                    slot="description"
+                    :not-valid="true">
+                    Description
+                </text-block>
+                <multi-line
+                    slot="descriptioninput"
+                    v-model="model.description"
+                    :validate="[`required`]"
+                    :validatecontext="validation">
+                </multi-line>
+
+                <text-block-required
+                    slot="config"
+                    :not-valid="configValidate">
+                    Configuration
+                </text-block-required>
+                <select-box slot="configinput"
+                    v-model="model.configurationId"
+                    :options="configurations"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="configValidate = $event">
+                </select-box>
+
+                <!--<text-block
+                    slot="validatorId">
+                    Validator Smart Contract
+                </text-block>
+                <select-box slot="validatoridinput"
+                    v-model="model.validatorId"
+                    :options="getContracts(`system`)">
+                </select-box>
+
+                <text-block slot="validatorAmount">
+                    Validator Init Amount 
+                </text-block>
+                <digit-text-box slot="validatoramountinput"
+                                v-model="model.validatorInitAmount"
+                                :only-integer="true"
+                                :only-positive="true">
+                </digit-text-box>
+
+                <text-block
+                    slot="electorId">
+                    Elector Smart Contract
+                </text-block>
+                <select-box slot="electoridinput"
+                    v-model="model.electorId"
+                    :options="getContracts(`elector`)">
+                </select-box>
+
+                <text-block
+                    slot="contractId">
+                    Main Smart Contract
+                </text-block>
+                <select-box slot="contractidinput"
+                    v-model="model.contractId"
+                    :options="getContracts(`system`)">
+                </select-box>-->
+
+                <text-block
+                    slot="node"
+                    :not-valid="nodeValidate">
+                    Nodes
+                </text-block>
+                <multi-select-box slot="nodeinput"
+                    v-model="nodesIds"
+                    :options="nodes">
+                </multi-select-box>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :delete-action="deleteItem"
+                :delete-visible="model && model.id"
+                :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-template>
+
+<script>
+
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    //
+    return {
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { slot: `nameslot` }),
+                        this.addColumn(`Description`, `description`),
+                        this.addColumn(`Disk Err`, `diskErr`, { slot: `diskErrslot` }),
+                        this.addColumn(`DIFF Err`, `difErr`, { slot: `difErrslot` }),
+                        this.addColumn(`Status`, `active`, { slot: `activeslot` }),
+                        this.addColumn(`Count`, `count`),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+
+                        {
+                            title: `Refresh`,
+                            id: `refreshNodes`,
+                            slot: `refreshmenuoption`,
+                        },
+                        {
+                            title: `Zabbix server`,
+                            id: `zabbixserver`,
+                            slot: `zabbixoption`,
+                        },
+                        {
+                            title: `Start Ton`,
+                            id: `startton`,
+                            slot: `tonstartmenuoption`
+                        },
+
+                        {
+                            title: `Start`,
+                            id: `start`,
+                            slot: `startmenuoption`,
+                        },
+                        {
+                            title: `Stop`,
+                            id: `stop`,
+                            slot: `stopmenuoption`,
+                        },
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`
+                        }
+                    ],
+                    expandable: true,
+                    addButtonText: `Add`,
+                    defaultSortField:`name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                hub: new signalR.HubConnectionBuilder()
+                    .withUrl("/nodehub")
+                    .withAutomaticReconnect()
+                    .build(),
+                model: {},
+                nodesIds: [],
+                modalTitle: ``,
+                nameValidate: false,
+                nodeValidate: false,
+                configValidate: false,
+                nodes: [],
+                smartContracts: [],
+                configurations: [],
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "description", inputSlot: "descriptioninput", alignToTop: true },
+                    { labelSlot: "config", inputSlot: "configinput" },
+                    //{ labelSlot: "validatorId", inputSlot: "validatoridinput" },
+                    //{ labelSlot: "validatorAmount", inputSlot: "validatoramountinput" },
+                    //{ labelSlot: "contractId", inputSlot: "contractidinput" },
+                    //{ labelSlot: "electorId", inputSlot: "electoridinput" },
+                    { labelSlot: "node", inputSlot: "nodeinput" },
+                ],
+                errorsRecieved: false
+            }
+        },
+        async created() {
+            var _this = this;
+            this.hub.on('Status', function (status, id, group) {
+                _this.changeStatus( { status, id });
+            });
+            this.hub.on('Send', function (message, host) {
+                _this.fireEvent(`Recieve-${host}`, message);
+            });
+            this.hub.start();
+            await this.loadData();
+        },
+
+        methods: {
+            updateItemOnError($event) {
+                if (!$event) return;
+                let item = this.$refs.grid.getRows().find(i => i.id === $event.networkId);
+                if (!item) return;
+
+                item.diskAgv = Math.round($event.diskAvg);
+                item.diffAgv = Math.round($event.diffAvg);
+
+                item.diskErr = $event.errors.filter(i => i.diskErr).map(i => i.disk).join();
+                item.difErr = $event.errors.filter(i => i.difErr).map(i => i.diff).join();
+            },
+            activeHandler() {
+                return !this.id;
+            },
+            getContracts(type) {
+                return this.smartContracts.filter(i => i.type == type)
+            },
+            async refreshNodes({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                await axios.get(`/api/tonnetworks/nodesrefreshmetrics?id=${item.id}`);
+                await this.loadData();
+                this.fireEvent(`globalBusy`, false);
+            },
+            async changeStatus({ status, id }) {
+                var item = this.nodes.filter(x => x.id === id)[0];
+                if (item) {
+                    item.title += status === `Disconnect` ? ` Disconnect` : ` Connected`;
+                }
+            },
+            async checkServersStatus(nodeIds) {
+                await axios.get(`/api/nodes/checkserverstatus`, { params: { ids: JSON.stringify(nodeIds), groupId: `1`} });
+            },
+            async loadData() {
+                const { data: result } = await axios.get(`/api/tonnetworks/data`);
+                this.gridData = result.data;
+                this.nodes = result.nodes;
+                this.configurations = result.configurations;
+                this.smartContracts = result.smartContracts;
+                setTimeout(() => {
+                    this.$refs.grid.reloadData()
+                });
+                var nodeIds = this.nodes.map(x => x.id);
+                if (nodeIds.length > 0) await this.checkServersStatus(nodeIds);
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+                this.nodesIds = [];
+            },
+            add({ title }) {
+                this.model = {};
+                this.nodesIds = [];
+                this.modalTitle = title;
+
+                this.nameValidate = false;
+                this.nodeValidate = false;
+                this.configValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async edit({ item }) {
+                this.editedItem = item;
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/tonnetworks/single`, { params: { id: item.id } });
+                this.fireEvent(`globalBusy`, false);
+                this.nodesIds = model.nodesIds;
+                this.model = model.network;
+                this.modalTitle = `Edit`;
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                const url = !this.model.id ? `/api/tonnetworks/add` : `/api/tonnetworks/edit`
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.post(url, { network: this.model, nodesIds: this.nodesIds });
+                this.fireEvent(`globalBusy`, false);
+
+                this.$refs.formModal.closeModal();
+
+                await this.loadData();
+                //if (!this.model.id) {
+                //    this.$refs.grid.addItem(savedItem);
+                //} else {
+                //    this.$refs.grid.updateItem(savedItem, `id`);
+                //}
+            },
+            async delete({ item }) {
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/tonnetworks/softdelete`, { params: { id: item.id }});
+                this.fireEvent(`globalBusy`, false);
+
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async startton({ item }) {
+  
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.get(`/api/tonnetworks/startton`, { params: { id: item.id } });
+                this.fireEvent(`globalBusy`, false);
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+            async start({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                await axios.get(`/api/tonnetworks/runnetwork`, { params: { id: item.id } });
+                await this.loadData();
+                this.fireEvent(`globalBusy`, false);
+            },
+            async zabbixserver({ item }) {
+                const { data: url } = await axios.get(`/api/tonnetworks/zabbixserver`, { params: { id: item.id } });
+
+                if (url) {
+                    window.open(`http://${url}/zabbix`, '_blank');
+                }
+            },
+            async stop({ item }) {
+                this.fireEvent(`globalBusy`, true);
+                await axios.get(`/api/tonnetworks/stopnetwork`, { params: { id: item.id } });
+                await this.loadData();
+                this.fireEvent(`globalBusy`, false);
+            },
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            TonNetworkInfo: localStaticComponent(`/components/assetsmanagement/TonNetworkInfo.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            DigitTextBox: staticBasicComponent(`DigitTextBox`),
+            FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+
+        }
+    }
+}
+</script>

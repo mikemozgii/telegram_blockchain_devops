@@ -1,0 +1,171 @@
+<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings"
+                    @data-loaded="dataLoaded()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <short-text slot="nameslot"
+                    slot-scope="{ item }"
+                    :text="item.name">
+        </short-text>
+
+        <short-text slot="nodecountslot"
+                    slot-scope="{ item }"
+                    :text="item.nodeCount.toString()">
+        </short-text>
+
+        <div slot="innerContent" slot-scope="{ item, expand }">
+            <nodes v-if="item && dropdowns"
+                   ref="nodes"
+                   :group="item"
+                   :dropdowns="dropdowns"
+                   :expand="expand"
+                   @updated="relaodData()">
+            </nodes>
+        </div>
+        <menu-option slot="refreshmenuoption"
+                slot-scope="{ item }"
+                :title="item.title"
+                :mode="'sync-alt'">
+        </menu-option>
+        <menu-option slot="editmenuoption" slot-scope="{ item }" :title="item.title" mode="edit"></menu-option>
+        <menu-option slot="addoption" slot-scope="{ item }" :title="item.title" mode="add"></menu-option>
+        <menu-option slot="deletegroupoption" slot-scope="{ item }" :title="item.title" mode="delete"></menu-option>
+    </flat-data-grid>
+
+    <init-node v-if="dropdowns" 
+               :credentials="dropdowns.credentials.filter(x=>x.userName === 'root')"
+               :zabbix-servers="dropdowns.zabbixServers">
+    </init-node>
+    <node-modal v-if="gridData && dropdowns" :dropdowns="dropdowns">
+    </node-modal>
+    <group-modal
+        @groupsaved="$refs.grid.reloadData()">
+    </group-modal>
+
+</vue-template>
+
+<script>
+    module.exports = async function () {
+        const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+
+        return {
+            data() {
+                return {
+                    settings: {
+                        columns: [
+                            this.addColumn(`Name`, `name`, { notFilterable: false, slot: `nameslot` }),
+                            this.addColumn(`Nodes`, `nodeCount`, { notFilterable: false, slot: `nodecountslot` })
+                        ],
+                        emptyMessage: null,
+                        urls: {
+                            grid: `/api/groups/nodegroupgrid`
+                        },
+                        addButtonText: `Add Group`,
+                        defaultSortField: `name`,
+                        gridItemActions: [
+                            {
+                                title: `Refresh`,
+                                id: `refreshNodes`,
+                                slot: `refreshmenuoption`,
+                            },
+                            {
+                                title: `Edit`,
+                                id: `edit`,
+                                slot: `editmenuoption`,
+                            },
+                            {
+                                title: `Add Node`,
+                                id: `addnode`,
+                                slot: `addoption`
+                            },
+                            {
+                                title: `Delete Group`,
+                                id: `deleteGroup`,
+                                slot: `deletegroupoption`
+                            }
+                        ],
+                        expandable: true,
+                        hidePageSize: true,
+                        defaultPageSize: 5,
+                        addButtonVisibilityHandler: this.isViewOnlyHandler,
+                        defaultSortFieldDescending: false,
+                        additionalOptions: {
+                            allDataAtOnce: true,
+                            minimumLimitAllItems: 500
+                        },
+                        actions: this
+                    },
+                    hub: new signalR.HubConnectionBuilder()
+                        .withUrl("/nodehub")
+                        .withAutomaticReconnect()
+                        .build(),
+                    dropdowns: null
+                }
+            },
+            async created() {
+                this.register('GetHistory', this.getHistory);                
+
+                var _this = this;
+                this.hub.on('History', function (messages, host) {
+
+                    var array = JSON.parse(messages);
+                    _this.fireEvent(`History-${host}`, array);
+                });
+                this.hub.on('Send', function (message, host) {
+                    _this.fireEvent(`Recieve-${host}`, message);
+                });
+                this.hub.on('Status', function (status, id, group) {
+                    _this.fireEvent(`ChangeStatus-${group}`, { status, id });
+                });
+                this.hub.start();
+            },
+            beforeDestroy() {
+                this.unregister('GetHistory');
+            },
+            methods: {
+                async refreshNodes({ item }) {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: result } = await axios.get(`/api/nodes/nodesrefreshmetrics?id=${item.id}`);
+                    this.fireEvent(`globalBusy`, false);
+                },
+                relaodData() {
+                    this.$refs.grid.reloadData();
+                },
+                add() {
+                    this.fireEvent('openmodalgroup', { name: '' });
+                },
+                edit({ item }) {
+                    this.fireEvent('openmodalgroup', { name: item.name, id: item.id });
+                },
+                async addnode({ item }) {
+                    if (await this.$refs.nodes) await this.$refs.nodes.add(item.id);
+                },
+                async deleteGroup({ item }) {
+                    const { data: deleteResult } = await axios.delete(`/api/groups/delete?id=${item.id}`);
+                    if(deleteResult) this.$refs.grid.deleteItem(item, `id`);
+                },
+                async dataLoaded() {
+                    const { data: result } = await axios.get(`/api/nodes/dropdowns`);
+                    this.dropdowns = result;
+                },
+                getHistory(host) {
+                    this.hub.invoke('GetHistory', host);
+                }           
+            },
+            mixins: [translateMixin, globalObserver, gridHelperMixin],
+            components: {
+                FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+                MenuOption: staticBasicComponent(`MenuOption`),
+                ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+                Nodes: localStaticComponent(`/components/infrastracture/Nodes.html`),
+                NodeModal: localStaticComponent(`/components/infrastracture/ModalNode.html`),
+                InitNode: localStaticComponent(`/components/infrastracture/InitNode.html`),
+                GroupModal: localStaticComponent(`/components/infrastracture/GroupModal.html`)
+            }
+        }
+    }
+</script>

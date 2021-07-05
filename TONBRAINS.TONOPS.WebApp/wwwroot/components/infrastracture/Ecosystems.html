@@ -1,0 +1,150 @@
+<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings"
+                    v-if="gridData">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <short-text slot="nameslot"
+                    slot-scope="{ item }"
+                    :text="item.name"
+                    :is-link="true"
+                    @clicked="editItem(item)">
+        </short-text>
+        <menu-option slot="editmenuoption" slot-scope="{ item }" :title="item.title" :mode="'edit'"></menu-option>
+        <menu-option slot="deletemenuoption" slot-scope="{ item }" :title="item.title" :mode="'delete'"></menu-option>
+        <menu-option slot="filesmenuoption" slot-scope="{ item }" :title="item.title" :mode="'show'"></menu-option>
+    </flat-data-grid>
+
+    <delete-confirm-modal
+        ref="deleteConfirm"
+    ></delete-confirm-modal>
+    <alert-modal
+        ref="checkdomainalert"
+        title="Environment domain"
+        message="Domain with same name already exists"
+    ></alert-modal>
+
+    <ecosystem-card
+        ref="card"
+        @saved="saved($event)">
+    </ecosystem-card>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`,`name`,{ notFilterable:false, slot:`nameslot` })
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid:`-`,
+                    },
+                    gridItemActions:[
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                        }
+                    ],
+                    addButtonText: `Add Ecosystem`,
+                    defaultSortField:`name`,
+                    expandable: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    addButtonVisibilityHandler: this.isViewOnlyHandler,
+                    defaultSortFieldDescending: false,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" }
+                ]
+            }
+        },
+        async created() {
+            const { data: result } = await axios.get(`/api/ecosystems/grid`);
+
+            this.gridData = result;
+            this.$refs.grid.reloadData();
+        },
+        methods: {
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            add({ item, title }) {
+                this.$refs.card.openModal();
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/ecosystems/delete`, { params: { id: item.id }});
+
+                await axios.delete(`/api/modules/multidelete`, { params: { ecosystem: item.id }});
+
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async editItem(item) {
+                await this.edit({ item: item });
+            },
+            async edit({ item, title }) {
+                this.$refs.card.openModal(item.id);
+            },
+            saved($event) {
+                if ($event.isNew) {
+                    this.$refs.grid.addItem($event.savedItem);
+                } else {
+                    this.$refs.grid.updateItem($event.savedItem, `id`);
+                }
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            TextBox: staticBasicComponent(`TextBox`, componentStyles.textBoxes.default),
+            TextBlock: staticBasicComponent(`TextBlock`, componentStyles.textBlocks.formFieldLabel),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`, componentStyles.textBlocks.defaultValidateLabelBox),
+            FormModal: staticBasicComponent(`FormModal`, componentStyles.modals.defaultFormModal),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`, componentStyles.multiSelectBoxes.default),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`, componentStyles.textBoxes.defaultMultiLineTextBox),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            AlertModal: staticBasicComponent(`AlertModal`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            EcosystemCard: localStaticComponent(`/components/infrastracture/EcosystemCard.html`)
+        }
+    }
+}
+</script>

@@ -1,0 +1,227 @@
+<vue-template>
+    <div
+        @mouseenter="mouseEntersInput($event)"
+        @mouseleave="mouseLeavesInput($event)">
+        <textarea
+            v-if="!disable"
+            :placeholder="watermark"
+            :rows="rows"
+            :readonly="readonly"
+            :value="content"
+            :disabled="disable"
+            :class="{ 'not-valid': validate && validateErrors && validateErrors.length }"
+            :style="{'height': getHeight()}"
+            @input="changedValue($event)"
+            ref="text_area">
+        </textarea>
+        <clear-button-pop-up
+            ref="clearButtonPopUp"
+            v-if="value && value.length && !disable && showClearButton"
+            :action="clear">
+        </clear-button-pop-up>
+    </div>
+    <div
+        class="disable-area-component-id"
+        v-if="disable">
+        {{ content }}
+    </div>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            watermark: String,
+            value: {
+                type: String,
+                default: _ => ``
+            },
+            readonly: {
+                type: Boolean,
+                default: () => false
+            },
+            rows: {
+                type: Number,
+                default: () => 4
+            },
+            showValidateBox: {
+                type: Boolean,
+                default: () => false
+            },
+            firstShowValidateBox: {
+                type: Boolean,
+                default: () => false
+            },
+            disable: {
+                type: Boolean,
+                default: () => false
+            },
+            showClearButton: {
+                type: Boolean,
+                default: () => true
+            },
+            clearLabel: {
+                type: String,
+                default: () => `Clear`
+            },
+
+            height: {
+                type: Number,
+                default: () => null
+            }
+        },
+        data: () => {
+            return {
+                content: this.value,
+                defaultValidateRules: {},
+                innerShowValidateBox: this.firstShowValidateBox,
+                isScroll: false,
+                clearButtonVisible: false
+            }
+        },
+        created() {
+            this.defaultValidateRules = {
+                'required': this.required,
+                'minLength': this.minLength,
+                'maxLength': this.maxLength
+            };
+
+            this.innerShowValidateBox = this.firstShowValidateBox;
+            this.content = this.value;
+            this.validateValue();
+        },
+        methods: {
+            getHeight() {
+                
+                if (!this.height) {
+                    return ``;
+                }
+
+                return this.height + `px`;
+            },
+
+            mouseEntersInput(e) {
+                this.showClearButtonPopup();
+            },
+            mouseLeavesInput(e) {
+                this.hideClearButtonPopup();
+            },
+            showClearButtonPopup() {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+                var textarea = this.$refs.text_area;
+                let rect = textarea.getBoundingClientRect();
+                this.getIsScroll();
+                const rightMargin = this.isScroll ? 13 : 0;
+                let position = {
+                    left: rect.right - 25 - rightMargin,
+                    top: rect.top + 8,
+                };
+                this.$refs.clearButtonPopUp.show(position);
+                this.clearButtonVisible = true;
+            },
+            hideClearButtonPopup() {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+                this.$refs.clearButtonPopUp.hide();
+                this.clearButtonVisible = false;
+            },
+            changedValue($event) {
+                this.innerShowValidateBox = true;
+                this.content = $event.target.value;
+                this.validateValue();
+
+                this.$emit('input', this.content);
+                this.$emit('changed', this.content);
+            },
+            required(rule) {
+                if (!this.content) this.validateMessage(rule, 'This field is required');
+                return this.content;
+            },
+            minLength(rule) {
+                const content = !this.content ? "" : this.content;
+                const valid = content.length >= rule.parameter;
+                if (!valid) this.validateMessage(rule, `Field contains less then ${rule.parameter} characters`);
+                return valid;
+            },
+            maxLength(rule) {
+                const content = !this.content ? "" : this.content;
+                const valid = content.length <= rule.parameter;
+                if (!valid) this.validateMessage(rule, `Field contains greather then ${rule.parameter} characters`);
+                return valid;
+            },
+            clear() {
+                this.content = ``;
+                this.$emit('input', this.content);
+                this.$emit('changed', this.content);
+            },
+            getIsScroll() {
+                var textarea = this.$refs.text_area;
+                if (textarea) {
+                    const isScroll = textarea.clientHeight !== textarea.scrollHeight;
+                    if (this.isScroll !== isScroll && this.clearButtonVisible) {
+                        setTimeout(() => {
+                            this.hideClearButtonPopup();
+                            this.showClearButtonPopup();
+                        });
+                    }
+                    this.isScroll = isScroll;
+                }
+            }
+        },
+        watch: {
+            value(newValue) {
+                this.content = newValue;
+                this.validateValue();
+                this.getIsScroll();
+            }
+        },
+        mixins: [validateMixin],
+        components: {
+            ClearButtonPopUp: staticBasicComponent(`ClearButtonPopUp`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .container-component-id textarea {
+        padding: 5px 6px;
+        padding-right: 23px;
+        color: #424242;
+        background-clip: padding-box;
+        overflow: visible;
+        box-sizing: border-box;
+        transition: none;
+        display: block;
+        width: 100%;
+        height: 100%;
+        line-height: 1.428571429;
+        border: 1px solid #bdc0c7;
+        border-radius: 2px;
+        overflow: visible;
+        resize: none;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 3px;
+        font-family: inherit;
+        font-size: 13px;
+    }
+.container-component-id textarea:focus, textarea:active {
+        border-color: rgba(51, 204, 255, 0.30);
+    background-image: none;
+    outline: 0;
+}
+.container-component-id textarea.not-valid {
+     border-color: #ee1c29;
+}
+.disable-area-component-id {
+    width: 100%;
+    white-space: wrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+</style>

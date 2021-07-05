@@ -1,0 +1,216 @@
+<vue-template>
+    <div class="header-container-component-id" :class="{ 'border-bottom-component-id': !hideBorder && selectedGroup && selectedModule }">
+        <div class="left-menu-component-id">
+            <slot name="leftmenu"></slot>
+        </div>
+        <div class="logo-container-component-id" @click="clickHome()">
+            <font-awesome class="humburger-component-id" icon="fa-braille" >
+            </font-awesome>
+        </div>
+        <div class="title-container-component-id">
+            <div class="organization-container-component-id"
+                v-if="!hideHeader && selectedGroup && selectedModule">
+            </div>
+            <div class="left-offset-title-component-id" v-if="!hideHeader && (!selectedGroup || !selectedModule)"></div>
+            <div class="title-container-component-id" v-if="!hideHeader && (!selectedGroup || !selectedModule)">
+                <header-text-block>{{ organization }}</header-text-block>
+            </div>
+            <header-text-block
+                v-if="!hideHeader && !hideTitle && selectedGroup && selectedModule"
+                class="header-component-id">
+                <div style="display:flex">
+                    <span>{{ selectedGroup }}</span>
+                    <font-awesome icon="fa-long-arrow-alt-right" class="arrow-component-id"></font-awesome>
+                    <span>{{ selectedModule }}</span>
+                    <font-awesome icon="fa-long-arrow-alt-right" class="arrow-component-id" v-if="thirdLevelText">
+                    </font-awesome>
+                    <span v-if="thirdLevelText">{{ thirdLevelText }}</span>
+                </div>
+            </header-text-block>
+            <div :class="{'right-container-component-id': true,'right-dashboard-container-component-id': !hideHeader && (!selectedGroup || !selectedModule)}">
+                <span class="tk-good-times text-brandred">TON BRAINS</span> <span class="tk-good-times " style="color: #677788;
+        font-size: 9px;
+        margin-left: 5px">QUANET MATRIX</span>
+                <!--<div class="logo-container-component-id" @click="refreshAction()">-->
+
+                    <!--<tool-tip bottom>
+            <font-awesome icon="fa-sync-alt" class="humburger-component-id">
+            </font-awesome>
+            <div slot="tooltip">Refresh</div>
+        </tool-tip>-->
+                <!--</div>-->
+            </div>
+        </div>
+    </div>
+
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: [
+            `organization`,
+            `selectedGroup`,
+            `selectedModule`,
+            `hideBorder`,
+            `sidebarAction`,
+            `avatarId`,
+            `refreshFunc`,
+            `thirdLevelText`,
+            `organizations`,
+            `currentOrganization`
+        ],
+        data: () => {
+            return {
+                profilePhotoLoaded: false,
+                currentOrganizationId: null,
+                openMenu: false,
+                hideHeader: false,
+                hideTitle: false
+            }
+        },
+        mounted() {
+            this.currentOrganizationId = this.currentOrganization;
+            if (window.innerWidth <= 480) this.hideHeader = true;
+            if (window.innerWidth < 960) this.hideTitle = true;
+        },
+        methods: {
+            toggleOrgMenu(event) {
+                this.openMenu = event;
+            },
+            clickHome() {
+                this.$router.push({ path: `/` });
+            },
+            avatarLoaded() {
+                this.profilePhotoLoaded = true;
+            },
+            async refreshAction() {
+                if (this.refreshFunc) this.refreshFunc();
+            }
+        },
+        mixins: [globalObserver],
+        components: {
+            IconButton: staticBasicComponent(`IconButton`),
+            HeaderTextBlock: staticBasicComponent(`AvatarBox`),
+            FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+            ToolTip: staticBasicComponent(`ToolTipBox`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .header-container-component-id {
+        position: fixed;
+        width: 100%;
+        background-color: #f7faff;
+        border: 0;
+        margin-bottom: 0;
+        padding-right: 15px;
+        display: flex;
+        z-index: 100102;
+        height: 37px;
+        box-sizing: border-box;
+        color: white;
+    }
+.left-menu-component-id{
+    display: flex;
+    font-size: 20px;
+    
+}
+    .left-menu-component-id:hover {
+        /*background-color: #908e8e;*/
+      /*  color: #ee1c29 !important;*/
+    }
+    .humburger-component-id:hover {
+        color: #ee1c29 !important;
+    }
+
+    .chevron-component-id {
+        display: flex;
+        align-items: center;
+        padding: 0 10px 0 10px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+.logo-container-component-id {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    cursor: pointer;
+}
+    .logo-container-component-id:hover {
+        color: #ee1c29;
+    }
+.organization-container-component-id {
+    display: flex;
+    align-items: center;
+    color: white;
+}
+.organization-name-component-id {
+    cursor: pointer;
+    font-size: 14px;
+    padding-right: 5px;
+}
+.left-offset-title-component-id {
+    flex: 1 1 0%;
+}
+.title-container-component-id {
+    flex: 1;
+    font-size: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.profile-container-component-id {
+    margin-top: 2px;
+}
+.profile-container-component-id img {
+    border: 2px solid #ededed;
+    width: 21px;
+    height: 21px;
+    max-width: 21px !important;
+    max-height: 21px !important;
+}
+    .humburger-component-id {
+        font-size: 21px;
+        color: #1e2022;
+        transition: color 0.2s;
+    }
+.arrow-component-id{
+    margin: 0 5px;
+}
+.border-bottom-component-id {
+    border-bottom: 5px solid blue;
+}
+.right-container-component-id{
+    display: flex
+}
+    .right-dashboard-container-component-id {
+        flex: 1 1 0%;
+        align-items: flex-start;
+        justify-content: flex-end;
+    }
+.separator-component-id {
+    flex: 1;
+}
+.header-component-id {
+    margin: auto;
+}
+
+@media only screen and (max-width: 1100px){ 
+    .header-container-component-id {
+        padding-right: 25px !important;
+    }
+    .organization-container-component-id {
+        visibility: hidden;
+        width: 0;
+        padding: 0 !important;
+    }
+}
+
+</style>
+

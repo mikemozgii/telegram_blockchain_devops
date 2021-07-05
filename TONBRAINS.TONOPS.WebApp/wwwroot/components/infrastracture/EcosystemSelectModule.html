@@ -1,0 +1,106 @@
+<vue-template>
+    <form-modal
+        title="Select modules"
+        ref="formModal"
+        min-width="500px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout :fields="fields">
+                <text-block-required
+                    slot="type"
+                    :not-valid="typeValidate">
+                    Select Custom Services
+                </text-block-required>
+                <multi-select-box
+                    slot="typeinput"
+                    :options="modules"
+                    v-model="selectedModules"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="typeValidate = $event">
+                </multi-select-box>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :disable-save="!summary" >
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                objectId: ``,
+                modules: [],
+                selectedModules: [],
+                typeValidate: false,
+                fields: [
+                    { labelSlot: "type", inputSlot: "typeinput" }
+                ],
+                moduleNames: getLotusModules()
+            }
+        },
+        methods: {
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            async editObjectConfiguration(objectId) {
+                this.objectId = objectId;
+                this.typeValidate = false;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: links } = await axios.get(`/api/ecosystems/ecosystemmodules`, { params: { id: this.objectId } });
+                const { data: modules } = await axios.get(`/api/modules/moduletypes`);
+
+                this.modules = modules.map(
+                    a => {
+                       // a.title = this.moduleNames.find(b => b.id === a.id).title;
+                        a.title = a.id;
+                        return a;
+                    }
+                );
+                this.selectedModules = links.map(a => a.id);
+
+                this.fireEvent(`globalBusy`, false);
+
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.fireEvent(`globalBusy`, true);
+
+                await axios.post(`/api/ecosystems/saveecosystemmodules`, {
+                    ecosystemId: this.objectId,
+                    moduleTypesIds: this.selectedModules
+                });
+
+                this.fireEvent(`globalBusy`, false);
+
+                this.cancel();
+
+                this.$emit(`saved`);
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FormModal: staticBasicComponent(`FormModal`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`)
+        }
+    }
+}
+</script>

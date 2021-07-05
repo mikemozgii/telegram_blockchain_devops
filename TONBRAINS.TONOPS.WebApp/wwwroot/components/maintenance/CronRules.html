@@ -1,0 +1,297 @@
+<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <short-text
+            slot="nameslot"
+            slot-scope="{ item }" 
+            :text="item.name"
+            :is-link="true"
+            @clicked="editItem(item)">
+        </short-text>
+        <menu-option
+            slot="editmenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            :mode="'edit'">
+        </menu-option>
+        <menu-option
+            slot="deletemenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            :mode="'delete'">
+        </menu-option>
+    </flat-data-grid>
+
+    <form-modal
+        :title="modalTitle"
+        ref="formModal"
+        min-width="700px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout
+                :fields="fields">
+                <text-block-required slot="name" :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box
+                    slot="nameinput"
+                    v-model="model.name"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="rule"
+                    :not-valid="ruleValidate">
+                    Rule
+                </text-block-required>
+                <div slot="ruleinput">
+                    <text-box
+                        v-model="model.rule"
+                        :validate="[`required`]"
+                        :validatecontext="validation"
+                        @validate-changed="ruleValidate = $event">
+                    </text-box>
+                </div>
+
+                <text-block-required
+                    slot="command"
+                    :not-valid="commandValidate">
+                    Command
+                </text-block-required>
+                <text-box 
+                    slot="commandinput"
+                    v-model="model.command"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="commandValidate = $event">
+                </text-box>
+            </form-fields-layout>
+            <cron-schedule-rule
+                ref="cronRuleModal"
+                :item="cronRuleModel"
+                :validation="validation"
+                :hide-appoint-time="true"
+                rule-property="rule"
+                v-model="cronRule">
+            </cron-schedule-rule>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :delete-action="deleteItem"
+                :delete-visible="model && model.id"
+                :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { slot: `nameslot` }),
+                        this.addColumn(`Rule`, `rule`)
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                        }
+                    ],
+                    addButtonText: `Add Rule`,
+                    defaultSortField:`name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                ruleValidate: false,
+                commandValidate: false,
+                cronRuleModel: {
+                    rule: {}
+                },
+                cronRule: ``,
+                defaultRule: {
+                    type: 0,
+                    repeatEvery: 0,
+                    repeatTime: ``,
+                    repeatOn: {
+                        type: 1,
+                        counter: 0,
+                        days: [],
+                        weekDayOffset: null,
+                        weekDay: {
+                            name: null,
+                            alias: null,
+                            setPos: null
+                        },
+                        month: {
+                            name: null,
+                            index: 0,
+                            days: 0
+                        },
+                        date: 0
+                    },
+                    end: {
+                        type: 0,
+                        after: null,
+                        on: null
+                    }
+                },
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "rule", inputSlot: "ruleinput" },
+                    { labelSlot: "command", inputSlot: "commandinput" },
+                ]
+            }
+        },
+        methods: {
+            editRule() {
+                this.$refs.cronRuleModal.openModal();
+            },
+            async gridCompleted() {
+                const { data: result } = await axios.get(`/api/cronrules/grid`);
+                this.gridData = result;
+                this.$refs.grid.reloadData();
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            async editFromGrid(item) {
+                item.id = this.model.id;
+                this.model = item;
+                await this.save();
+                this.$refs.formModal.closeModal();
+            },
+            async deleteFromGrid() {
+                await this.deleteItem();
+            },
+            add({ item, title }) {
+                this.cronRule = ``;
+                this.cronRuleModel.rule = JSON.parse(JSON.stringify(this.defaultRule));
+                this.model = {
+                    usedModules: []
+                };
+                this.modalTitle = `Create Rule`; 
+                this.nameValidate = false;
+                this.ruleValidate = false;
+                this.commandValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/cronrules/delete`, { params: { id: item.id }});
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async editItem(item) {
+                await this.edit({ item: item });
+            },
+            async getModel(id) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/cronrules/single`, { params: { id: id } });
+                this.fireEvent(`globalBusy`, false);
+                model.id = id;
+                this.cronRuleModel.rule = model.cronModel && model.cronModel !== `{}` ? JSON.parse(model.cronModel) : JSON.parse(JSON.stringify(this.defaultRule));
+                return model;
+            },
+            async edit({ item, title }) {
+                this.editedItem = item;
+                this.model = await this.getModel(item.id);
+                this.cronRule = item.rule;
+                this.modalTitle = `Edit Rule`;
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.fireEvent(`globalBusy`, true);
+                this.model.cronModel = JSON.stringify(this.cronRuleModel.rule);
+                const { data: savedItem } = await axios.post(`/api/cronrules/addoredit`, this.model);
+                if (this.selectedFile) await this.saveFile(savedItem.id);
+                this.fireEvent(`globalBusy`, false);
+                this.$refs.formModal.closeModal();
+                if (!this.model.id) {
+                    this.$refs.grid.addItem(savedItem);
+                    
+                } else {
+                    this.$refs.grid.updateItem(savedItem, `id`);
+                }
+            }
+        },
+        watch: {
+            cronRule(newValue) {
+                this.model.rule = newValue;
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            CronScheduleRule: localStaticComponent(`/components/misc/CronScheduleRule.html`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+        }
+    }
+}
+</script>

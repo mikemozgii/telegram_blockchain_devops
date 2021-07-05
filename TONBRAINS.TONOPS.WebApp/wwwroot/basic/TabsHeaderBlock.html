@@ -1,0 +1,130 @@
+<vue-template>
+    <div
+        v-if="!item.hideHandler || item.hideHandler()"
+        v-for="item in headerItems"
+        class="tab-header-item-component-id"
+        :class="{'active-component-id': selected === item}"
+        @click="selectItem(item)">
+        <slot name="item" :item="item"><span>{{ item.title }}</span></slot>
+        <slot name="itemafter" :item="item"></slot>
+    </div>
+    <slot name="additionalcontent"></slot>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const tabsMixin = await require(`globalMixins/tabs`);
+
+    return {
+        props: ['items','value', `alias`, `tabContext`],
+        data() {
+            return {
+                selected: this.value ? this.value : (this.items.length ? this.items[0] : null)
+            }
+        },
+        created() {
+            if (this.value && this.selected && this.selected.id !== this.value) {
+                this.selected = this.items.find(a => a.id === this.value);
+                this.updateContext(this.selected, null);
+            }
+        },
+        methods: {
+            updateContext(item, oldItem) {
+                if (!this.tabContext) return;
+
+                const oldIndex = this.items.indexOf(oldItem);
+                const newIndex = this.items.indexOf(this.selected);
+                const options = {
+                    direction: oldIndex < newIndex ? `toleft` : `toright`,
+                    id: item.id
+                };
+                if (item.id in this.tabContext) {
+                    this.tabContext[item.id].update(options);
+                } else {
+                    this.tabContext[item.id] = {
+                        initial: options,
+                        update: function () {}
+                    };
+                }
+                const otherItems = Object.keys(this.tabContext).filter(a => a !== item.id).map(a => this.tabContext[a]);
+                for (const otherItem of otherItems) otherItem.update(options);
+            },
+            selectItem(item) {
+                const oldItem = this.selected;
+                this.selected = item;
+                this.$emit('selected', item);
+
+                if (this.alias) this.tabsSaveTab(this.alias, item.id);
+                this.updateContext(item, oldItem);
+            },
+
+            getSelectedTab() {
+                return this.selected;
+            }
+        },
+        watch: {
+            value(newValue) {
+                this.selected = this.items.find(a => a.id === newValue);
+            },
+            items(newValue) {
+                if (!this.items || !this.items.length) return;
+
+                if (!this.selected && newValue && newValue.length) this.selected = newValue[0];
+
+                this.selected = newValue.find(a => a.id === this.selected.id);
+            },
+            selected(newValue) {
+                if (!newValue) return;
+                this.$emit('input', newValue.id);
+            }
+        },
+        computed: {
+            headerItems() {
+                return this.items.filter(a => !a.hiddenTab && ((a.visibleHandler && a.visibleHandler()) || !a.visibleHandler));
+            }
+        },
+        mixins: [tabsMixin]
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 2px;
+    font-size: 14px;
+}
+.tab-header-item-component-id {
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 11px;
+    padding-bottom: 11px;
+    border-top-width: 0px;
+    border-left-width: 0px;
+    border-right-width: 0px;
+    border-bottom-width: 2px;
+    border-style: solid;
+    border-color: transparent;
+    cursor: pointer;
+    font-weight:500;
+    font-size: 13px;
+    color: #424242;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+    .active-component-id {
+        border-top-width: 0px;
+        border-left-width: 0px;
+        border-right-width: 0px;
+        border-bottom-width: 2px;
+        border-style: solid;
+        border-color: #ee1c29;
+        color: #000;
+        text-shadow: -0.3px -0.3px 0px #000;
+    }
+</style>

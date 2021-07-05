@@ -1,0 +1,261 @@
+﻿<vue-template>
+    <div ref="panelContainer" class="panel-component-id">
+        <form-panel
+            :common-styles="commonStyles"
+            :footer-styles="footerStyles"
+            :content-styles="contentStyles">
+            <template slot="content">
+                <form-fields-layout
+                    :fields="fields"
+                    ref="fields_layout"
+                    v-if="translationsLoaded"
+                    @ready="onLayoutReady">
+                    <text-block-required
+                        slot="account"
+                        :not-valid="userValidate">
+                        User Name
+                    </text-block-required>
+                    <text-box
+                        slot="accountinput"
+                        v-model="accountName"
+                        :validate="requiredOnlyRule"
+                        :validatecontext="validateResult"
+                        @validate-changed="userValidate = $event"
+                        @changed="showMessage = false">
+                    </text-box>
+                    <text-block-required
+                        slot="password"
+                        :not-valid="passwordValidate">
+                        Password
+                    </text-block-required>
+                    <password-box
+                        slot="passwordinput"
+                        v-model="password"
+                        :validate="requiredOnlyRule"
+                        :validatecontext="validateResult"
+                        @validate-changed="passwordValidate = $event"
+                        @input="showMessage = false"
+                    />
+                    <validate-box
+                        v-if="hideOrganization"
+                        slot="message"
+                        v-show="showMessage"
+                        title="Account or password incorrect"
+                    />
+                </form-fields-layout>
+            </template>
+            <div slot="footer" class="button-component-id">
+                <div class="sign-in-component-id">
+                    <signin-button
+                        title="Sign in"
+                        :action="signin"
+                        :disable="!validateSummary"
+                        :styles="primaryStyle">
+                    </signin-button>
+                </div>
+            </div>
+        </form-panel>
+    </div>
+    <spinner-container v-if="busyVisible"></spinner-container>
+</vue-template>
+
+<script>
+module.exports = async function component () {
+    const axios = await require(`axios`);
+    const componentStyles = await require(`componentStyles`);
+    const validateHostMixin = await require('globalMixins/validateHost');
+
+    return {
+        data: function () {
+            return {
+                organization: "",
+                accountName: "",
+                password: "",
+                userValidate: true,
+                passwordValidate: true,
+                organizationValidate: true,
+                organizationValidateRules: [`required`, { name: `maxLength`, parameter: 255 }],
+                fields: [
+                    { labelSlot: "organization", inputSlot: "organizationinput", showHandler: this.organizationHandler },
+                    { labelSlot: "account", inputSlot: "accountinput", showHandler: this.mainFieldHandler },
+                    { labelSlot: "password", inputSlot: "passwordinput", showHandler: this.mainFieldHandler },
+                    { labelSlot: "remember", inputSlot: "rememberinput", showHandler: this.rememberShowHandler },
+                    { inputSlot: "message" }
+                ],
+                isRememberOrganization: false,
+                showMessage: false,
+                hideOrganization: false,
+                busyVisible: false,
+                translations: {},
+                translationsLoaded: false,
+                customLogo: false,
+                logoUrl: "",
+                isProduction: false,
+                timeoutId: null,
+                primaryStyle: componentStyles.buttons.primaryButton,
+                commonStyles: {
+                    "border-width": "1px 1px 3px 1px",
+                    "border-style": "solid",
+                    "border-color": "rgba(0,0,0,.125)",
+                    "background-color": "white"
+                },
+                footerStyles: {
+                    "padding-left": "0px",
+                    "padding-right": "0px",
+                    "padding-top": "0px",
+                    "padding-bottom": "0px",
+                    "background-color": "white"
+                },
+                contentStyles: {
+                    "background-color": "white"
+                }
+            }
+        },
+        async created() {
+            this.translationsLoaded = true;
+        },
+        mounted() {
+            if (localStorage.organization) {
+                this.organization = localStorage.organization;
+                this.isRememberOrganization = true;
+            }
+
+            this.userValidate = true;
+            this.passwordValidate = true;
+            this.organizationValidate = true;
+
+            document.addEventListener('keyup', this.enterKeyUp);
+
+            //fix style for mobile devices
+            if (window.innerWidth <= 480) {
+                this.$el.style['margin-top'] = '0px';
+                this.$refs.panelContainer.style['width'] = "100%";
+            }
+        },
+        updated() {
+            this.$el.click();
+        },
+        beforeDestroy() {
+            document.removeEventListener('keyup', this.enterKeyUp);
+        },
+        methods: {
+            rememberShowHandler() {
+                return true;
+            },
+            mainFieldHandler() {
+                if (!this.isProduction) return true;
+
+                return this.hideOrganization;
+            },
+            isOnlyOrganization() {
+                if (!this.isProduction) return false;
+
+                return !this.hideOrganization;
+            },
+            onLayoutReady() {
+                setTimeout(() => {
+                    if (this.$refs && this.$refs.fields_layout)
+                        this.$refs.fields_layout.setWidth();
+                }, 500);
+            },
+            organizationHandler() {
+                return !this.hideOrganization;
+            },
+            enterKeyUp($event) {
+                if ($event.code === "Enter") {
+                    if (this.isOnlyOrganization()) {
+                        this.checkDomain();
+                    } else {
+                        this.signin();
+                    }
+                }
+            },
+            resetPassword() {
+                this.$router.push({ name: 'resetpassword' });
+            },
+            async signin() {
+                if (!this.isValid) return;
+
+                this.busyVisible = true;
+
+                const { data: result } = await axios.get(
+                    `/api/authorization/signin`,
+                    {
+                        params: {
+                            name: this.accountName,
+                            password: this.password
+                        }
+                    }
+                );
+
+                this.showMessage = !result.isAuthentificated;
+                this.busyVisible = false;
+
+                if (result.isAuthentificated) location.href = "/dashboard";
+            }
+        },
+        mixins: [validateHostMixin],
+        components: {
+            SigninButton: staticBasicComponent(`ActionButton`),
+            TextBox: staticBasicComponent(`TextBox`),
+            FormPanel: staticBasicComponent(`Panel`),
+            PasswordBox: staticBasicComponent(`PasswordBox`),
+            CheckBox: staticBasicComponent(`CheckBox`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            SpinnerContainer: staticBasicComponent(`SpinnerContainer`),
+            ValidateBox: staticBasicComponent(`ValidateBox`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    margin-top: 150px;
+}
+.container-component-id, .logo-header-component-id {
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    height: 50px;
+}
+.panel-component-id {
+    width: 580px;
+}
+
+.button-component-id {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: unset;
+    margin-bottom: 5%;
+}
+.sign-in-component-id {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+.sign-in-component-id > * {
+    width: 155px;
+}
+.bottom-links-component-id {
+    margin-top: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+.bottom-links-component-id > * {
+    margin-left: 2px;
+    margin-right: 2px;
+}
+.gray-text-component-id {
+    padding-top: 9px;
+    color: gray;
+    font-size: 10px;
+}
+</style>

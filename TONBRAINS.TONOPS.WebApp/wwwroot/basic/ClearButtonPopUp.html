@@ -1,0 +1,67 @@
+﻿<vue-template>
+    <popup ref="clearButtonPopUp">
+        <clear-button 
+            :title="title"
+            :action="action"
+            :hide-standart-icon="hideStandartIcon">
+            <div slot="icon">
+                <slot name="icon"></slot>
+            </div>
+        </clear-button>
+    </popup>
+
+</vue-template>
+
+<script>
+module.exports = async function () {
+    return {
+        props: {
+            action: {
+                type: Function,
+                default: _ => null
+            },
+            title: {
+                type: String,
+                default: _ => ``
+            },
+            hideStandartIcon: {
+                type: Boolean,
+                default: _ => false
+            }
+        },
+        mounted() {
+            window.addEventListener('scroll', this.onScroll);
+        },
+        beforeDestroy() {
+            window.removeEventListener('scroll', this.onScroll);
+        },
+        methods: {
+            runAction() {
+                this.action();
+            },
+
+            show(position) {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                this.$refs.clearButtonPopUp.showBasedOnPosition(position);
+            },
+
+            hide() {
+                if (!this.$refs.clearButtonPopUp)
+                    return;
+
+                this.$refs.clearButtonPopUp.hide();
+            },
+            onScroll() {
+                this.hide();
+            }
+        },
+
+        components: {
+            Popup: staticBasicComponent(`Popup`),
+            ClearButton: staticBasicComponent(`ClearButton`)
+        }
+    }
+}
+</script>

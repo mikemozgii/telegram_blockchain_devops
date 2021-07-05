@@ -1,0 +1,120 @@
+﻿<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings">
+        <slot
+            slot="leftedgecontent"
+            name="leftedgecontent">
+        </slot>
+        <short-text slot="dateslot"
+                slot-scope="{ item }"
+                :text="gridDateFormat(item.date, `YYYY-MM-DD HH:mm:ss`, `YYYY-MM-DD HH:mm`)">
+        </short-text>
+
+        <short-text slot="diskslot"
+                    slot-scope="{ item }"
+                    :text="`${item.disktotal}GB`">
+        </short-text>
+
+        <short-text
+            slot="rawslot"
+            slot-scope="{ item }"
+            :is-link="true"
+            :text="'Link'"
+            @clicked="showLog(item.raw)">
+        </short-text>
+
+    </flat-data-grid>
+
+    <form-modal
+        title=""
+        ref="modal"
+        min-width="700px">
+        <div slot="content" style="width:650px">
+            <p v-if="rawData">{{rawData}}</p>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :cancel="cancel"
+                :delete-visible="false"
+                :save-visible="false">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+
+    return {
+        props: {
+            nid: String,
+            smaid: String,
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Date`, `date`, { slot: `dateslot` }),
+                        this.addColumn(`Status`, `status`),  
+                        this.addColumn(`Balance`, `balance`),  
+                        this.addColumn(`Raw`, `raw`, { slot: `rawslot` }),  
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                    ],
+                    defaultSortField: `date`,
+                    hideSearchBox: true,
+                    //hideToolbar: true,
+                    defaultSortFieldDescending: true,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this,
+                },
+                rawData: null
+            }
+        },
+        async created() {
+            await this.loadMetrics();
+        },
+        methods: {
+            showLog(config) {
+                this.rawData = config;
+                this.$refs.modal.openModal();
+                //this.$emit(`showconfig`, config);
+            },
+            cancel() {
+                this.$refs.modal.closeModal()
+            },
+            async loadMetrics() {
+                const { data: result } = await axios.get(`/api/smartaccounts/networkstatelogs?networkid=${this.nid}&smaid=${this.smaid}`);
+                this.gridData = result;
+                setTimeout(() => {
+                    this.$refs.grid.reloadData()
+                });
+            }
+        },
+        mixins: [globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            FormModal: staticBasicComponent(`FormModal`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            LineChart: localStaticComponent(`/components/misc/LineChart.html`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+        }
+    }
+}
+</script>

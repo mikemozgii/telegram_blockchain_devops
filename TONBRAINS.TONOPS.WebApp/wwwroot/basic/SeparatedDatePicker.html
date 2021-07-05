@@ -1,0 +1,1940 @@
+<vue-template>
+    <div
+        v-if="!disable && (mode === `date` || mode === `all`)"
+        class="date-component-id">
+        <input
+            ref="datepicker"
+            type="text"
+            :value="date"
+            :class="{'error-marked-component-id': dateNotValid }"
+            :style="{'color': dateTextColor }"
+            :placeholder="watermark"
+            @input="dateChanged($event)"
+            @click="openDatePicker(`onlyshow`)"
+        />
+        <div
+            :style="{'width': hideRightTip ? '0px' : '', 'background-color': modeRightDateButton ? 'lightgray' : ''}"
+            ref="datepickercontrols"
+            class="right-button-component-id"
+            @click.stop.prevent="openDatePicker()"
+            @mouseenter="modeRightDateButton = true"
+            @mouseleave="modeRightDateButton = false">
+            <font-awesome
+                v-show="!hideRightTip"
+                class="icon-component-id"
+                icon="fa-calendar">
+            </font-awesome>
+        </div>
+    </div>
+    <div
+        v-if="!disable && (mode === `time` || mode === `all`)"
+        class="time-component-id">
+        <input
+            ref="timepicker"
+            type="text"
+            :value="time"
+            :class="{'error-marked-component-id': timeNotValid }"
+            :style="{'color': timeTextColor }"
+            @input="timeChanged($event)"
+            @blur="timeLostFocus($event)"
+        />
+        <div class="popup-controls-component-id">
+            <div
+                :style="{'width': hideRightTip ? '0px' : '', 'background-color': modeMiddleTimeButton ? 'lightgray' : ''}"
+                class="middle-button-component-id"
+                @click="openListTime()"
+                @mouseenter="modeMiddleTimeButton = true"
+                @mouseleave="modeMiddleTimeButton = false">
+                <font-awesome
+                    class="icon-component-id"
+                    icon="fa-chevron-down">
+                </font-awesome>
+            </div>
+            <div
+                :style="{'width': hideRightTip ? '0px' : '', 'background-color': modeRightTimeButton ? 'lightgray' : ''}"
+                class="right-button-component-id"
+                @click="openTimePicker()"
+                @mouseenter="modeRightTimeButton = true"
+                @mouseleave="modeRightTimeButton = false">
+                <font-awesome
+                    class="icon-component-id"
+                    icon="fa-clock">
+                </font-awesome>
+            </div>
+        </div>
+    </div>
+    <div
+        class="disable-area-component-id"
+        v-if="disable">
+        {{ date }} {{ time }}
+    </div>
+    <popup-box ref="datepopup">
+        <div class="date-popup-component-id" v-bind:class="{ 'date-popup-offset-component-id': offsetPopup, 'date-popup-offsettop-component-id': moveTop }">
+            <div v-if="dateMode === `month`">
+                <div class="date-popup-header-component-id">
+                    <div
+                        class="pointers-arrow-component-id"
+                        @click="previousMonth()">
+                        <font-awesome
+                            icon="fa-chevron-left">
+                        </font-awesome>
+                    </div>
+                    <div class="month-component-id">
+                        <div ref="headerlinksmonth" @click="showMonths()">{{ texts.months[currentMonth] }}</div>
+                        <div ref="headerlinksyear" @click="showYears()">{{ currentYear }}</div>
+                    </div>
+                    <div
+                        class="pointers-arrow-component-id"
+                        @click="nextMonth()">
+                        <font-awesome
+                            icon="fa-chevron-right">
+                        </font-awesome>
+                    </div>
+                </div>
+                <div>
+                    <table class="month-events-component-id">
+                        <thead>
+                            <tr class="month-events-th-component-id">
+                                <th v-for="name in texts.weekDaysExtraShort">{{ name }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="(row, index) in monthTableRows"
+                                :key="index">
+                                <td
+                                    :class="{ 'selected-day-date-component-id': isSelectedDay(day), 'current-date-component-id': isCurrentDate(day) && !isSelectedDay(day) }"
+                                    v-for="day in row.dates"
+                                    @click="selectDateFromCalendar(day)">
+                                    <div :class="{'month-date-component-id':true, 'not-actual-days-month-compomemt-id': day.month != currentMonth}">
+                                        <span>{{ day.date }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div v-if="dateMode === `months`">
+                <div class="date-popup-header-component-id">
+                    <div
+                        class="pointers-arrow-component-id"
+                        @click="previousYearMonth()">
+                        <font-awesome
+                            icon="fa-chevron-left">
+                        </font-awesome>
+                    </div>
+                    <div class="month-component-id">
+                        <div ref="headerlinksyear" @click="showYears()">{{ yearMonth }}</div>
+                    </div>
+                    <div
+                        class="pointers-arrow-component-id"
+                        @click="nextYearMonth()">
+                        <font-awesome
+                            icon="fa-chevron-right">
+                        </font-awesome>
+                    </div>
+                </div>
+                <div class="year-months-component-id">
+                    <div
+                        :class="{ 'year-month-component-id': true, 'selected-month-date-component-id': isSelectedMonth(yearMonth) }"
+                        v-for="yearMonth in yearMonths"
+                        @click="selectYearMonth(yearMonth)">
+                        <span>{{ yearMonth }}</span>
+                    </div>
+                </div>
+            </div>
+            <div v-if="dateMode === `years`">
+                <div class="date-popup-header-component-id">
+                    <div
+                        class="pointers-arrow-component-id"
+                        @click="previousYearRange()">
+                        <font-awesome
+                            icon="fa-chevron-left">
+                        </font-awesome>
+                    </div>
+                    <div class="month-component-id">
+                        <div>{{ yearRange[1] }} - {{ yearRange[yearRange.length - 1] }}</div>
+                    </div>
+                    <div
+                        class="pointers-arrow-component-id"
+                        @click="nextYearRange()">
+                        <font-awesome
+                            icon="fa-chevron-right">
+                        </font-awesome>
+                    </div>
+                </div>
+                <div class="year-range-component-id">
+                    <div
+                        :class="{ 'year-month-component-id': true, 'selected-month-date-component-id': isSelectedYear(yearInRange), 'not-actual-days-month-compomemt-id': yearInRange == yearRange[0] || yearInRange == yearRange[yearRange.length - 1]}"
+                        v-for="yearInRange in yearRange"
+                        @click="selectYearRange(yearInRange)">
+                        <span>{{ yearInRange }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </popup-box>
+    <popup-box ref="timepopup">
+        <div class="time-popup-component-id">
+            <div class="time-popup-header-component-id">
+                <div
+                    class="pointers-component-id"
+                    :class="{'light-text-component-id': timeMode === `hour` }"
+                    @click="showHours()">
+                    {{ currentHour }}
+                </div>
+                <div>:</div>
+                <div
+                    class="pointers-component-id"
+                    :class="{'light-text-component-id': timeMode === `minute` }"
+                    @click="showMinutes()">
+                    {{ currentZeroBaseMinute }}
+                </div>
+                <span
+                    class="light-text-component-id"
+                    @click="toggleCurrentTwelve()">
+                    {{ currentTwelve }}
+                </span>
+            </div>
+            <div class="clock-container-component-id">
+                <div
+                    class="clock-canvas-component-id"
+                    @mousedown="clockMove = true"
+                    @mousemove="clockMoving($event)"
+                    @mouseup="disableClockMoving($event)">
+                    <svg class="clockpicker-svg" width="270" height="270">
+                        <g transform="translate(135,135)">
+                            <circle class="clock-circle-background-component-id" r="20" :cx="clockGeometry.lineX" :cy="clockGeometry.lineY"></circle>
+                            <circle v-if="timeMode === `minute` && (currentMinute % 10 !== 0 && currentMinute % 5 !== 0)" class="clock-circle-foreground-component-id" r="5" :cx="clockGeometry.lineX" :cy="clockGeometry.lineY"></circle>
+                            <line class="clock-stroke-line-component-id" x1="0" y1="0" :x2="clockGeometry.lineX" :y2="clockGeometry.lineY"></line>
+                            <circle class="clockpicker-canvas-bearing" cx="0" cy="0" r="2"></circle>
+                        </g>
+                    </svg>
+                </div>
+                <div class="clock-component-id">
+                    <div
+                        v-show="timeMode === `hour`"
+                        v-for="i in 1">
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 115px; top: 5px;">12</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 170px; top: 19.7372px;">1</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 210.263px; top: 60px;">2</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 225px; top: 115px;">3</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 210.263px; top: 170px;">4</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 170px; top: 210.263px;">5</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 115px; top: 225px;">6</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 60px; top: 210.263px;">7</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 19.7372px; top: 170px;">8</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 5px; top: 115px;">9</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 19.7372px; top: 60px;">10</div>
+                        <div ref="hourtick" class="clock-tick-component-id" style="left: 60px; top: 19.7372px;">11</div>
+                    </div>
+                    <div
+                        v-show="timeMode === `minute`"
+                        v-for="i in 1">
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 115px; top: 5px;">00</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 120px; top: 6px;">01</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 130px; top: 7px;">02</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 145px; top: 9px;">03</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 160px; top: 12px;">04</div>
+                        
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 170px; top: 19.7372px;">05</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 180px; top: 22px;">06</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 190px; top: 32px;">07</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 196px; top: 40px;">08</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 205px; top: 50px;">09</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 210.263px; top: 60px;">10</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 214px; top: 70px;">11</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 218px; top: 80px;">12</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 220px; top: 90px;">13</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 223px; top: 100px;">14</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 225px; top: 115px;">15</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 220px; top: 130px;">16</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 218px; top: 140px;">17</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 214px; top: 150px;">18</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 212px; top: 160px;">19</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 210.263px; top: 170px;">20</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 202px; top: 178px;">21</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 194px; top: 186px;">22</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 184px; top: 194px;">23</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 180px; top: 200px;">24</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 170px; top: 210.263px;">25</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 160px; top: 214px;">26</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 150px; top: 218px;">27</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 140px; top: 220px;">28</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 130px; top: 222px;">29</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 115px; top: 225px;">30</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 100px; top: 222px;">31</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 90px; top: 220px;">32</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 80px; top: 218px;">33</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 70px; top: 214px;">34</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 60px; top: 210.263px;">35</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 52px; top: 200px;">36</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 44px; top: 194px;">37</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 34px; top: 186px;">38</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 24px; top: 178px;">39</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 19.7372px; top: 170px;">40</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 17px; top: 160px;">41</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 14px; top: 150px;">42</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 10px; top: 140px;">43</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 8px; top: 130px;">44</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 5px; top: 115px;">45</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 7px; top: 100px;">46</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 9px; top: 90px;">47</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 10px; top: 80px;">48</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 14px; top: 70px;">49</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 19.7372px; top: 60px;">50</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 24px; top: 52px;">51</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 34px; top: 42px;">52</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 44px; top: 32px;">53</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 52px; top: 24px;">54</div>
+
+                        <div ref="minutetick" class="clock-tick-component-id" style="left: 60px; top: 19.7372px;">55</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 70px; top: 16px;">56</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 80px; top: 12px;">57</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 90px; top: 10px;">58</div>
+                        <div ref="minutetick" class="clock-tick-component-id beetween-component-id" style="left: 100px; top: 6px;">59</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </popup-box>
+    <popup-box ref="listtimepopup">
+        <list-box
+            ref="timelistbox"
+            class="list-time-component-id"
+            v-bind:style="{width: widthTimelistBox}"
+            :items="listTime"
+            v-model="selectTime"
+            @selected="selectedTime()">
+            <div slot="item" slot-scope="{ item }" class="item-time-component-id">
+                <span>{{ item }}</span>
+            </div>
+        </list-box>
+    </popup-box>
+    <popup-box ref="month">
+        <div class="menu-listbox-component-id">
+            <div
+                :class="{ 'selected-month-component-id': currentMonth === month.id }"
+                v-for="month in pickedMonths"
+                @click="selectMonth(month)">
+                {{ month.name }}
+            </div>
+        </div>
+    </popup-box>
+    <popup-box ref="year">
+        <div class="menu-listbox-component-id">
+            <div
+                :class="{ 'selected-month-component-id': currentYear === year }"
+                v-for="year in pickedYears"
+                @click="selectYear(year)">
+                {{ year }}
+            </div>
+        </div>
+    </popup-box>
+</vue-template>
+
+<script>
+const Modes = {
+    All: `all`,
+    OnlyDate: `date`,
+    OnlyTime: `time`
+};
+
+module.exports = async function () {
+    const moment = await require(`moment`);
+    const i18nMixin = await require(`calendarMixin/locale`);
+    const validateMixin = await require(`globalMixins/validate`);
+    const moveMinutesStep = 6;
+    const moveHoursStep = 30;
+
+    return {
+        props: {
+            value: {
+                type: [String, Object],
+                default: _ => null
+            },
+            disable: Boolean,
+            maxDate: {
+                type: Object,
+                default: _ => {
+                    return {
+                        date: 1,
+                        month: 1,
+                        year: 2100
+                    }
+                }
+            },
+            minDate: {
+                type: Object,
+                default: _ =>{
+                    return {
+                        date: 1,
+                        month: 1,
+                        year: 1900
+                    }
+                }
+            },
+            mode: {
+                type: String,
+                default: _ => Modes.All
+            },
+            format: {
+                type: String,
+                default: _ => "MM/DD/YYYY HH:mm:ss"
+            },
+            locale: {
+                type: String,
+                default: `en`
+            },
+            todayButtonTitle: {
+                type: String,
+                default: `Today`
+            },
+            clearButtonTitle: {
+                type: String,
+                default: `Clear`
+            },
+            dateTextColor: {
+                type: String,
+                default: _ => `black`
+            },
+            timeTextColor: {
+                type: String,
+                default: _ => `black`
+            },
+            notClearTypeValue: {
+                type: Boolean,
+                default: _ => false
+            },
+            hideRightTip: {
+                type: Boolean,
+                default: _ => false
+            },
+            placeholder: {
+                type: String,
+                default: _ => ``
+            },
+            offsetPopup: {
+                type: Boolean,
+                default: _ => false
+            },
+            offsetTop: {
+                type: Boolean,
+                default: _ => false
+            },
+            hideOnSelect: {
+                type: Boolean,
+                default: _ => true
+            }
+        },
+        data() {
+            return {
+                modeRightDateButton: false,
+                modeMiddleTimeButton: false,
+                modeRightTimeButton: false,
+                restoreCursorPosition: null,
+                date: ``,
+                time: ``,
+                texts: {},
+                showDateIcon: false,
+                showTimeIcon: false,
+                currentMonth: parseInt(moment().format(`MM`)) - 1,
+                currentDay: parseInt(moment(new Date()).format(`DD`)),
+                currentYear: parseInt(moment().format(`YYYY`)),
+                currentHour: parseInt(moment(new Date()).format(`h`)),
+                currentMinute: parseInt(moment(new Date()).format(`mm`)),
+                currentTwelve: moment(new Date()).format(`A`),
+                displayTime: ``,
+                timeMode: `hour`,
+                dateMode: `month`,
+                clockGeometry: {
+                    lineX: 54.99,
+                    lineY: -95.26
+                },
+                monthTableRows: [],
+                countDaysInMonths: [
+                    31,
+                    28,
+                    31,
+                    30,
+                    31,
+                    30,
+                    31,
+                    31,
+                    30,
+                    31,
+                    30,
+                    31
+                ],
+                isValidateState: false,
+                listTime: [
+                    `12:00 AM`,
+                    `12:30 AM`,
+                    `1:00 AM`,
+                    `1:30 AM`,
+                    `2:00 AM`,
+                    `2:30 AM`,
+                    `3:00 AM`,
+                    `3:30 AM`,
+                    `4:00 AM`,
+                    `4:30 AM`,
+                    `5:00 AM`,
+                    `5:30 AM`,
+                    `6:00 AM`,
+                    `6:30 AM`,
+                    `7:00 AM`,
+                    `7:30 AM`,
+                    `8:00 AM`,
+                    `8:30 AM`,
+                    `9:00 AM`,
+                    `9:30 AM`,
+                    `10:00 AM`,
+                    `10:30 AM`,
+                    `11:00 AM`,
+                    `11:30 AM`,
+                    `12:00 PM`,
+                    `12:30 PM`,
+                    `1:00 PM`,
+                    `1:30 PM`,
+                    `2:00 PM`,
+                    `2:30 PM`,
+                    `3:00 PM`,
+                    `3:30 PM`,
+                    `4:00 PM`,
+                    `4:30 PM`,
+                    `5:00 PM`,
+                    `5:30 PM`,
+                    `6:00 PM`,
+                    `6:30 PM`,
+                    `7:00 PM`,
+                    `7:30 PM`,
+                    `8:00 PM`,
+                    `8:30 PM`,
+                    `9:00 PM`,
+                    `9:30 PM`,
+                    `10:00 PM`,
+                    `10:30 PM`,
+                    `11:00 PM`,
+                    `11:30 PM`
+                ],
+                listTimeFrames: [],
+                clockMove: false,
+                selectTime: ``,
+                pickedYears: [],
+                pickedMonths: [],
+                yearMonths: [],
+                yearMonth: null,
+                yearRange: [],
+                watermark: ``,
+                todayCalcButtonTitle: 'Today',
+                clearCalcButtonTitle: 'Clear',
+                widthTimelistBox: 'auto',
+                moveTop: false,
+                uniqueId: Math.random().toString()
+            }
+        },
+        created() {
+            this.texts = this.i18n[this.locale];
+            this.todayCalcButtonTitle = this.todayButtonTitle != 'Today' ? this.todayButtonTitle : this.texts["today"];
+            this.clearCalcButtonTitle = this.clearButtonTitle != 'Clear' ? this.clearButtonTitle : this.texts["clear"];;
+            this.defaultValidateRules = {
+                'required': this.required,
+                'minDate': this.minDateValidate,
+                'maxDate': this.maxDateValidate,
+                'notCorrect': this.notCorrect
+            };
+
+            this.watermark = !this.placeholder ? this.texts.dateWatermark : this.placeholder;
+
+            this.yearMonths = this.texts.months.map(a => a.substring(0, 3));
+
+            this.populateState(this.value);
+            this.validateInnerValue();
+
+            const pickedMonths = [];
+            let iterator = -1;
+            for (let month of this.texts.months) {
+                pickedMonths.push({
+                    name: month,
+                    id: ++iterator
+                });
+            }
+            this.pickedMonths = pickedMonths;
+            this.createTimeFrames();
+        },
+        mounted() {
+            const htmlElement = this.$el;
+            const name = this.uniqueId;
+            ///TODO!!!
+            htmlElement[name] = (ev) => {
+                if (!htmlElement.contains(ev.target)) this.hideAllPickers();
+            }
+            document.documentElement.addEventListener('click', htmlElement[name], true);
+            window.addEventListener(`scroll`, this.onScroll);
+            window.addEventListener(`resize`, this.onScroll);
+            window.addEventListener(`mouseup`, this.onMouseUp);
+
+            //fix for blackwall containers too 6391
+            const blackwalls = document.getElementsByClassName("custom-scroll-container");
+            for (const blackwall of blackwalls) blackwall.addEventListener(`scroll`, this.onScroll);
+        },
+        beforeDestroy() {
+            const name = this.uniqueId;
+            document.documentElement.removeEventListener('click', this.$el[name], true);
+            window.removeEventListener('scroll', this.onScroll);
+            window.removeEventListener(`resize`, this.onScroll);
+            window.removeEventListener(`mouseup`, this.onMouseUp);
+
+            //fix for blackwall containers too 6391
+            const blackwalls = document.getElementsByClassName("custom-scroll-container");
+            for (const blackwall of blackwalls) blackwall.removeEventListener(`scroll`, this.onScroll);
+
+            delete this.$el[name];
+        },
+        methods: {
+            isCurrentDate(date) {               
+                return moment(new Date(date.year, date.month, date.date)).isSame(moment(new Date()), 'day');
+            },
+            getCountDaysInMonths(month, year) {
+                if (this.isLeapYear(year) && month === 1) return 29;
+
+                return this.countDaysInMonths[month];
+            },
+            onMouseUp() {
+                this.clockMove = false;
+            },
+            isLeapYear(year) {
+                return moment([year]).isLeapYear();
+            },
+            disableClockMoving($event) {
+                this.clockMoving($event, true);
+                this.clockMove = false;
+
+                if (this.timeMode === `hour`) {
+                    setTimeout(() => {
+                        this.showMinutes();
+                    });
+                }
+            },
+            selectYearRange(yearInRange) {
+                this.date = `${this.currentMonth + 1}/1/${yearInRange}`;
+                this.selectDate({
+                    date: 1,
+                    month: this.currentMonth,
+                    year: yearInRange
+                });
+                this.refreshMonthView();
+                this.setFullValue();
+                this.$nextTick(() => {
+                    this.validateInnerValue();
+
+                    this.showMonths();
+                });
+            },
+            isSelectedYear(yearInRange) {
+                return yearInRange === this.currentYear;
+            },
+            previousYearRange() {
+                this.showYears(this.yearRange[0]);
+            },
+            nextYearRange() {
+                this.showYears(this.yearRange[this.yearRange.length - 1]);
+            },
+            getStartDecade(year) {
+                return parseInt(Math.trunc(year / 10).toString() + `0`);
+            },
+            showYears(centerYear) {
+                const currentYear = centerYear ? this.getStartDecade(centerYear) : this.getStartDecade(this.currentYear);
+                const years = [currentYear - 1];
+
+                for (let i = 0; i < 10; i++ ) years.push(currentYear + i);
+                years.push(currentYear + 10);
+
+                this.yearRange = years;
+                this.dateMode = `years`;
+            },
+            selectYearMonth(yearMonth) {
+                const month = this.yearMonths.indexOf(yearMonth);
+
+                this.date = `${month + 1}/1/${this.yearMonth}`;
+                this.selectDate({
+                    date: 1,
+                    month,
+                    year: this.yearMonth
+                });
+                this.refreshMonthView();
+                this.setFullValue();
+                this.$nextTick(() => {
+                    this.validateInnerValue();
+                });
+            },
+            previousYearMonth() {
+                if (this.yearMonth <= this.minDate.year) return;
+
+                this.yearMonth -= 1;
+            },
+            nextYearMonth() {
+                if (this.yearMonth >= this.maxDate.year) return;
+
+                this.yearMonth += 1;
+            },
+            showMonths(customYear) {
+                this.dateMode = `months`;
+                this.yearMonth = customYear ? customYear : this.currentYear;
+            },
+            isSelectedMonth(yearMonth) {
+                return this.currentMonth === this.yearMonths.indexOf(yearMonth) && this.yearMonth === this.currentYear;
+            },
+            clockMoving($event, takeNearest) {
+                if (!this.clockMove) return;
+
+                const centerX = 134;
+                const centerY = 134;
+                const pointX = $event.layerX;
+                const pointY = $event.layerY;
+
+                let angle = Math.atan2(pointY - centerY, pointX - centerY) * 180 / Math.PI;
+                const isHour = this.timeMode === `hour`;
+                const step = isHour ? moveHoursStep : moveMinutesStep;
+                let negativeAngle = false;
+                if (angle < 0) {
+                    angle = 180 - -angle;
+                    negativeAngle = true;
+                }
+                const divideModule = Math.floor(angle % step);
+                if (takeNearest && divideModule !== 0) {
+                    const upperiLimit = divideModule > step / 2;
+                    angle = angle - Math.floor(angle % step);
+                    if (upperiLimit) angle += step;
+                }
+                if (Math.floor(angle % step) !== 0) return;
+
+                let newHour = this.currentHour;
+                let newMinutes = this.currentMinute;
+                let newTwelve = this.currentTwelve;
+
+                if (!negativeAngle) {
+                    if (isHour) {
+                        newHour = Math.floor(3 + angle / step);
+                    } else {
+                        newMinutes = Math.floor(15 + angle / step);
+                    }
+                }
+                if (negativeAngle) {
+                    if (isHour) {
+                        newHour = Math.floor(9 + angle / step);
+                        if (newHour > 12) newHour -= 12;
+                    } else {
+                        newMinutes = Math.floor(45 + angle / step);
+                        if (newMinutes >= 60) newMinutes -= 60;
+                    }
+                }
+
+                this.currentHour = newHour;
+                this.currentMinute = newMinutes;
+                this.currentTwelve = newTwelve;
+                this.fillTime();
+                this.refreshTimeView();
+                this.$nextTick(() => {
+                    this.setFullValue();
+                    if (isHour) {
+                        this.showHours();
+                    } else {
+                        this.showMinutes();
+                    }
+                    this.validateInnerValue();
+                });
+            },
+            createTimeFrames() {
+                this.listTimeFrames = [];
+                this.listTimeFrames.push(
+                    {
+                        hour: 12,
+                        minute: 0,
+                        twelve: `AM`
+                    },
+                    {
+                        hour: 12,
+                        minute: 30,
+                        twelve: `AM`
+                    }
+                );
+                for (let i = 1; i < 12; i++) {
+                    this.listTimeFrames.push(
+                        {
+                            hour: i,
+                            minute: 0,
+                            twelve: `AM`
+                        },
+                        {
+                            hour: i,
+                            minute: 30,
+                            twelve: `AM`
+                        }
+                    );
+                }
+                this.listTimeFrames.push(
+                    {
+                        hour: 12,
+                        minute: 0,
+                        twelve: `PM`
+                    },
+                    {
+                        hour: 12,
+                        minute: 30,
+                        twelve: `PM`
+                    }
+                );
+                for (let i = 1; i < 12; i++) {
+                    this.listTimeFrames.push(
+                        {
+                            hour: i,
+                            minute: 0,
+                            twelve: `PM`
+                        },
+                        {
+                            hour: i,
+                            minute: 30,
+                            twelve: `PM`
+                        }
+                    );
+                }
+            },
+            onScroll() {
+                this.hideAllPickers();
+            },
+            selectMonth(month) {
+                this.currentMonth = month.id;
+                this.$refs.month.hide();
+                this.refreshMonthView();
+            },
+            selectYear(year) {
+                this.currentYear = year;
+                this.$refs.year.hide();
+                this.refreshMonthView();
+            },
+            openMonths() {
+                if (this.$refs.month.showed) {
+                    this.$refs.month.hide();
+                } else {
+                    let height = this.$refs.datepopupcontainer.clientHeight + 5;
+                    this.$refs.month.showBasedOnElement(this.$refs.datepopupcontainer, null, -90, -height);
+                }
+            },
+            openYears() {
+                if (this.$refs.year.showed) {
+                    this.$refs.year.hide();
+                } else {
+                    const pickedYears = [];
+                    for (let i = 0; i <= 12; i++) {
+                        pickedYears.push(this.currentYear - 6 + i);
+                    }
+                    this.pickedYears = pickedYears;
+                    let width = this.$refs.datepopupcontainer.clientWidth + 6;
+                    let height = this.$refs.datepopupcontainer.clientHeight + 5;
+                    this.$refs.year.showBasedOnElement(this.$refs.datepopupcontainer, null, width, -height);
+                }
+            },
+            selectedTime() {
+                this.currentHour = moment(this.selectTime, `h:mm`).hours();
+                this.currentMinute = moment(this.selectTime, `h:mm A`).minutes();
+                this.currentTwelve = this.selectTime.substr(this.selectTime.length - 2);
+                this.fillTime();
+                this.$nextTick(() => {
+                    this.setFullValue();
+                    this.validateInnerValue();
+                    this.$refs.listtimepopup.hide();
+                });
+            },
+            clearDate() {
+                this.date = ``;
+                this.$nextTick(() => {
+                    this.dateChanged();
+                    setTimeout(() => {
+                        this.setFullValue();
+                    });
+                });
+            },
+            clearTime() {
+                this.time = ``;
+                this.$nextTick(() => {
+                    this.timeChanged();
+                    setTimeout(() => {
+                        this.setFullValue();
+                    });
+                });
+            },
+            datepopupHide() {
+                if (this.$refs.month.showed) this.$refs.month.hide();
+                if (this.$refs.year.showed) this.$refs.year.hide();
+                if (this.$refs.datepopup.showed) this.$refs.datepopup.hide();
+            },
+            hideAllPickers() {
+                if (this.$refs.timepopup.showed) this.$refs.timepopup.hide();
+                if (this.$refs.listtimepopup.showed) this.$refs.listtimepopup.hide();
+                this.datepopupHide();
+            },
+            convertTimeTo24h(){
+                let hour = this.currentTwelve === `AM` ? this.getZeroBasedString(this.currentHour) : this.currentHour + 12;
+                if (hour === 24) hour = 12; //WORKAROUND: for 12 pm not fit +12 logic :(
+                if (this.currentTwelve === `AM` && hour === `12`) hour = `00`; //WORKAROUND: for 12 am not fit +12 logic :(
+                return `${hour}:${this.getZeroBasedString(this.currentMinute)}:00`;
+            },
+            setInputWithoutReAssign(value) {
+                this.isValidateState = true;
+                this.$emit(`input`, value);
+                this.$nextTick(() => {
+                    this.isValidateState = false;
+                    this.$emit(`changed`, value);
+                });
+            },
+            setCurrentTime() {
+                let currentTime = moment().format(`h:mm A`);
+                this.currentHour = moment(currentTime, `h:mm`).hours();
+                this.currentMinute = moment(currentTime, `h:mm A`).minutes();
+                this.currentTwelve = currentTime.substr(currentTime.length - 2);
+                this.fillTime();
+            },
+            setFullValue() {
+                let value;
+                switch (this.mode) {
+                    case Modes.All:
+                        if (!this.isCorrectData()) {
+                            this.setInputWithoutReAssign(null);
+                            return;
+                        }
+                        const dateParts = this.date.split(`/`);
+                        if (!this.isCorrectTime()) this.setCurrentTime();
+                        value = moment(`${dateParts[2]}-${dateParts[0]}-${dateParts[1]} ${this.convertTimeTo24h()}`, `YYYY-MM-DD hh:mm:ss`);
+                        break;
+                    case Modes.OnlyTime:
+                        if (!this.isCorrectTime()) {
+                            this.setInputWithoutReAssign(null);
+                            return;
+                        }
+                        value = moment(this.convertTimeTo24h(), `hh:mm:ss`);
+                        break;
+                    case Modes.OnlyDate:
+                        if (!this.isCorrectData()) {
+                            this.setInputWithoutReAssign(null);
+                            return;
+                        }
+                        const onlyDateParts = this.date.split(`/`);
+                        value = moment(`${onlyDateParts[2]}-${onlyDateParts[0]}-${onlyDateParts[1]}`, `YYYY-MM-DD`);
+                        break;
+                }
+                this.setInputWithoutReAssign(this.format === `iso` ? value.format(`YYYY-MM-DDTHH:mm:ss`) : value.format(this.format));
+            },
+            toggleCurrentTwelve() {
+                this.currentTwelve = this.currentTwelve === `AM` ? `PM` : `AM`;
+                this.fillTime();
+                this.$nextTick(() => {
+                    this.setFullValue();
+                    this.validateInnerValue();
+                });
+            },
+            showHours() {
+                this.timeMode = `hour`;
+                this.$nextTick(() => {
+                    const ticks = this.$refs.hourtick;
+                    const tick = ticks.find(a => a.textContent == this.currentHour);
+                    this.drawTick(tick);
+                });
+            },
+            showMinutes() {
+                this.timeMode = `minute`;
+                this.$nextTick(() => {
+                    const ticks = this.$refs.minutetick;
+                    const tick = ticks.find(a => parseInt(a.textContent) === this.currentMinute);
+                    this.drawTick(tick);
+                });
+            },
+            fillTime() {
+                this.time = `${this.currentHour}:${this.getZeroBasedString(this.currentMinute)} ${this.currentTwelve}`;
+                this.validateInnerValue();
+            },
+            drawTick(element) {
+                const left = element.offsetLeft;
+                const top = element.offsetTop;
+                const height = element.clientHeight / 2;
+                const width = element.clientWidth / 2;
+                const ycenter = top + height;
+                const xcenter = left + width;
+                const halfSpace = 135;
+
+                this.clockGeometry.lineY = this.getCoordinate(ycenter);
+                this.clockGeometry.lineX = this.getCoordinate(xcenter);
+            },
+            getCoordinate(center) {
+                const halfSpace = 135;
+                if (center > halfSpace) return center - halfSpace;
+                if (center === halfSpace) return 0;
+                if (center < halfSpace) return -(halfSpace - center);
+            },
+            selectMinite($event, minute) {
+                this.drawTick($event.target);
+                this.currentMinute = parseInt(minute);
+                if (this.currentHour === 12 && this.currentTwelve === `PM` && this.currentMinute > 0) {
+                    this.currentHour = 0;
+                    this.currentTwelve = `AM`;
+                }
+
+                this.setFullValue();
+                this.$nextTick(() => {
+                    this.fillTime();
+                });
+            },
+            selectHour($event, hour) {
+                this.drawTick($event.target);
+
+                this.currentHour = hour;
+                if (this.currentHour === 12 && this.currentTwelve === `PM` && this.currentMinute > 0) this.currentMinute = 0;
+                this.showMinutes();
+
+                this.setFullValue();
+                this.$nextTick(() => {
+                    this.fillTime();
+                });
+            },
+            selectToday() {
+                const now = new Date();
+                this.date = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
+                this.selectDate({
+                    date: now.getDate(),
+                    month: now.getMonth(),
+                    year: now.getFullYear()
+                });
+                this.refreshMonthView();
+                this.setFullValue();
+                this.$nextTick(() => {
+                    this.validateInnerValue();
+                });
+            },
+            previousMonth() {
+                const month = this.currentMonth === 0 ? 11 : this.currentMonth - 1;
+                const year = this.currentMonth === 0 ? this.currentYear - 1 : this.currentYear;
+                const countDaysInMonth = this.getCountDaysInMonths(month, year);
+                const date = this.currentDay > countDaysInMonth ? countDaysInMonth : this.currentDay;
+
+                this.currentMonth = month;
+                this.currentDay = date;
+                this.currentYear = year;
+                this.refreshMonthView();
+            },
+            nextMonth() {
+                const month = this.currentMonth === 11 ? 0 : this.currentMonth + 1;
+                const year = this.currentMonth === 11 ? this.currentYear + 1 : this.currentYear;
+                const countDaysInMonth = this.getCountDaysInMonths(month, year);
+                const date = this.currentDay > countDaysInMonth ? countDaysInMonth : this.currentDay;
+
+                this.currentMonth = month;
+                this.currentDay = date;
+                this.currentYear = year;
+                this.refreshMonthView();
+            },
+            isSelectedDay(day) {
+                if (!this.isCorrectData(this.date)) return false;
+
+                const parts = this.date.split(`/`).map(a => parseInt(a));
+
+                return day.date === parts[1] &&
+                    day.year === parts[2] &&
+                    day.month === parts[0] - 1;
+            },
+            selectDateFromCalendar(day) {
+                if (this.maxDate && day.year > this.maxDate.year) return;
+                if (this.minDate && day.year < this.minDate.year) return;
+                if (this.maxDate && day.year === this.maxDate.year && (day.month > this.maxDate.month || (day.month === this.maxDate.month && day.date > this.maxDate.date))) return;
+                if (this.minDate && day.year === this.minDate.year && (day.month < this.minDate.month || (day.month === this.minDate.month && day.date < this.minDate.date))) return;
+
+                this.date = `${day.month + 1}/${day.date}/${day.year}`;
+                this.selectDate(day);
+            },
+            selectDate(day) {
+                this.currentDay = day.date;
+                this.currentYear = day.year;
+                this.currentMonth = day.month;
+
+                this.validateInnerValue();
+                this.$nextTick(() => {
+                    this.setFullValue();
+                    this.$nextTick(() => {
+                        this.validateInnerValue();
+                    });
+                });
+                if (this.hideOnSelect) {
+                    this.hideAllPickers();
+                }
+            },
+            getZeroBasedString(int) {
+                if (int < 10) return `0${int}`;
+                return `` + int;
+            },
+            getDaysInMonth() {
+                const countDays = this.getCountDaysInMonths(this.currentMonth, this.currentYear);
+
+                const previousMonth = this.currentMonth > 0 ? this.currentMonth - 1 : 11;
+                const previousCountDays = this.getCountDaysInMonths(previousMonth, previousMonth > this.currentMonth ? this.currentYear - 1 : this.currentYear);
+
+                const nextMonth = this.currentMonth === 11 ? 0 : this.currentMonth + 1;
+                const nextCountDays = this.getCountDaysInMonths(nextMonth, nextMonth < this.currentMonth ? this.currentYear + 1 : this.currentYear);
+                const template = `${this.currentYear}-${this.getZeroBasedString(this.currentMonth + 1)}-01`;
+                const startWeekDayNumber = moment(template, `YYYY-MM-DD`).day();
+
+                const days = [];
+                const startPreviousDate = previousCountDays - startWeekDayNumber;
+                const previousYear = previousMonth > this.currentMonth ? this.currentYear - 1 : this.currentYear;
+                for (let i = 0; i < startWeekDayNumber; i++) {
+                    days.push({
+                        year: previousYear,
+                        month: previousMonth,
+                        date: startPreviousDate + i + 1
+                    });
+                }
+                for (let i = 0; i < countDays; i++) {
+                    days.push({
+                        year: this.currentYear,
+                        month: this.currentMonth,
+                        date: i + 1
+                    });
+                }
+                const countNextMonth = 42 - countDays - startWeekDayNumber;
+                const nextYear = nextMonth < this.currentMonth ? this.currentYear + 1 : this.currentYear;
+                for (let i = 0; i < countNextMonth; i++) {
+                    days.push({
+                        year: nextYear,
+                        month: nextMonth,
+                        date: i + 1
+                    });
+                }
+
+                return days;
+            },
+            refreshMonthView() {
+                const monthDays = this.getDaysInMonth();
+
+                const monthTableRows = [];
+                for (let i = 0; i < 6; i++) {
+                    const startIndex = i * 7;
+                    const dates = [];
+                    for (let l = 0; l < 7; l++) {
+                        dates.push(Object.assign({}, monthDays[startIndex + l]));
+                    }
+
+                    monthTableRows.push(
+                        {
+                            index: i,
+                            dates
+                        }
+                    );
+                }
+
+                this.monthTableRows = monthTableRows;
+                this.dateMode = `month`;
+            },
+            refreshTimeView() {
+                this.displayTime = `${this.currentHour}:${this.currentMinute} ${this.currentTwelve}`;
+            },
+            populateState(value) {
+                if (!value) {
+                    this.date = ``;
+                    this.time = ``;
+                    return;
+                }
+
+                const momentDate = this.format === `iso` ? moment(value) : moment(value, this.format);
+                const newDate = momentDate.format(`M/D/YYYY`);
+                const newTime = momentDate.format(`h:mm A`);
+
+                switch (this.mode) {
+                    case Modes.All:
+                        if (newDate !== this.date) this.date = newDate;
+                        if (newTime !== this.time) this.time = newTime;
+                        break;
+                    case Modes.OnlyDate:
+                        if (newDate !== this.date) this.date = newDate;
+                        this.time = ``;
+                        break;
+                    case Modes.OnlyTime:
+                        this.date = ``;
+                        if (newTime !== this.time) this.time = newTime;
+                        break;
+                }
+                this.currentHour = parseInt(momentDate.format(`h`));
+                this.currentMinute = parseInt(momentDate.format(`mm`));
+                this.currentTwelve = momentDate.format(`A`);
+            },
+            openDatePicker(mode) {
+                if (this.$refs.timepopup.showed) this.$refs.timepopup.hide();
+                if (this.$refs.listtimepopup.showed) this.$refs.listtimepopup.hide();
+
+                if (mode === `onlyshow` && this.$refs.datepopup.showed) return;
+
+                if (this.$refs.datepopup.showed) {
+                    this.datepopupHide();
+                } else {
+                    if (this.isCorrectData()) {
+                        const dateParts = this.date.split(`/`);
+                        this.currentYear = parseInt(dateParts[2]);
+                        this.currentMonth = parseInt(dateParts[0] - 1);
+                        this.currentDay = parseInt(dateParts[1]);
+                    }
+                    this.refreshMonthView();
+
+                    this.moveTop = this.offsetTop ||
+                        (this.$refs.datepicker.getBoundingClientRect().bottom + 340 > document.documentElement.clientHeight);
+
+                    this.$refs.datepopup.showBasedOnElement(this.$refs.datepickercontrols, null, this.offsetPopup ? -265 : 0, this.moveTop ? -340 : 0);
+                }
+            },
+            openTimePicker(mode) {
+                if (this.$refs.datepopup.showed) this.datepopupHide();
+                if (this.$refs.listtimepopup.showed) this.$refs.listtimepopup.hide();
+
+                if (mode === `onlyshow` && this.$refs.timepopup.showed) return;
+
+                if (this.$refs.timepopup.showed) {
+                    this.$refs.timepopup.hide();
+                } else {
+                    this.refreshTimeView();
+                    this.$refs.timepopup.showBasedOnElement(this.$refs.timepicker, null, this.offsetPopup ? -160 : 0, this.offsetTop ? -390 : 0);
+                    this.$nextTick(() => {
+                        this.showHours();
+                    });
+                }
+            },
+            openListTime() {
+                this.widthTimelistBox = `${this.$refs.timepicker.offsetWidth - 2}px`;
+                if (this.$refs.datepopup.showed) this.datepopupHide();
+                if (this.$refs.timepopup.showed) this.$refs.timepopup.hide();
+
+                if (this.$refs.listtimepopup.showed) {
+                    this.$refs.listtimepopup.hide();
+                } else {
+                    this.$refs.listtimepopup.showBasedOnElement(this.$refs.timepicker);
+                    let notCorrectTime = !this.isCorrectTime(this.time);
+
+                    setTimeout(() => {
+                        let currentHour = notCorrectTime ? parseInt(moment(new Date()).format(`h`)) : this.currentHour;
+                        let currentMinute = notCorrectTime ? parseInt(moment(new Date()).format(`mm`)) : this.currentMinute;
+                        let currentTwelve = notCorrectTime ? moment(new Date()).format(`A`) : this.currentTwelve;
+
+                        let selectedTimeFrame;
+                        for (const timeFrame of this.listTimeFrames) {
+                            if (timeFrame.hour === currentHour && timeFrame.twelve === currentTwelve) {
+                                if (currentMinute < 30 && timeFrame.minute === 0) {
+                                    selectedTimeFrame = timeFrame;
+                                    break;
+                                }
+                                if (currentMinute >= 30 && timeFrame.minute === 30) {
+                                    selectedTimeFrame = timeFrame;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!selectedTimeFrame) return;
+
+                        const timeItem = `${selectedTimeFrame.hour}:${this.getZeroBasedString(selectedTimeFrame.minute)} ${selectedTimeFrame.twelve}`;
+                        this.$refs.timelistbox.scrollToItem(this.listTime[this.listTime.indexOf(timeItem)]);
+                    });
+                }
+            },
+            restoreDateCursor(element) {
+                this.$nextTick(() => {
+                    element.setSelectionRange(this.restoreCursorPosition, this.restoreCursorPosition);
+                    this.restoreCursorPosition = null;
+                });
+            },
+            validateInnerValue() {
+                this.isValidateState = true;
+                this.validateValue();
+                this.isValidateState = false;
+            },
+            checkDateValue(value) {
+                if (!value) return false;
+
+                const dateParts = value.split(`/`);
+                if (dateParts.length !== 3) return false;
+
+                for (const datePart of dateParts) {
+                    if (isNaN(parseInt(datePart))) return false;
+                }
+
+                if (this.isInvalidNumber(dateParts[0], 2) && this.isInvalidNumber(dateParts[0], 1)) return false;
+                if (this.isInvalidNumber(dateParts[1], 2) && this.isInvalidNumber(dateParts[1], 1)) return false;
+                if (this.isInvalidNumber(dateParts[2], 4)) return false;
+
+                let date = parseInt(dateParts[1]);
+                let month = parseInt(dateParts[0]);
+                let year = parseInt(dateParts[2]);
+
+                if (month < 1) return false;
+                if (month > 12) return false;
+                if (date < 1) return false;
+                if (date > this.getCountDaysInMonths(month - 1, year)) return false;
+                if (year < 1000) return false;
+                if (year > 4000) return false; //i'm waiting huh
+
+                return true;
+            },
+            isInvalidNumber(val, length) {
+                return !val || val.length != length || parseInt(val) != val;
+            },
+            dateChanged() {
+                const element = this.$refs.datepicker;
+                const value = element.value;
+                this.date = value;
+
+                if (!value && !this.notClearTypeValue && (this.mode === Modes.OnlyDate || (this.mode === Modes.All && !this.time))) {
+                    this.setInputWithoutReAssign(null);
+                    this.validateInnerValue();
+                    return;
+                }
+
+                if (!this.checkDateValue(value)) {
+                    this.validateInnerValue();
+                    return;
+                }
+
+                const parts = value.split(`/`);
+                let date = parseInt(parts[1]);
+                let month = parseInt(parts[0]);
+                let year = parseInt(parts[2]);
+
+                if (year > this.maxDate.year) year = this.maxDate.year;
+                if (year < this.minDate.year) year = this.minDate.year;
+                
+                if (month > this.maxDate.month && year === this.maxDate.year) month = this.maxDate.month;
+                if (month < this.minDate.month && year === this.minDate.year) month = this.minDate.month;
+
+                if (date > this.maxDate.date && month === this.maxDate.month && year === this.maxDate.year) date = this.maxDate.date;
+                if (date < this.minDate.date && month === this.minDate.month && year === this.minDate.year) date = this.maxDate.date;
+
+                if (month > 12) month = 12;
+                if (month < 1) month = 1;
+                if (date > this.getCountDaysInMonths(month - 1, year)) date = this.getCountDaysInMonths(month - 1, year);
+                if (date < 1) date = 1;
+
+                this.selectDate({
+                    date: date,
+                    month: month - 1,
+                    year: year
+                });
+                this.refreshMonthView();
+            },
+            timeLostFocus($event) {
+                const value = $event.target.value;
+                const isMilitaryTime = value.match(/\d{2}\:\d{2}/g) && value.toLowerCase().indexOf(`am`) === -1 && value.toLowerCase().indexOf(`pm`) === -1;
+                if (!isMilitaryTime) return;
+
+                const militaryTimeParts = value.split(`:`).map(a => parseInt(a));
+                let militaryHour = militaryTimeParts[0];
+                let militaryMinute = militaryTimeParts[1];
+
+                if (militaryHour > 23) militaryHour = 23;
+                if (militaryHour < 0) militaryHour = 0;
+                if (militaryMinute > 59) militaryMinute = 59;
+                if (militaryMinute < 0) militaryMinute = 0;
+
+                this.currentHour = militaryHour > 12 ? militaryHour - 12 : militaryHour;
+                this.currentMinute = militaryMinute;
+                this.currentTwelve = militaryHour > 12 ? `PM` : `AM`;
+                this.fillTime();
+            },
+            timeChanged() {
+                const element = this.$refs.timepicker;
+                const value = element.value;
+                this.time = value;
+
+                if (!value && !this.notClearTypeValue && (this.mode === Modes.OnlyTime || (this.mode === Modes.All && !this.date))) {
+                    this.setInputWithoutReAssign(null);
+                    this.validateInnerValue();
+                    return;
+                }
+
+                const isMilitaryTime = value.match(/\d{2}\:\d{2}/g) && value.toLowerCase().indexOf(`am`) === -1 && value.toLowerCase().indexOf(`pm`) === -1;
+                let isCivilianTime = value.match(/\d{1,2}\:\d{2}[ampAMP\s]{0,3}/g);
+                if (isCivilianTime && value.toLowerCase().indexOf(`am`) === -1 && value.toLowerCase().indexOf(`pm`) === -1) {
+                    isCivilianTime = false;
+                }
+                if (!isCivilianTime && !isMilitaryTime) {
+                    this.validateInnerValue();
+                    return;
+                }
+
+                if (isMilitaryTime) {
+                    const militaryTimeParts = value.split(`:`).map(a => parseInt(a));
+                    let militaryHour = militaryTimeParts[0];
+                    let militaryMinute = militaryTimeParts[1];
+
+                    if (militaryHour > 23) militaryHour = 23;
+                    if (militaryHour < 0) militaryHour = 0;
+                    if (militaryMinute > 59) militaryMinute = 59;
+                    if (militaryMinute < 0) militaryMinute = 0;
+
+                    this.currentHour = militaryHour > 12 ? militaryHour - 12 : militaryHour;
+                    this.currentMinute = militaryMinute;
+                    this.currentTwelve = militaryHour > 12 ? `PM` : `AM`;
+                } else {
+                    const timeParts = value.split(`:`);
+                    const clockParts = timeParts.map(a => parseInt(a));
+                    let hour = clockParts[0];
+                    let minute = clockParts[1];
+                    //paranoic mode: on
+                    let twelve = hour > 12 && hour < 23 ? `PM` : `AM`;
+                    //paranoic mode: off
+                    const twelvePart = timeParts[1].toLowerCase();
+                    if (twelvePart.indexOf(`am`) > -1) twelve = `AM`;
+                    if (twelvePart.indexOf(`pm`) > -1) twelve = `PM`;
+
+                    if (hour > 12) hour = 12;
+                    if (hour < 0) hour = 0;
+                    if (minute > 59) minute = 59;
+                    if (minute < 0) minute = 0;
+                    if (twelve === `PM` && hour === 12 && minute > 0) minute = 0;
+
+                    this.currentHour = hour;
+                    this.currentMinute = minute;
+                    this.currentTwelve = twelve;
+                }
+
+                this.setFullValue();
+                this.validateInnerValue();
+                if (this.$refs.timepopup.showed) this.showHours();
+            },
+            isCorrectData(dateValue) {
+                let date;
+                if (!dateValue) {
+                    if (!this.$refs.datepicker) return false;
+
+                    date = this.$refs.datepicker.value;
+                } else {
+                    date = dateValue;
+                }
+
+                return this.checkDateValue(date);
+            },
+            isCorrectTime(timeValue) {
+                let time;
+                if (!timeValue) {
+                    if (!this.$refs.timepicker) return false;
+
+                    time = this.$refs.timepicker.value;
+                } else {
+                    time = timeValue;
+                }
+
+                if (!time) return false;
+
+                const isMilitaryTime = time.match(/\d{2}\:\d{2}/g);
+                let isCivilianTime = time.match(/\d{1,2}\:\d{2}[ampAMP\s]{0,3}/g);
+                if (isCivilianTime && time.toLowerCase().indexOf(`am`) === -1 && time.toLowerCase().indexOf(`pm`) === -1) {
+                    isCivilianTime = false;
+                }
+
+                return isMilitaryTime || isCivilianTime;
+            },
+            required(rule, validateMessage) {
+                let isNotValid = false;
+                const dataCorrect = this.isCorrectData(this.date);
+                const timeCorrect = this.isCorrectTime(this.time);
+                let badField = ``;
+                switch (this.mode) {
+                    case Modes.All:
+                        badField = `${!dataCorrect ? `DATE` : ``}${!timeCorrect ? `TIME` : ``}`;
+                        isNotValid = !dataCorrect || !timeCorrect;
+                        break;
+                    case Modes.OnlyDate:
+                        badField = `DATE`;
+                        isNotValid = !dataCorrect;
+                        break;
+                    case Modes.OnlyTime:
+                        badField = `TIME`;
+                        isNotValid = !timeCorrect;
+                        break;
+                }
+
+                if (isNotValid) this.validateMessage(rule, badField);
+                return !isNotValid;
+            },
+            notCorrect(rule, validateMessage) {
+                let isNotValid = false;
+                const dataCorrect = this.date ? this.isCorrectData(this.date) : true;
+                const timeCorrect = this.time ? this.isCorrectTime(this.time) : true;
+                let badField = ``;
+                switch (this.mode) {
+                    case Modes.All:
+                        badField = `${!dataCorrect ? `DATE` : ``}${!timeCorrect ? `TIME` : ``}`;
+                        isNotValid = !dataCorrect || !timeCorrect;
+                        break;
+                    case Modes.OnlyDate:
+                        badField = `DATE`;
+                        isNotValid = !dataCorrect;
+                        break;
+                    case Modes.OnlyTime:
+                        badField = `TIME`;
+                        isNotValid = !timeCorrect;
+                        break;
+                }
+
+                if (isNotValid) this.validateMessage(rule, badField);
+                return !isNotValid;
+            },
+            minDateValidate(rule) {
+                const value = parseInt(this.content);
+                const valid = value >= rule.parameter;
+                if (!valid) this.validateMessage(rule, `Field value can not be less then ${rule.parameter}`);
+                return valid;
+            },
+            maxDateValidate(rule) {
+                const value = parseInt(this.content);
+                const valid = value >= rule.parameter;
+                if (!valid) this.validateMessage(rule, `Field value can not be less then ${rule.parameter}`);
+                return valid;
+            }
+        },
+        watch: {
+            value(newValue) {
+                if (this.isValidateState) return;
+
+                this.populateState(newValue);
+                this.validateValue();
+            },
+        },
+        computed: {
+            dateNotValid() {
+                if (!this.validate || !this.validateErrors) return false;
+
+                return this.validateErrors.find(a => a && a.indexOf(`DATE`) > -1);
+            },
+            timeNotValid() {
+                if (!this.validate || !this.validateErrors) return false;
+
+                return this.validateErrors.find(a => a && a.indexOf(`TIME`) > -1);
+            },
+            currentZeroBaseMinute() {
+                return this.getZeroBasedString(this.currentMinute);
+            }
+        },
+        mixins: [validateMixin, i18nMixin],
+        components: {
+            FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+            TodayButton: staticBasicComponent(`ActionButton`),
+            PopupBox: staticBasicComponent(`Popup`),
+            ClearButton: staticBasicComponent(`ClearButton`),
+            ListBox: staticBasicComponent(`ListBox`)
+        }
+    };
+}
+
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.container-component-id input {
+    height: 32px;
+    box-shadow: none;
+    padding: 5px 6px;
+    font-size: 13px;
+    font-weight: normal;
+    transition: none;
+    display: block;
+    flex: 1 1 auto;
+    line-height: 1.428571429;
+    color: #424242;
+    background-clip: padding-box;
+    box-sizing: border-box;
+    border: 1px solid #e7eaf3;
+    border-radius: 3px;
+    font-family: inherit;
+    min-width: 0;
+}
+.container-component-id input:focus,input:active {
+    border-color: rgba(51, 204, 255, 0.30);
+    background-image: none;
+    outline: 0;
+}
+.container-component-id input.not-valid-input {
+     border-color: #ee1c29;
+}
+.date-component-id {
+    width: 100%;
+    max-width: 190px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-right: 6px;
+}
+.date-component-id > input{
+    max-width: 155px;
+}
+.time-component-id {
+    min-width: 100px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.time-component-id > input {
+    max-width: 155px;
+}
+.popup-controls-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.clear-date-component-id {
+    margin-left: -35px;
+}
+.clear-time-component-id {
+    margin-left: -51px;
+}
+.icon-component-id {
+    font-family: FontAwesome;
+    cursor: pointer;
+    font-size: 16px;
+}
+.icon-component-id > * {
+    font-family: FontAwesome;
+    color: #ee1c29;
+}
+.calendar-enter-active, .calendar-leave-active {
+    transition: opacity .2s;
+}
+.calendar-enter, .calendar-leave-to {
+    opacity: 0;
+}
+.time-component-id-enter-active, .time-component-id-leave-active {
+    transition: opacity .2s;
+}
+.time-component-id-enter, .time-component-id-leave-to {
+    opacity: 0;
+}
+.date-popup-component-id {
+    padding: 10px;
+    box-shadow: 0 0 6px 0 rgba(0,0,0,.12);
+    border: 1px solid #e3e3e3;
+    background-color: #fff;
+    font-size: 14px;
+    font-family: Roboto,Arial,sans-serif;
+}
+.date-popup-component-id table {
+    border-collapse: separate;
+    border-spacing: 7px 2px;
+}
+.date-popup-component-id td, date-popup-component-id th  {
+    text-align: center;
+    max-width: 20px;
+    height: 20px;
+    border: none;
+}
+.date-popup-component-id:before {
+    content: '';
+    display: inline-block;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 7px solid #ccc;
+    border-bottom-color: rgba(0,0,0,.08);
+    position: absolute;
+    top: -7px;
+    left: 9px;
+}
+.date-popup-component-id:after {
+    border-bottom: 6px solid #fff;
+    position: absolute;
+    content: '';
+    display: inline-block;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    top: -5px;
+    left: 9px;
+}
+.date-popup-offset-component-id:before,
+.date-popup-offset-component-id:after {
+    left: 274px;
+}
+.date-popup-offsettop-component-id:before,
+.date-popup-offsettop-component-id:after {
+    top: 303px;
+    transform: rotate(180deg);
+}
+.not-actual-days-month-compomemt-id {
+    color: lightgrey;
+}
+.date-popup-component-id table tbody tr td {
+    line-height: 31px;
+    padding: 0 8px;
+    color: #424242;
+}
+.date-popup-component-id table tbody tr td:hover {
+    border-radius: 50%;
+    background-color: lightgrey;
+}
+.date-popup-component-id table tbody tr td.selected-day-date-component-id:hover {
+    background-color: #ee1c29;
+}
+.time-popup-component-id {
+    background-color: #fff;
+    box-shadow: 0 25px 20px -20px rgba(0, 0, 0, 0.1), 0 0 20px 10px rgba(0, 0, 0, 0.035);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.today-separator-component-id {
+    height: 1px;
+    background-color: #d4d4d4;
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.month-events-th-component-id {
+    color: "#000";
+    font-size: 14px;
+    border: 0px solid lightgray;
+}
+.month-events-th-component-id th {
+    font-weight: normal !important;
+    padding: 10px 4px 8px;
+}
+/*.month-events-component-id {
+    font-size: .8vrem;
+}*/
+.date-popup-header-component-id {
+    padding: 10px 4px 8px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+.date-popup-header-component-id span {
+    flex: 1;
+    text-align: center;
+}
+.time-popup-header-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: center;
+    background-color: #ee1c29;
+    color: #b2dfdb;
+    width: 100%;
+}
+.time-popup-header-component-id div {
+    font-size: 4rem;
+}
+.time-popup-header-component-id span {
+    margin-bottom: 6px;
+    margin-left: 4px;
+    cursor: pointer;
+    font-size: 2rem;
+}
+.selected-day-date-component-id {
+    border-radius: 50%;
+    background-color: #ee1c29;
+}
+.selected-day-date-component-id span {
+    color: #fff;
+}
+.selected-month-date-component-id {
+    border-radius: 5px;
+    background-color: #ee1c29;
+}
+.selected-month-date-component-id span {
+    color: #fff;
+}
+.month-date-component-id {
+    font-size: 13px;
+    text-align: center;
+    cursor: pointer;
+}
+.pointers-component-id {
+    cursor: pointer;
+}
+.pointers-arrow-component-id {
+    padding: 5px;
+    cursor: pointer;
+}
+.pointers-arrow-component-id:hover {
+    color: #ee1c29;
+}
+.today-component-id {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+.clock-component-id {
+    background-color: #eee;
+    border-radius: 50%;
+    width: 270px;
+    height: 270px;
+}
+.light-text-component-id {
+    color: #fff;
+}
+.clock-tick-component-id {
+    border-radius: 50%;
+    color: #666;
+    line-height: 2.5rem;
+    position: absolute;
+    width: 2.5rem;
+    height: 2.5rem;
+    text-align: center;
+    cursor: pointer;
+    background-color: rgba(0,150,136,0);
+    transition: background-color .3s;
+    user-select: none;
+    pointer-events: none;
+}
+.clock-canvas-component-id {
+    width: 270px;
+    height: 270px;
+    position: absolute;
+    left: -1px;
+    top: -1px;
+}
+.clock-circle-background-component-id {
+    fill: rgba(0,150,136,.25);
+}
+.clock-circle-foreground-component-id {
+    fill: rgba(0,77,64,0.2);
+}
+.clock-container-component-id {
+    position: relative;
+    margin: 10px;
+}
+.clock-stroke-line-component-id {
+    stroke: rgba(0,150,136,.25);
+    stroke-width: 1;
+}
+.error-marked-component-id {
+     border-color: #ee1c29 !important;
+}
+.beetween-component-id {
+    background-color: #FF2757;
+    z-index: -1;
+}
+.disable-area-component-id {
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.list-time-component-id {
+    background-color: #fff;
+    border: 1px solid #fff;
+    box-shadow: 0 25px 20px -20px rgba(0, 0, 0, 0.1), 0 0 20px 10px rgba(0, 0, 0, 0.035);
+    width: 155px;
+    min-width: 99px;
+    height: 200px;
+    overflow-y: scroll;
+}
+.item-time-component-id {
+    padding: 3px 5px;
+    font-size: 12px;
+    font-weight: normal;
+}
+.month-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: 22px;
+}
+.month-component-id > div {
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 4px;
+}
+.month-component-id > div:hover {
+    filter: brightness(0.4)
+}
+.menu-listbox-component-id {
+    background-color: #fff;
+    padding: 10px;
+    border: 1px solid #fff;
+    box-shadow: 0 25px 20px -20px rgba(0, 0, 0, 0.1), 0 0 20px 10px rgba(0, 0, 0, 0.035);
+}
+.menu-listbox-component-id > * {
+    cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+.selected-month-component-id {
+    background-color: lightgrey;
+}
+.right-button-component-id {
+    margin-left: -1px;
+    height: 32px;
+    width: 30px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0 4px 4px 0;
+}
+.middle-button-component-id {
+    margin-left: -1px;
+    height: 32px;
+    width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+}
+.year-months-component-id {
+    font-size: 13px;
+    color: #424242;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-width: 180px;
+    padding: 0px 8px;
+}
+.year-month-component-id {
+    height: 54px;
+    cursor: pointer;
+    flex: 1 1 30px;
+    margin: 2px;
+    padding: 0px 4px 0px 4px;
+    justify-content: center;
+    align-items: center;
+    display: flex;
+}
+.year-month-component-id:hover {
+    border-radius: 5px;
+    background-color: lightgrey;
+}
+.year-month-component-id.selected-month-date-component-id:hover {
+    background-color: #ee1c29;
+}
+.year-range-component-id {
+    font-size: 13px;
+    color: #424242;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-width: 180px;
+    padding: 0px 8px;
+}
+.current-date-component-id {
+    background-color: rgb(170, 170, 170);
+    border-radius: 50%;
+}
+
+</style>

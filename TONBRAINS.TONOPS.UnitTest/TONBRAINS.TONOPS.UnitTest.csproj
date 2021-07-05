@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Marques.EFCorev3.0.SnakeCase" Version="1.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="5.0.1" />
+    <PackageReference Include="NUnit" Version="3.12.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.8.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TONBRAINS.TONOPS.Core\TONBRAINS.TONOPS.Core.csproj" />
+    <ProjectReference Include="..\TONBRAINS.TONOPS.Ffi\TONBRAINS.TONOPS.Ffi.csproj" />
+  </ItemGroup>
+
+</Project>

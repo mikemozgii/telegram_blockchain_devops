@@ -1,0 +1,56 @@
+﻿
+@import url("https://p.typekit.net/p.css?s=1&k=efq4gbx&ht=tk&f=347.348.349.350.353&a=14592931&app=typekit&e=css");
+
+@font-face {
+    font-family: "good-times";
+    src: url("https://use.typekit.net/af/185374/00000000000000003b9afdb4/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3") format("woff2"), url("https://use.typekit.net/af/185374/00000000000000003b9afdb4/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3") format("woff"), url("https://use.typekit.net/af/185374/00000000000000003b9afdb4/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3") format("opentype");
+    font-display: auto;
+    font-style: normal;
+    font-weight: 400;
+}
+
+@font-face {
+    font-family: "good-times";
+    src: url("https://use.typekit.net/af/0d9b43/00000000000000003b9afdb5/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i4&v=3") format("woff2"), url("https://use.typekit.net/af/0d9b43/00000000000000003b9afdb5/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i4&v=3") format("woff"), url("https://use.typekit.net/af/0d9b43/00000000000000003b9afdb5/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i4&v=3") format("opentype");
+    font-display: auto;
+    font-style: italic;
+    font-weight: 400;
+}
+
+@font-face {
+    font-family: "good-times";
+    src: url("https://use.typekit.net/af/042492/00000000000000003b9afdb8/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff2"), url("https://use.typekit.net/af/042492/00000000000000003b9afdb8/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff"), url("https://use.typekit.net/af/042492/00000000000000003b9afdb8/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("opentype");
+    font-display: auto;
+    font-style: normal;
+    font-weight: 700;
+}
+
+@font-face {
+    font-family: "good-times";
+    src: url("https://use.typekit.net/af/df180a/00000000000000003b9afdb9/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i7&v=3") format("woff2"), url("https://use.typekit.net/af/df180a/00000000000000003b9afdb9/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i7&v=3") format("woff"), url("https://use.typekit.net/af/df180a/00000000000000003b9afdb9/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i7&v=3") format("opentype");
+    font-display: auto;
+    font-style: italic;
+    font-weight: 700;
+}
+
+@font-face {
+    font-family: "good-times-bad-times";
+    src: url("https://use.typekit.net/af/3573c9/00000000000000003b9afdbc/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n9&v=3") format("woff2"), url("https://use.typekit.net/af/3573c9/00000000000000003b9afdbc/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n9&v=3") format("woff"), url("https://use.typekit.net/af/3573c9/00000000000000003b9afdbc/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n9&v=3") format("opentype");
+    font-display: auto;
+    font-style: normal;
+    font-weight: 900;
+}
+
+.tk-good-times {
+    font-family: "good-times", sans-serif;
+}
+
+.tk-good-times-bad-times {
+    font-family: "good-times-bad-times", sans-serif;
+}
+
+
+
+.text-brandred {
+    color: #ee1c29;
+}

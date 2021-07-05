@@ -1,0 +1,331 @@
+<vue-template>
+    <grid-header-block
+        :filters="filters"
+        :hide-page-size="true"
+        :hide-search-box="true"
+        :search-label="searchLabel"
+        @pagesizechanged="pageSizeChanged($event)"
+        @filterchanged="filterChanged($event)"
+        class="simple-header-component-id"
+        v-if="!hideToolbar">
+        <template slot="actions">
+            <slot name="toolbarActions"></slot>
+        </template>
+        <template slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </template>
+        <template slot="actions-right">
+            <slot name="toolbar-buttons-right"></slot>
+        </template>
+
+         <template slot="actions-top">
+            <slot name="toolbar-buttons-top"></slot>
+        </template>
+
+        <paginator
+            v-if="pagingScope && pagingScope.showPaging"
+            slot="upperpaginator"
+            class="simple-paging-component-id"
+            :page-size="pagingScope.pageSize"
+            :count-items="pagingScope.countItems"
+            :current-page="pagingScope.currentPage"
+            :count-on-page="pagingScope.countOnPage"
+            @pagechanged="pageChanged($event)">
+        </paginator>        
+    </grid-header-block>
+    <tree-grid :url="'-'"
+               :columns="columns"
+               :filters="filters"
+               ref="basicgrid"
+               :source="''"
+               :expandable="expandable"
+               :default-sort-field="defaultSortField"
+               :default-sort-field-descending="defaultSortFieldDescending"
+               :source-strategy="treeStrategy"
+               :completed="loadGrid"
+               :hide-headers="hideHeaders"
+               :row-handler="rowHandler"
+               :metadata="metadata"
+               :preprocess-data-handler="preprocessDataHandler"
+               :default-page-size="defaultPageSize"
+               :grid-settings="gridSettings"
+               :hide-popup="hidePopup"
+               :not-show-empty="notShowEmpty"
+               @selected="selected($event)"
+               @changepaging="changePaging($event)"
+               @completed="completed()">
+        <template slot="popup-buttons" slot-scope="{ item }">
+            <slot name="popup-buttons" :item="item">
+
+            </slot>
+        </template>
+        <template slot="treeColumnContent" slot-scope="{ column, item }">
+            <slot name="treeColumnContent" :column="column" :item="item">
+                <a @click.stop.prevent="toggleExpand(item)" :style="{ 'visibility': item.expandable ? 'visible' : 'hidden' }">
+                    <slot name="expandcontent" :item="item">
+                        <font-awesome-icon class="expand-component-id" :icon="item.expand ? 'fa-caret-down' : 'fa-caret-right'"></font-awesome-icon>
+                    </slot>
+                </a>
+                <slot name="treecolumninnercontent" :column="column" :item="item"><span>{{ item[column.field] }}</span></slot>
+            </slot>
+        </template>
+        <template slot="popup-buttons" slot-scope="{ item }">
+            <slot name="popup-buttons" :item="item">
+
+            </slot>
+        </template>
+        <template slot="popup-buttons" slot-scope="{ item }">
+            <slot name="popup-buttons" :item="item">
+
+            </slot>
+        </template>
+        <template v-for="column in slotColumns" :slot="column.slot" slot-scope="{ column, item }">
+            <slot :name="column.slot" :column="column" :item="item"></slot>
+        </template>
+        <template v-for="column in headerSlotColumns" :slot="column.headerSlot" slot-scope="{ column }">
+            <slot :name="column.headerSlot" :column="column"></slot>
+        </template>
+        <template slot="expandRow" slot-scope="{ item }">
+            <slot name="innerContent" :item="item"></slot>
+        </template>
+        <template slot="tableEmpty">
+            <slot name="tableEmpty"><div class="simple-grid-table-emptycomponent-id">{{ treeEmptyMessage }}</div></slot>
+        </template>
+
+        <template slot="popup-buttons" slot-scope="{ item }">
+            <slot name="popup-buttons" :item="item">
+
+            </slot>
+        </template>
+    </tree-grid>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelpers = await require(`globalMixins/gridHelpers`);
+
+    return {
+        props: {
+            data: {
+                type: Array,
+                required: true
+            },
+            parentIdField: {
+                type: String,
+                default: _ => `parentId`
+            },
+            idField: {
+                type: String,
+                default: _ => `id`
+            },
+            columns: {
+                type: Array,
+                default: () => []
+            },
+            filters: {
+                type: Object,
+                default: () => {
+                    return {
+                        filter: null
+                    }
+                }
+            },
+            treeEmptyMessage: {
+                type: String,
+                default: () => `Tree is empty`
+            },
+            expandable: Boolean,
+            defaultSortField: {
+                type: String,
+                required: true
+            },
+            defaultSortFieldDescending: {
+                type: Boolean,
+                required: true
+            },
+            hideToolbar: {
+                type: Boolean,
+                required: false,
+                default: _ => false
+            },
+            hideHeaders: {
+                type: Boolean,
+                default: _ => false
+            },
+            rowHandler: Function,
+            metadata: Object,
+            preprocessDataHandler: Function,
+            sortCaseSensitive: {
+                type: Boolean,
+                default: _ => false
+            },
+            searchLabel: {
+                type: String,
+                default: () => `Search`
+            },
+            defaultPageSize: {
+                type: Number,
+                default: () => 5
+            },
+            gridSettings: {
+                type: Object,
+                required: false
+            },
+            hidePopup: {
+                type: Boolean,
+                default: _ => false
+            },
+            notShowEmpty: {
+                type: Boolean,
+                default: _ => false
+            }
+        },
+        data() {
+            return {
+                treeStrategy: {},
+                pagingScope: null
+            }
+        },
+        created() {
+            this.ignoreCaseSensitive = this.sortCaseSensitive;
+        },
+        methods: {
+            completed() {
+                this.$emit(`completed`);
+            },
+            setSortColumn(sortings) {
+                this.$refs.basicgrid.setSortColumn(sortings);
+            },
+            changePaging($event) {
+                const countParents = this.gridData.filter(a => !a[this.parentIdField]).length;
+                $event.showPaging = countParents / $event.pageSize > 1;
+                this.pagingScope = $event;
+            },
+            loadGrid() {
+                this.gridData = this.fillTreeFields(this.data);
+                this.treeStrategy = this.getLocalTreeStrategy(this.parentIdField, this.idField);
+                //WORKAROUND: reactive on field don't works without setTimeout 0_0.
+                setTimeout(() => {
+                    this.reloadData();
+                    this.$emit(`data-loaded`);
+                });
+            },
+            hardReload() {
+                this.loadGrid();
+            },
+            setNewSource(source) {
+                this.gridData = this.fillTreeFields(source);
+                this.treeStrategy = this.getLocalTreeStrategy(this.parentIdField, this.idField);
+                //WORKAROUND: reactive on field don't works without setTimeout 0_0.
+                setTimeout(() => {
+                    this.reloadData();
+                    this.$emit(`data-loaded`);
+                });
+            },
+            async pageSizeChanged(size) {
+                if (!this.$refs.basicgrid) return;
+
+                this.$refs.basicgrid.pageSize = size;
+                await this.$refs.basicgrid.reloadData();
+            },
+            async pageChanged(page) {
+                await this.$refs.basicgrid.pageChanged(page);
+            },
+            async filterChanged(filter) {
+                await this.$refs.basicgrid.reloadData();
+            },
+            async reloadData() {
+                if (!this.$refs.basicgrid) return;
+
+                await this.$refs.basicgrid.reloadData();
+            },
+            updateItem(item, key) {
+                this.editItemInGrid(item, key);
+            },
+            setDefaultSorting(field, descending) {
+                this.$refs.basicgrid.sortingColumn = field;
+                this.$refs.basicgrid.sortingDescending = descending;
+            },
+            selected($event) {
+                this.$emit(`selected`, $event);
+            },
+            toggleExpand(item) {
+                item.expand = !item.expand;
+                this.getRows().filter(a =>
+                    a.treeHash.length > item.treeHash.length &&
+                    a.treeHash.indexOf(item.treeHash) === 0
+                ).forEach(a => {
+                    a.hidden = !item.expand;
+                    a.expand = item.expand;
+                });
+            },
+            getRows() {
+                return this.gridData;
+            },
+            addItem(item) {
+                this.addItemToGrid(item);
+                this.reloadData();
+            },
+            deleteItem(item) {
+                this.deleteItemFromGrid(item);
+                this.reloadData();
+            }
+        },
+        computed: {
+            slotColumns() {
+                return this.columns.filter(a => a.slot);
+            },
+            headerSlotColumns() {
+                return this.columns.filter(a => a.headerSlot);
+            }
+        },
+        mixins: [gridHelpers],
+        components: {
+            TreeGrid: staticBasicComponent(`TreeGrid`),
+            Paginator: staticBasicComponent(`Paginator`),
+            GridHeaderBlock: staticBasicComponent(`GridHeaderBlock`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+.simple-paging-component-id {
+    margin-left: 10px;
+    background-color: #f7f7f7;
+}
+.simple-header-component-id {
+    margin-bottom: 15px;
+    margin-top: 15px;
+    
+}
+.simple-grid-table-emptycomponent-id {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    border-bottom: 1px solid #e7eaf3;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+    .expand-component-id {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        color: #1e2022;
+    }
+.expand-component-id:hover {
+    border-radius: 10px;
+    background-color: #F8F8F8;
+}
+</style>

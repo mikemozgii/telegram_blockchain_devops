@@ -1,0 +1,248 @@
+<vue-template>
+    <sub-popup ref="popupmenu" class="popup-component-id" >
+        <sub-panel
+            @mouseleave.native="mouseLeaves($event)"
+            :hide-header="true"
+            :hide-footer="true"
+            v-if="section"
+            :common-styles="panelStyles.containerStyles"
+            :content-styles="panelStyles.contentStyles">
+
+            <div slot="content">
+                <row-layout class="section-title-component-id" align-items="center">
+                    <b>{{ section.title }}</b>
+                </row-layout>
+                <div v-if="!reportsSection">
+                    <column-layout>
+                        <default-hyper-link 
+                            :href="item.route"
+                            :title="item.title"
+                            v-for="(item, index) in section.links"
+                            :key="index"
+                            class="menu-item-container-component-id"
+                            @clicked="selectItem(item)">
+                            <row-layout
+                                slot="content"
+                                :class="{'menu-item-component-id': true, 'selected-link-item-component-id': item === selectedLink}"
+                                align-items="center">
+                                <font-awesome-icon
+                                    class="sub-menu-icon-component-id"
+                                    :icon="item.icon">
+                                </font-awesome-icon>
+
+                                <span
+                                      class="item-name-component-id">
+                                    {{ item.title }}
+                                </span>
+
+                            </row-layout>
+                        </default-hyper-link>
+                    </column-layout>
+                </div>
+
+                <div v-if="reportsSection">
+                    <row-layout :align-items="`flex-start`">
+                        <column-layout 
+                            v-for="(reportGroup, index) in reportGroups" 
+                            v-show="reportGroup.links.length > 0"
+                            :key="index">
+                            <row-layout 
+                                class="section-title-component-id" 
+                                align-items="center">
+                                <b>
+                                   {{reportGroup.reportGroupName}}
+                                </b>
+                            </row-layout>
+                            
+                            <default-hyper-link :href="item.route"
+                                                :title="item.title"
+                                                v-for="(item, index) in reportGroup.links"
+                                                @clicked="selectItem(item)"
+                                                :key="index"
+                                                class="menu-item-container-component-id">
+                                <row-layout slot="content"
+                                            :class="{'menu-item-component-id': true, 'selected-link-item-component-id': selectedLink && item.id === selectedLink.id}"
+                                            align-items="center">
+                                    <font-awesome-icon class="sub-menu-icon-component-id"
+                                                       :icon="item.icon">
+                                    </font-awesome-icon>
+
+                                    <span class="item-name-component-id">
+                                        {{ item.title }}
+                                    </span>
+
+                                </row-layout>
+                            </default-hyper-link>
+                        </column-layout>
+                    </row-layout>
+                </div>
+
+            </div>
+        </sub-panel>
+    </sub-popup>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    return {
+        props: {
+            selectItemFunc: {
+                type: Function
+            },
+            selectedLink: {
+                type: Object
+            }
+        },
+        data() {
+            return {
+                section: null,
+                reportsSection: false,
+                reportGroups: [],
+                panelStyles: {
+                    contentStyles: {
+                        "padding-left": "0px",
+                        "padding-right": "0px",
+                        "padding-top": "0px",
+                        "padding-bottom": "0px",
+                    },
+                    containerStyles: {
+                        "border-width": "3px",
+                        "box-shadow": "0 0 4px 0 rgba(0, 0, 0, .04)",
+                        "background-color": "white"
+                    }
+                }
+            }
+        },
+
+        methods: {
+            selectItem(item) {
+                this.selectItemFunc(item);
+            },
+            show(el, section, elSidebar) {
+                const offsetFromRight = -1;
+                const rowHeight = 34;
+
+                if (!this.$refs.popupmenu) return;
+
+                this.section = section;
+                const rect = el.getBoundingClientRect(),
+                    rectSidebar = elSidebar.getBoundingClientRect(),
+                    popupHeight = rowHeight * (section.links.length + 1),
+                    fitDown = rect.top + popupHeight <= rectSidebar.bottom,
+                    fitUp = rect.bottom - popupHeight >= rectSidebar.top;
+                let pos = {
+                    left: rect.right + offsetFromRight,
+                };
+                if (fitDown) {
+                    pos.top = rect.top;
+                }
+                else if (fitUp) {
+                    pos.bottom = rectSidebar.bottom - rect.bottom
+                }
+                else {
+                    pos.top = rectSidebar.top
+                }
+
+                this.reportsSection = false;
+                this.$refs.popupmenu.showBasedOnPosition(pos);
+            },
+            hideIfNeed(event) {
+                if (!this.$refs.popupmenu)
+                    return;
+                let popUpContainer = this.$refs.popupmenu.$el;
+
+                if (popUpContainer.contains(event.relatedTarget)) {
+                    return;
+                }
+
+                this.$refs.popupmenu.hide();
+            },
+            hide() {
+                if (!this.$refs.popupmenu) return;
+
+                this.$refs.popupmenu.hide();
+            },
+            mouseLeaves(event) {
+                if (!this.$refs.popupmenu) return;
+
+                this.$refs.popupmenu.hide();
+            },
+        },
+        components: {
+            SubPopup: staticBasicComponent(`Popup`),
+            SubPanel: staticBasicComponent(`Panel`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`),
+            DefaultHyperLink: staticBasicComponent(`HyperLinkAction`),
+        }
+    }
+}
+</script>
+
+
+<style scoped>
+    .sub-menu-icon-component-id {
+        opacity: 1;
+        color: #1e2022;
+        transition: all 0.3s;
+    }
+    .section-title-component-id {
+        padding: 0 10px;
+        height: 34px;
+        background-color: #f7faff;
+        color: #1e2022
+    }
+.menu-item-component-id {
+    padding: 0 5px;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+}
+.section-title-component-id,
+.menu-item-component-id {
+    height: 34px;
+}
+    .menu-item-container-component-id {
+        width: 100%;
+        background-color: #f7faff;
+    }
+
+
+        .menu-item-container-component-id:hover {
+            background-color: #f7faff;
+        }
+
+
+    .menu-item-container-component-id:hover .sub-menu-icon-component-id {
+        opacity: 1;
+        color: #ee1c29;
+    }
+    .menu-item-container-component-id:hover .item-name-component-id {
+        opacity: 1;
+        color: #ee1c29;
+    }
+
+    .selected-link-item-component-id {
+        background-color: #f7faff !important;
+    }
+
+    .selected-link-item-component-id .sub-menu-icon-component-id {
+        opacity: 1;
+        color: #ee1c29;
+    }
+
+    .selected-link-item-component-id .item-name-component-id {
+        opacity: 1;
+        color: #ee1c29;
+    }
+
+    .item-name-component-id {
+        margin-left: 7px;
+        margin-right: 5px;
+        color: #1e2022;
+        transition: all 0.3s;
+    }
+    .popup-component-id > div {
+        box-shadow: 0 3px 10px 0 #f7faff, 0 1px 3px 0 #f7faff;
+    }
+</style>

@@ -1,0 +1,97 @@
+<vue-template>
+    <div class="solid-line-component-id canvas-component-id"></div>
+    <div class="dashed-line-component-id canvas-component-id"></div>
+    <div class="sign-line-component-id canvas-component-id">
+        <a class="clear-label-component-id" @click="clear">Clear</a>
+    </div>
+    <canvas class="canvas-component-id" ref="canvas" :width="width" :height="height"></canvas>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const SignaturePad = await require(`/libs/signature_pad.js`);
+
+    return {
+        props: {
+            width: {
+                type: Number,
+                required: true
+            },
+            height: {
+                type: Number,
+                required: true
+            }
+        },
+        data(){
+            return {
+                signaturePadInstance: null
+            }
+        },
+        mounted() {
+            this.signaturePadInstance = new SignaturePad(
+                this.$refs.canvas, {
+                    backgroundColor: 'rgb(255, 255, 255, 0)' // necessary for saving image as JPEG; can be removed is only saving as PNG or SVG
+                }
+            );
+        },
+        methods: {
+            clear() {
+                this.signaturePadInstance.clear();
+                this.$emit('clear');
+            },
+            getImage(clearHeader = false) {
+                const image = this.signaturePadInstance.toDataURL('image/png');
+                return clearHeader ? image.replace(`data:image/png;base64,`, ``) : image;
+            },
+            setImage(data) {
+                const image = new Image();
+                image.onload = () => {
+                    const context = this.$refs.canvas.getContext("2d");
+                    context.drawImage(image, 0, 0);
+                }
+                image.src = data;
+            }
+        }
+    }
+}
+</script>
+<style scoped>
+.container-component-id {
+    background: #fff;
+}
+.canvas-component-id {
+    cursor: crosshair;
+}
+.sign-line-component-id {
+    top: 90px;
+    background-color: rgba(8, 110, 191, 0.3);
+    height: 1px;
+    position: relative;
+    pointer-events: none;
+}
+.clear-label-component-id {
+    position: relative;
+    left: 84%;
+    bottom: 8px;
+    z-index: 1;
+    background: rgb(255, 255, 255);
+    color: #086ebf;
+    user-select: none;
+    cursor: pointer;
+    pointer-events: all;
+}
+.dashed-line-component-id {
+    top: 60px;
+    border-bottom: rgba(0, 0, 0, 0.25) dashed 1px;
+    height: 1px;
+    position: relative;
+    pointer-events: none;
+}
+.solid-line-component-id {
+    top: 30px;
+    border-bottom: rgba(0, 0, 0, 0.25) solid 1px;
+    height: 1px;
+    position: relative;
+    pointer-events: none;
+}
+</style>

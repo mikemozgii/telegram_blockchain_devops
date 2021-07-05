@@ -1,0 +1,51 @@
+﻿<vue-template>
+    <div
+        class="true-false-mark-component-id"
+        :style="{ 'height': heightIcon ? heightIcon : '25px' }">
+        <font-awesome-icon
+            v-if="checked"
+            icon="fa-check"
+            class="font_green-component-id">
+        </font-awesome-icon>
+        <font-awesome-icon
+            v-if="!checked && !hideRedCross"
+            :icon="'fa-times'"
+            :style="{ 'color': theme.globalRed }">
+        </font-awesome-icon>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        checked: Boolean,
+        hideRedCross: Boolean,
+        heightIcon: String,
+        theme: {
+            type: Object,
+            default: _ => {
+                return {
+                    globalGreen: "#00B00D",
+                    globalRed: "#FF2757"
+                };
+            }
+        }
+    },
+    components: {
+        FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`),
+    }
+};
+</script>
+
+<style scoped>
+.container-component-id {
+    width: 100%;
+}
+.true-false-mark-component-id {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+</style>

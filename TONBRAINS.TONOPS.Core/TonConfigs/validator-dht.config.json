@@ -1,0 +1,25 @@
+{
+    "@type": "dht.node",
+    "id": {
+        "@type": "pub.ed25519",
+        "key": "/bbJnybdsj4+XJRoSqEAwykhXoTh60lO8sFnbiLDUS4="
+    },
+    "addr_list": {
+        "@type": "adnl.addressList",
+        "addrs": [
+            {
+                "@type": "adnl.address.udp",
+                "ip": -1062731749,
+                "port": 30310
+            }
+        ],
+        "version": 0,
+        "reinit_date": 0,
+        "priority": 0,
+        "expire_at": 0
+    },
+    "version": -1,
+    "signature": "AeYNFErpEn5VPgSzq+bRDKTA5JbHZ7HC1W/cswKzNfJB8FsxU0f2hhXESv2HP8WbdWtC9oTkkZGNY+yYPv8ZCw=="
+}
+
+

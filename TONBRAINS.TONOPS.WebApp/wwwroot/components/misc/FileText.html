@@ -1,0 +1,66 @@
+﻿<vue-template>
+    <form-modal
+        :title="modalTitle"
+        ref="formModal">
+        <div
+            slot="content"
+            class="form-component-id">
+            <pre class="pre-component-id">
+                {{ text }}
+            </pre>
+        </div>
+        <modal-control-buttons
+            slot="buttons"
+            :cancel="cancel"
+            :delete-visible="false"
+            :save-visible="false">
+        </modal-control-buttons>
+    </form-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        data() {
+            return {
+                text: ``,
+                modalTitle: ``,
+            }
+        },
+        methods: {
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            async open(id, modalTitle) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: text } = await axios.get(`/api/files/getfiletext`, { params: { id: id } });
+                this.fireEvent(`globalBusy`, false);
+
+                this.text = text;
+                this.modalTitle = modalTitle;
+
+                this.$refs.formModal.openModal();
+            },
+        },
+        mixins: [translateMixin, globalObserver],
+        components: {
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            FormModal: staticBasicComponent(`FormModal`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .form-component-id {
+        min-height: 800px;
+        max-width: 1700px;
+    }
+    .pre-component-id {
+        white-space: pre-wrap;
+    }
+</style>

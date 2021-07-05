@@ -1,0 +1,212 @@
+<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings"
+                    v-if="gridData"
+                    @completed="gridCompleted()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <short-text slot="typeslot"
+                    slot-scope="{ item }"
+                    :text="types.filter(x=>x.id === item.type)[0].title"
+                    :is-link="true"
+                    @clicked="editItem(item)">
+        </short-text>
+        <short-text slot="nameslot"
+                    slot-scope="{ item }"
+                    :text="item.name">
+        </short-text>
+        <short-text slot="valueslot"
+                    slot-scope="{ item }"
+                    :text="item.value">
+        </short-text>
+        <menu-option slot="editmenuoption" slot-scope="{ item }" :title="item.title" :mode="'edit'"></menu-option>
+    </flat-data-grid>
+
+    <form-modal :title="modalTitle"
+                ref="formModal"
+                min-width="500px">
+        <div slot="content"
+             class="form-container-component-id local-size"
+             slot-scope="{ validation }">
+            <form-fields-layout :fields="fields">
+                <text-block-required slot="name" :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box clear-label="Clear"
+                          slot="nameinput"
+                          v-model="model.name"
+                          :validate="[`required`]"
+                          :validatecontext="validation"
+                          @validate-changed="nameValidate = $event">
+                </text-box>
+                <text-block-required slot="type" :not-valid="typeValidate">Type</text-block-required>
+                <select-box slot="typeinput"
+                            v-model="model.type"
+                            :options="types"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="typeValidate = $event">
+                </select-box>
+
+                <text-block slot="overridekey">
+                    Key
+                </text-block>
+                <text-box clear-label="Clear"
+                          slot="overridekeyinput"
+                          v-model="model.overrideKey">
+                </text-box>
+
+                <text-block-required slot="value" :not-valid="valueValidate">
+                    Value
+                </text-block-required>
+                <multi-line clear-label="Clear"
+                            slot="valueinput"
+                            v-model="model.value"
+                            :validate="[`required`]"
+                            :validatecontext="validation"
+                            @validate-changed="valueValidate = $event">
+                </multi-line>
+
+
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons :save="save"
+                                   :cancel="cancel"
+                                   :disable-save="!summary" >
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-template>
+
+<script>
+    module.exports = async function () {
+        const axios = await require(`axios`);
+        const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+        const globalObserver = await require(`globalMixins/globalObserver`);
+        const translateMixin = await require(`globalMixins/translations`);
+        const componentStyles = await require(`componentStyles`);
+
+        return {
+            data() {
+                return {
+                    settings: {
+                        columns: [
+                            this.addColumn(`Name`, `name`, { slot: `nameslot` }),
+                            this.addColumn(`Type`, `type`, { slot: `typeslot` }),
+                            this.addColumn(`Key`, `overrideKey`, {}),
+                            this.addColumn(`Value`, `value`, { slot: `valueslot` }),
+                           
+                        ],
+                        urls: {
+                            grid: `-`,
+                        },
+                        emptyMessage: null,
+                        gridItemActions: [
+                            {
+                                title: `Edit`,
+                                id: `edit`,
+                                slot: `editmenuoption`,
+                            }
+                        ],
+                        addButtonText: `Add configuration`,
+                        defaultSortField: `name`,
+                        defaultSortFieldDescending: false,
+                        hidePageSize: true,
+                        defaultPageSize: 5,
+                        sourceStrategy: this.getLocalStrategy(false, ``, null),
+                        additionalOptions: {
+                            minimumLimitAllItems: 500
+                        },
+                        actions: this
+                    },
+                    model: {},
+                    modalTitle: ``,
+                    typeValidate: false,
+                    valueValidate: false,
+                    nameValidate: false,
+                    fields: [
+                        { labelSlot: "name", inputSlot: "nameinput" },
+                        { labelSlot: "type", inputSlot: "typeinput" },                      
+                        { labelSlot: "overridekey", inputSlot: "overridekeyinput" },
+                        { labelSlot: "value", inputSlot: "valueinput" },
+                    
+                    ],
+                    selectedFile: null,
+                    types: []
+                }
+            },
+            methods: {
+                async gridCompleted() {
+                    const { data: configurations } = await axios.get(`/api/configurations/all`);
+                    const { data: types } = await axios.get(`/api/configurations/types`);
+                    this.types = types;
+                    this.gridData = configurations;
+                    this.$refs.grid.reloadData();
+                },
+                cancel() {
+                    this.$refs.formModal.closeModal();
+                },
+                async editFromGrid(item) {
+                    item.id = this.model.id;
+                    this.model = item;
+                    await this.save();
+                    this.$refs.formModal.closeModal();
+                },
+                add({ item, title }) {
+                    this.model = {
+                        usedModules: []
+                    };
+                    this.modalTitle = `Create Configuration`;
+                    this.nameValidate = false;
+                    this.connectionStringValidate = false;
+
+                    this.$refs.formModal.openModal();
+                },
+                async editItem(item) {
+                    await this.edit({ item: item });
+                },
+                async getModel(id) {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: model } = await axios.get(`/api/configurations/single`, { params: { id: id } });
+                    this.fireEvent(`globalBusy`, false);
+                    return model;
+                },
+                async edit({ item, title }) {
+                    this.editedItem = item;
+                    this.model = await this.getModel(item.id);
+                    this.modalTitle = `Edit configuration`;
+                    this.$refs.formModal.openModal();
+                },
+                async save() {
+                    this.fireEvent(`globalBusy`, true);
+                    const { data: savedItem } = await axios.post(`/api/configurations/addoredit`, this.model);
+                    this.fireEvent(`globalBusy`, false);
+                    this.$refs.formModal.closeModal();
+                    if (!this.model.id) {
+                        this.$refs.grid.addItem(savedItem);
+
+                    } else {
+                        this.$refs.grid.updateItem(savedItem, `id`);
+                    }
+                }
+            },
+            mixins: [translateMixin, globalObserver, gridHelperMixin],
+            components: {
+                FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+                ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+                MenuOption: staticBasicComponent(`MenuOption`),
+                HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+                ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+                TextBox: staticBasicComponent(`TextBox`),
+                TextBlock: staticBasicComponent(`TextBlock`),
+                TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+                SelectBox: staticBasicComponent(`SelectBox`),
+                FormModal: staticBasicComponent(`FormModal`),
+                MultiLine: staticBasicComponent(`MultiLineTextBox`),
+                FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            }
+        }
+    }
+</script>

@@ -1,0 +1,234 @@
+﻿<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings">
+        <tabs-header
+            slot="leftedgecontent"
+            :items="tabsItems"
+            v-model="currentTab">
+        </tabs-header>
+
+        <row-layout slot="nameslot"
+                    slot-scope="{ item }">
+            <span v-if="item.status === `run`" style="color:forestgreen; margin-right:5px"><i class="fas fa-plug"></i></span>
+            <short-text :text="item.name">
+        </short-text>
+        </row-layout>
+        <short-text slot="diskslot"
+                    slot-scope="{ item }"
+                    :text="`${item.disktotal}GB`">
+        </short-text>
+
+        <short-text slot="diskpercentslot"
+                    slot-scope="{ item }"
+                    :text="`${item.diskavailible}GB (${(100- item.diskpercent)}%)`">
+        </short-text>
+
+        <div slot="innerContent" slot-scope="{ item, expand }" v-if="item && expand">
+
+            <host-nodes-metrics v-if="item && expand" :node-id="item.id">
+
+            </host-nodes-metrics>
+            
+        </div>
+        <menu-option slot="editmenuoption" slot-scope="{ item }" :title="item.title" mode="edit"></menu-option>
+
+        <menu-option slot="restartmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'sync-alt'">
+        </menu-option>
+        <menu-option slot="startmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'play'">
+        </menu-option>
+        <menu-option slot="stopmenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'stop'">
+        </menu-option>
+
+        <menu-option slot="deletemenuoption"
+                     slot-scope="{ item }"
+                     :title="item.title"
+                     :mode="'delete'">
+        </menu-option>
+    </flat-data-grid>
+
+    <form-modal
+        :title="`Change Host`"
+        ref="formModal"
+        min-width="700px">
+        <div slot="content" slot-scope="{ validation }">
+            <select-box
+                        v-model="nodeHostModel.hostId"
+                        :options="hosts"
+                        :validate="[`required`]"
+                        :validatecontext="validation">
+            </select-box>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="changeNodeHost"
+                :cancel="cancel"
+                :delete-visible="false"
+                :save-visible="true"
+                :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal ref="deleteConfirm">
+    </delete-confirm-modal>
+
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+
+    return {
+        props: {
+            hostId: String,
+            hosts: Array
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { slot: `nameslot` }),
+                        this.addColumn(`Ip`, `ip`),
+                        this.addColumn(`Type`, `typeName`),
+                        this.addColumn(`External SSH Port`, `sshPort`),
+                        this.addColumn(`Disk Total`, `disk`, { slot: `diskslot` }),
+                        this.addColumn(`Disk Free`, `diskpercent`, { slot: `diskpercentslot` }),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                        },
+                        {
+                            title: `Restart`,
+                            id: `restart`,
+                            slot: `restartmenuoption`,
+                        },
+                        {
+                            title: `Stop`,
+                            id: `stop`,
+                            slot: `stopmenuoption`,
+                            activeHandler: (item) => item.status === `run`
+                        },
+                        {
+                            title: `Start`,
+                            id: `start`,
+                            slot: `startmenuoption`,
+                            activeHandler: (item) => item.status !== `run`
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                        },
+
+                    ],
+                    expandable: true,
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                diskdataset: {},
+                diskLabels: {},
+                diskData: {},
+                tabsItems: [
+                    { title: `Nodes`, id: `nodes` }
+                ],
+                currentTab: `nodes`,
+                nodeHostModel: {},
+            }
+        },
+        async created() {
+            const { data: result } = await axios.get(`/api/hosts/nodes?id=${this.hostId}`);
+            this.gridData = result;
+            setTimeout(() => {
+                this.$refs.grid.reloadData()
+            });
+        },
+        methods: {
+            async changeNodeHost() {
+                await axios.post(`/api/hosts/changenodehost`, this.nodeHostModel);
+                this.cancel();
+                this.$emit(`updated`)
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            edit({ item }) {
+                this.nodeHostModel = { id: item.id, hostId: item.hostId };
+                this.$refs.formModal.openModal();
+            },
+            async delete({ item }) {
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/hosts/deletenode`, { params: { id: item.id } });
+                this.fireEvent(`globalBusy`, false);
+
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async start({ item } ) {
+                const status = await this.changeServerStatus(item.id, `run`);
+                item.status = status; 
+                this.$refs.grid.updateItem(item, `id`);
+            },
+            async restart({ item } ) {
+                const status = await this.changeServerStatus(item.id, `restart`);
+                item.status = status; 
+                this.$refs.grid.updateItem(item, `id`);
+            },
+            async stop({ item } ) {
+                const status = await this.changeServerStatus(item.id, `stop`);
+                item.status = status; 
+                this.$refs.grid.updateItem(item, `id`);
+            },
+            async changeServerStatus(id, status) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: result } = await axios.get(`/api/hosts/changenodestatus`, { params: { id, status } });
+                this.fireEvent(`globalBusy`, false);
+                return result;
+            },
+        },
+        mixins: [globalObserver, gridHelperMixin],
+        components: {
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`),
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            LineChart: localStaticComponent(`/components/misc/LineChart.html`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+            FormModal: staticBasicComponent(`FormModal`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            HostNodesMetrics: localStaticComponent(`/components/infrastracture/HostNodesMetrics.html`),
+
+        }
+    }
+}
+</script>

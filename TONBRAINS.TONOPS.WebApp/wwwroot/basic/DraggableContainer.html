@@ -1,0 +1,45 @@
+<vue-template>
+    <div
+        :draggable="disable ? 'false' : 'true'"
+        @dragstart="dragStart($event)"
+        @dragend="dragEnd($event)"
+        @drag="dragging($event)">
+        <slot></slot>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        payloadName: {
+            type: String,
+            required: true
+        },
+        disable: {
+            type: Boolean,
+            default: false
+        },
+        payloadData: {
+            type: Object,
+            required: true
+        },
+        draggingCallback: {
+            type: Function,
+            required: false
+        }
+    },
+    methods: {
+        dragging($event) {
+            if (this.draggingCallback) this.draggingCallback($event);
+        },
+        dragEnd($event) {
+            this.$emit(`ended`);
+        },
+        dragStart($event) {
+            this.$emit(`starting`);
+            $event.dataTransfer.setData(this.payloadName, JSON.stringify(this.payloadData));
+            this.$emit(`started`);
+        }
+    }
+}
+</script>

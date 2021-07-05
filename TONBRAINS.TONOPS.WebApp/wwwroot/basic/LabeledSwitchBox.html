@@ -1,0 +1,219 @@
+﻿<vue-template>
+    <div :style="cssProps">
+        <div
+            class="switch-component-id"
+            :style="{ 'height': height ? height+'px' : '', 'width': width ? width+'px' : ''}">
+            <label
+                class="label-component-id"
+                :class="{'disabled-component-id': disable}">
+                <input
+                    type="checkbox"
+                    v-model="checked"
+                >
+                <span
+                    class="slider-component-id round-component-id"
+                    @click="toggle()"
+                    :disabled="disable">
+                    <span
+                        class="left-text-component-id text-component-id"
+                        :style="{ 'display': !checked ? 'none' : 'inline', 'color': theme.globalWhite }">
+                        {{ leftText.toUpperCase() }}
+                    </span>
+                    <span
+                        class="right-text-component-id text-component-id"
+                        :style="{ 'display': checked ? 'none' : 'inline', 'color': theme.globalBlack }">
+                        {{ rightText.toUpperCase() }}
+                    </span>
+                </span>
+            </label>
+        </div>
+    </div>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const validateMixin = await require(`globalMixins/validate`);
+
+    return {
+        props: {
+            value: {
+                type: Boolean,
+                default: _ => false
+            },
+            disable: {
+                type: Boolean,
+                default: _ => false
+            },
+            leftText: {
+                type: String,
+                default: _ => ''
+            },
+            rightText: {
+                type: String,
+                default: _ => ''
+            },
+            height: {
+                type: Number,
+                default: _ => 16
+            },
+            width: {
+                type: Number,
+                default: _ => 34
+            },
+            rightMargin: {
+                type: Number,
+                default: _ => 4
+            },
+            fontSize: {
+                type: Number,
+                default: _ => 6.5
+            },
+            theme: {
+                type: Object,
+                default: _ => {
+                    return {
+                        globalWhite: "#fff",
+                        globalBlue: "#ee1c29",
+                        globalBlack: "#000"
+                    };
+                }
+            }
+        },
+        data() {
+            return {
+                checked: false
+            }
+        },
+        created() {      
+            this.checked = this.value ? true : false;
+            this.defaultValidateRules = {
+                'required': this.required
+            };
+        },
+        methods: {
+            toggle() {
+                if (this.disable) return;
+
+                this.checked = !this.checked;
+                this.validateValue();
+
+                this.$emit(`input`, this.checked);
+                this.$emit(`changed`, this.checked);
+            },
+            required(rule) {
+                if (this.checked == null) this.validateMessage(rule, 'This field is required');
+
+                return this.checked;
+            }
+        },
+        watch: {
+            value(newValue) {
+                this.checked = newValue;
+                this.validateValue();
+            }
+        },
+        mixins: [validateMixin],
+        computed: {
+            cssProps() {
+                return {
+                    '--width': this.width + "px",
+                    '--translateX': (this.width - this.height -2) + "px",
+                    '--textWidth': this.width + "px",
+                    '--height': this.height + "px",
+                    '--sliderHeight': (this.height - 2) + "px",
+                    '--borderRadious': (this.height / 2) + "px",
+                    '--fontSize': this.fontSize +'px',
+                    '--rightMargin': this.rightMargin + 'px'
+                }
+            }
+        }
+    }
+}
+</script>
+
+<style scoped>
+.switch-component-id {
+    display: flex;
+    align-items: center;
+}
+
+.label-component-id {
+    position: relative;
+    display: inline-block;
+    width: var(--width);
+    height: var(--height);
+}
+
+.label-component-id input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider-component-id {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+}
+
+.slider-component-id:before {
+    position: absolute;
+    content: "";
+    height: var(--sliderHeight);
+    width: var(--sliderHeight);
+    left: 2px;
+    bottom: 1px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked + .slider-component-id {
+    background-color: #ee1c29;
+}
+
+input:focus + .slider-component-id {
+    box-shadow: 0 0 1px #ee1c29;
+}
+
+input:checked + .slider-component-id:before {
+    transform: translateX(var(--translateX));
+}
+
+.slider-component-id.round-component-id {
+    border-radius: var(--borderRadious);
+}
+
+.slider-component-id.round-component-id:before {
+    border-radius: var(--borderRadious);
+}
+
+.disabled-component-id {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.left-text-component-id {
+    margin-left: 4.5px;
+    text-align: left;
+}
+
+.right-text-component-id {
+    margin-right: var(--rightMargin);
+    text-align: right;
+}
+
+.text-component-id {
+    font-size: var(--fontSize);
+    width: var(--textWidth) !important;
+    vertical-align: central;
+    transition: .2s;
+    user-select: none;
+}
+</style>

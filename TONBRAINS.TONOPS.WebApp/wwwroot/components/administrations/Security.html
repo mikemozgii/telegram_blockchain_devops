@@ -1,0 +1,363 @@
+<vue-template>
+    <row-layout
+        :children-space="10"
+        align-items="flex-start">
+        <div class="account-list-component-id">
+            <account-list
+                v-model="selectedAccount"
+                @selected="select($event)"
+            ></account-list>
+        </div>
+        <tree-data-grid
+            ref="grid"
+            :settings="settings"
+            :data="treeData"
+            class="tree-list-component-id"
+            @completed="refreshTree()">
+
+            <save-button
+                slot="toolbar-buttons"
+                :disable="!selectedAccount"
+                title="Save"
+                @pressed="saveChecks()"
+                :styles="primaryStyle"
+            ></save-button>
+
+            <div
+                slot="checkslot"
+                slot-scope="{ item }">
+                <check-box
+                    v-if="!item.isGroup"
+                    v-model="item.checked"
+                ></check-box>
+            </div>
+
+            <menu-option
+                slot="addchildmenuoption"
+                slot-scope="{ item }"
+                :title="item.title"
+                mode="add"
+            ></menu-option>
+            <menu-option
+                slot="editmenuoption"
+                slot-scope="{ item }"
+                :title="item.title"
+                mode="edit"
+            ></menu-option>
+            <menu-option
+                slot="deletemenuoption"
+                slot-scope="{ item }"
+                :title="item.title"
+                mode="delete"
+            ></menu-option>
+        </tree-data-grid>
+    </row-layout>
+
+    <form-modal
+        :title="modalTitle"
+        ref="formModal">
+        <div
+            slot="content"
+            slot-scope="{ validation }">
+            <form-fields-layout :fields="fields">
+                <text-block-required
+                    slot="id"
+                    :not-valid="idValidate">
+                    Id
+                </text-block-required>
+                <text-box
+                    slot="idinput"
+                    v-model="model.id"
+                    :validate="['required']"
+                    :validatecontext="validation"
+                    @validate-changed="idValidate = $event"
+                />
+                <text-block-required
+                    slot="name"
+                    :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box
+                    slot="nameinput"
+                    v-model="model.name"
+                    :validate="['required']"
+                    :validatecontext="validation"
+                    @validate-changed="nameValidate = $event"
+                />
+            </form-fields-layout>
+        </div>
+        <div
+            slot="buttons"
+            slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :delete-action="deleteItem"
+                :delete-visible="false"
+                :disable-save="!summary"
+            />
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal
+        ref="deleteConfirm"
+    />
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(` `, ``, { slot: `checkslot`, notSortable: true, columnPoints: 'px', width: 50 }),
+                        this.addColumn(`Name`, `name`, { slot:`nameslot`, isTreeColumn: true, notSortable: true })
+                    ],
+                    emptyMessage: `Empty`,
+                    urls: {
+                        grid:`-`,
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Add Security`,
+                            id: `addchild`,
+                            slot: `addchildmenuoption`,
+                            activeHandler: this.addChildActiveHandler
+                        },
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                        }
+                    ],
+                    addButtonText: `Add Group`,
+                    defaultSortField: `name`,
+                    hidePageSize: true,
+                    defaultPageSize: 100,
+                    defaultSortFieldDescending: false,
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this,
+                    parentIdField: `parentId`,
+                    idField: `uid`,
+                    sortCaseSensitive: true
+                },
+                userMenus: [],
+                treeData: [],
+                selectedAccount: null,
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                idValidate: false,
+                isNew: false,
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "id", inputSlot: "idinput" },
+                ],
+                primaryStyle: componentStyles.buttons.primaryButton
+            }
+        },
+        methods: {
+            getUserCheck(id) {
+                return this.userChecks[id];
+            },
+            setUserCheck(id, value) {
+                this.userChecks[id] = value;
+            },
+            uuid(){
+                var dt = new Date().getTime();
+                var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = (dt + Math.random()*16)%16 | 0;
+                    dt = Math.floor(dt/16);
+                    return (c=='x' ? r :(r&0x3|0x8)).toString(16);
+                });
+                return uuid;
+            },
+            async refreshTree() {
+                const { data: result } = await axios.get(`/api/account/menu`);
+                result.sort(
+                    (a, b) => {
+                        if (a.isGroup === b.isGroup) return 0;
+                        return a.isGroup < b.isGroup ? 1 : -1;
+                    }
+                );
+                for (const item of result) {
+                    if (item.isGroup) {
+                        item.uid = this.uuid();
+                        item.parentId = null;
+                        item.checked = false;
+                    } else {
+                        item.uid = this.uuid();
+                        item.parentId = result.find(a => a.id === item.groupName).uid;
+                        item.checked = this.userMenus.find(a => a === item.id) ? true : false;
+                    }
+                }
+                this.treeData = result;
+                setTimeout(() => {
+                    this.$refs.grid.hardReload();
+                })
+            },
+            async select($event) {
+                if (!$event) {
+                    this.userMenus = [];
+                    return;
+                }
+
+                const { data: securities } = await axios.get(`/api/account/securities`, { params: { accountId: this.selectedAccount.id } });
+                this.userMenus = securities;
+                const rows = this.$refs.grid.getRows();
+                for (const row of rows) {
+                    if (row.isGroup) continue;
+
+                    row.checked = securities.find(a => a === row.id) ? true : false;
+                }
+            },
+            addchild({item}) {
+                this.isNew = true;
+                this.model = {
+                    isGroup: false,
+                    groupName: item.id
+                };
+                this.modalTitle = `Create Security`;
+                this.nameValidate = false;
+                this.idValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            addChildActiveHandler(item) {
+                return item.isGroup;
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            formatDate(date) {
+                return date ? moment(date).format('MM/DD/YYYY') : '';
+            },
+            async editFromGrid(item) {
+                item.id = this.model.id;
+                this.model = item;
+                await this.save();
+                this.$refs.formModal.closeModal();
+            },
+            async deleteFromGrid() {
+                await this.deleteItem();
+            },
+            add({ item, title }) {
+                this.isNew = true;
+                this.model = {
+                    isGroup: true,
+                    groupName: ""
+                };
+                this.modalTitle = `Create Group`; 
+                this.nameValidate = false;
+                this.idValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/menusecurity/delete`, { params: { id: item.id }});
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async editItem(item) {
+                await this.edit({ item: item });
+            },
+            async getModel(id) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/menusecurity/single`, { params: { id: id } });
+                this.fireEvent(`globalBusy`, false);
+                model.id = id;
+                return model;
+            },
+            async edit({ item, title }) {
+                this.isNew = false;
+                this.editedItem = item;
+                this.model = await this.getModel(item.id);
+                this.modalTitle = `Edit Account`;
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.post(`/api/menusecurity/addoredit`, this.model);
+                this.fireEvent(`globalBusy`, false);
+                this.$refs.formModal.closeModal();
+
+                if (!savedItem.groupName) savedItem.groupName = null;
+
+                await this.refreshTree();
+            },
+            async saveChecks() {
+                this.fireEvent(`globalBusy`, true);
+                const securities = [];
+                const rows = this.$refs.grid.getRows();
+                for (const row of rows) {
+                    if (row.isGroup) continue;
+
+                    if (row.checked) securities.push(row.id);
+                }
+                const { data: savedItem } = await axios.post(
+                    `/api/account/setsecurities`,
+                    {
+                        id: this.selectedAccount.id,
+                        securities
+                    }
+                );
+                this.fireEvent(`globalBusy`, false);
+                this.$refs.formModal.closeModal();
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            MenuOption: staticBasicComponent(`MenuOption`),
+            HyperLinkAction: staticBasicComponent(`HyperLinkAction`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            SaveButton: staticBasicComponent(`ActionButton`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            PasswordBox: staticBasicComponent(`PasswordBox`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            CheckBox: staticBasicComponent(`CheckBox`),
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            TreeDataGrid: localStaticComponent(`/components/misc/TreeDataGrid.html`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            AccountList: localStaticComponent(`/components/misc/AccountsList.html`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.account-list-component-id {
+    width: 400px;
+    margin-top: 62px;
+}
+.tree-list-component-id {
+    flex: 1;
+}
+</style>

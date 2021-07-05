@@ -1,0 +1,62 @@
+<vue-template>
+    <div @click="runAction()" :class="{ 'disabled-component-id': disable }">
+        <span :style="{ 'color': color }">
+            <slot name="content">
+                {{ title }}
+            </slot>
+        </span>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        title: String,
+        action: Function,
+        noTimeout: Boolean,
+        disable: Boolean,
+        color: {
+            type: String,
+            default: `#ee1c29`
+        }
+    },
+    data() {
+        return {
+            blocked: false
+        }
+    },
+    methods: {
+        runAction() {
+            if (this.disable) return;
+            if (this.blocked) return;
+            if (!this.noTimeout) {
+                this.blocked = true;
+                setTimeout(
+                    () => {
+                        this.blocked = false;
+                    },
+                    2000
+                );
+            }
+            this.$emit(`clicked`);
+            if (this.action) this.action();
+        }
+    }
+}
+
+</script>
+
+<style scoped>
+.container-component-id span {
+    cursor: pointer;
+    /*transition: .3s all;*/
+}
+
+.container-component-id span:hover {
+    opacity: .8;
+}
+.disabled-component-id {
+    pointer-events: none;
+    cursor: default;
+}
+</style>

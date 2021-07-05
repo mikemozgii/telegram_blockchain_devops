@@ -1,0 +1,269 @@
+﻿<vue-template>
+    <form-modal
+        :title="modalTitle"
+        ref="formModal"
+        min-width="700px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout
+                :fields="fields">
+                <text-block-required
+                    slot="name"
+                    :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box
+                    slot="nameinput"
+                    v-model="model.name"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block
+                    slot="type">
+                    Type
+                </text-block>
+                <select-box
+                    slot="typeinput"
+                    v-model="model.typeId"
+                    :options="smartTypes"
+                    :show-clear-button="false">
+                </select-box>
+
+                <text-block-required
+                    slot="count"
+                    :not-valid="countValidate">
+                    Keys Count
+                </text-block-required>
+                <digit-text-box
+                    slot="countinput"
+                    v-model="model.keysCount"
+                    only-integer
+                    only-positive
+                    :minimum="1"
+                    :maximum="10000"
+                    :show-clear-button="false"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="countValidate = $event">
+                </digit-text-box>
+
+                <text-block
+                    slot="wc">
+                    wc
+                </text-block>
+                <select-box
+                    slot="wcinput"
+                    v-model="model.wc"
+                    :options="wcOptions"
+                    :show-clear-button="false">
+                </select-box>
+
+                <text-block
+                    slot="loadcontract">
+                    Load smart contract
+                </text-block>
+                <labeled-switch-box
+                    slot="loadcontractinput"
+                    v-model="model.loadSmartContract"
+                    left-text="true"
+                    right-text="false">
+                </labeled-switch-box>
+
+                <text-block-required
+                    slot="tvc"
+                    :not-valid="tvcValidate">
+                    tvc
+                </text-block-required>
+                <files-box
+                    slot="tvcinput"
+                    ref="tvcfileuploader"
+                    :value="tvcFiles"
+                    :validate="['required', 'fileUploading']"
+                    :validatecontext="validation"
+                    @validate-changed="tvcValidate = $event">
+                </files-box>
+
+                <text-block-required
+                    slot="abi"
+                    :not-valid="abiValidate">
+                    abi
+                </text-block-required>
+                <files-box
+                    slot="abiinput"
+                    ref="abifileuploader"
+                    :value="abiFiles"
+                    :validate="['required', 'fileUploading']"
+                    :validatecontext="validation"
+                    @validate-changed="abiValidate = $event">
+                </files-box>
+
+                <text-block-required
+                    slot="sol"
+                    :not-valid="solValidate">
+                    sol
+                </text-block-required>
+                <files-box
+                    slot="solinput"
+                    ref="solfileuploader"
+                    :value="solFiles"
+                    :validate="['fileUploading']"
+                    :validatecontext="validation"
+                    @validate-changed="solValidate = $event">
+                </files-box>
+
+                <text-block-required
+                    slot="smartcontract"
+                    :not-valid="smartContractValidate">
+                    Smart Contract
+                </text-block-required>
+                <select-box
+                    slot="smartcontractinput"
+                    v-model="model.smartContractId"
+                    :options="smartContracts"
+                    :validate="['required']"
+                    :validatecontext="validation"
+                    @validate-changed="smartContractValidate = $event">
+                </select-box>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :delete-visible="false"
+                :disable-save="!summary"
+                save-translation="Generate">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        props: {
+            wcOptions: {
+                type: Array,
+                default: _ => []
+            },
+            smartTypes: {
+                type: Array,
+                default: _ => []
+            }
+        },
+        data() {
+            return {
+                model: {},
+                modalTitle: `Generate Keys`,
+                nameValidate: false,
+                countValidate: false,
+                tvcValidate: false,
+                abiValidate: false,
+                solValidate: false,
+                smartContractValidate: false,
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "type", inputSlot: "typeinput" },
+                    { labelSlot: "count", inputSlot: "countinput" },
+                    { labelSlot: "wc", inputSlot: "wcinput" },
+                    { labelSlot: "loadcontract", inputSlot: "loadcontractinput" },
+                    { labelSlot: "abi", inputSlot: "abiinput", showHandler: this.loadingSmartContract },
+                    { labelSlot: "tvc", inputSlot: "tvcinput", showHandler: this.loadingSmartContract },
+                    { labelSlot: "sol", inputSlot: "solinput", showHandler: this.loadingSmartContract },
+                    { labelSlot: "smartcontract", inputSlot: "smartcontractinput", showHandler: this.notLoadingSmartContract },
+                ],
+                tvcFiles: [],
+                abiFiles: [],
+                solFiles: [],
+                smartContracts: []
+            }
+        },
+        async created() {
+            if (this.id && this.types.length) return;
+
+            const { data: data } = await axios.get(`/api/smartcontracts/options`);
+
+            this.smartContracts = data.smartContracts;
+        },
+        methods: {
+            loadingSmartContract() {
+                return this.model.loadSmartContract;
+            },
+            notLoadingSmartContract() {
+                return !this.model.loadSmartContract;
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            open() {
+                this.hasPhrase = false;
+
+                this.model = {
+                    wc: 0,
+                    typeId: 'system',
+                    keysCount: 1,
+                    loadSmartContract: false,
+                    smartContractId: ''
+                };
+                this.tvcFiles = [];
+                this.abiFiles = [];
+                this.solFiles = [];
+
+                this.nameValidate = false;
+                this.countValidate = false;
+                this.tvcValidate = false;
+                this.abiValidate = false;
+                this.solValidate = false;
+                this.smartContractValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.fireEvent(`globalBusy`, true);
+
+                if (this.model.loadSmartContract) {
+                    const tvcFiles = this.$refs.tvcfileuploader.getFilesId();
+                    const abiFiles = this.$refs.abifileuploader.getFilesId();
+                    const solFiles = this.$refs.solfileuploader.getFilesId();
+                    this.model.tvcFileId = tvcFiles && tvcFiles.length ? tvcFiles[0] : ``;
+                    this.model.abiFileId = abiFiles && abiFiles.length ? abiFiles[0] : ``;
+                    this.model.solFileId = solFiles && solFiles.length ? solFiles[0] : ``;
+                }
+
+                const { data: savedItem } = await axios.post(`/api/smartaccounts/generatekeys`, this.model);
+
+                if (this.$refs.tvcfileuploader) await this.$refs.tvcfileuploader.removeFiles();
+                if (this.$refs.abifileuploader) await this.$refs.abifileuploader.removeFiles();
+                if (this.$refs.solfileuploader) await this.$refs.solfileuploader.removeFiles();
+
+                this.fireEvent(`globalBusy`, false);
+
+                this.$refs.formModal.closeModal();
+
+                this.$emit(`add-item`, savedItem);
+            },
+        },
+        mixins: [translateMixin, globalObserver],
+        components: {
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            FilesBox: localStaticComponent(`/components/misc/FilesBox.html`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            DigitTextBox: staticBasicComponent(`DigitTextBox`),
+            LabeledSwitchBox: staticBasicComponent(`LabeledSwitchBox`),
+        }
+    }
+}
+</script>

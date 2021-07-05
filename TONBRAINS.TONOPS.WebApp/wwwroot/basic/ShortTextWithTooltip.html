@@ -1,0 +1,110 @@
+﻿<vue-template>
+    <popup-tooltip-box 
+        ref="popovers"
+        v-if="!hideTooltip"
+        style="display: -webkit-box"
+        :bottom="position === `bottom`"
+        :top="position === `top`"
+        :left="position === `left`"
+        :right="position === `right`">
+        <div class="popover-content-component-id">
+           <slot name="textPopup">{{ text }}</slot>
+        </div>
+    </popup-tooltip-box>
+
+    <div class="box-component-id">
+        <div class="short-text-component-id" 
+             v-if="!isLink"
+             @mouseover.stop.prevent="enterEvent($event)"
+             @mouseleave.stop.prevent="leaveEvent()">
+            <slot name="text">{{ text }}</slot>
+        </div>
+        <div class="short-link-component-id" 
+             v-if="isLink" 
+             @click="clicked()"
+             @mouseover.stop.prevent="enterEvent($event)"
+             @mouseleave.stop.prevent="leaveEvent()">
+            <slot name="text">{{ text }}</slot>
+        </div>
+    </div>
+</vue-template>
+
+<script vuescript>
+module.exports = {
+    props: {
+        text: {
+            type: String,
+            default: _ => ''
+        },
+        hideTooltip: {
+            type: Boolean,
+            default: _ => false
+        },
+        isLink: {
+            type: Boolean,
+            default: _ => false
+        },
+        position: {
+            type: String,
+            default: _ => 'top'
+        },
+        widthTooltip: {
+            type: String,
+            default: _ => ``
+        }
+    },
+    methods: {
+        clicked() {
+            this.$emit(`clicked`);
+        },
+        enterEvent($event) {
+            const widthPopover = this.widthTooltip ? this.widthTooltip : $event.target.getBoundingClientRect().width;
+            if (this.$refs.popovers) this.$refs.popovers.showBasedOnElement($event.target, widthPopover); 
+        },
+
+        leaveEvent() {
+             if (this.$refs.popovers) this.$refs.popovers.hide();
+        },
+    },
+    components: {
+        PopupTooltipBox: staticBasicComponent(`PopupTooltipBox`)
+    }
+}
+</script>
+
+<style scoped>
+.popover-content-component-id {
+    word-wrap:break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.container-component-id{
+    min-width: 0;
+    display: flex;
+    align-content: center;
+}
+.box-component-id {
+    display: inline-block; 
+    max-width: 100%;
+}
+.short-text-component-id {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    cursor: text;
+}
+    .short-link-component-id {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        cursor: pointer;
+        transition: .3s all;
+        color: #377dff;
+    }
+.short-link-component-id:hover {
+    opacity: .8;
+}
+</style>

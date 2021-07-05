@@ -1,0 +1,111 @@
+﻿<vue-template>
+    <label 
+        class="radio-button-container-component-id"
+        :class="{'disabled-component-id':disable }" >
+        <input
+            class="input-component-id"
+            type="radio"
+            :checked="isChecked"
+            :value="id"
+            @change="select(id)"
+            :disabled="disable" />
+        <span class="radio-button-checkmark-component-id"></span>
+        <span class="radio-button-text-component-id"><slot name="content" :item="item">{{label}}</slot></span>
+    </label>
+</vue-template>
+
+<script>
+    module.exports = {
+        props: {
+            id: [Object, String, Number, Boolean],
+
+            context: [Object],
+
+            disable: {
+                type: Boolean,
+                default: _ => false
+            },
+
+            label: {
+                type: String,
+                default: _ => ``
+            }
+        },
+        methods: {
+            select(id) {
+                const parent = this.context || this.$parent;
+                parent.$emit(`input`, id);
+                parent.$emit(`selected`, id);
+            }
+        },
+        computed: {
+            item() {
+                return { id: this.id, title: this.label };
+            },
+            isChecked: function () {
+                const parent = this.context || this.$parent;
+                return parent.value === this.id;
+            }
+        }
+    }
+</script>
+
+<style scoped>
+    .container-component-id{
+        margin: 6px 16px 6px 0;
+    }
+    .radio-button-container-component-id {
+        display: flex;  
+        align-items: center;
+        cursor: pointer;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;    
+    }
+    .input-component-id {
+        opacity: 0;
+        flex: 0;
+        min-width: 0;
+        width: 0;
+        margin: 0;
+    }
+    .radio-button-checkmark-component-id {
+        position:relative;
+        height: 18px;
+        width: 18px;   
+        margin-right: 8px;
+        box-sizing:border-box;
+        border-radius: 50%;
+        border:2px solid #ccc;
+    }
+    .radio-button-checkmark-component-id:after {
+        content: "";
+        position: absolute;
+        display: none;
+        top: 3px;
+        left: 3px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #ccc;
+    }
+    .radio-button-container-component-id input:checked ~ .radio-button-checkmark-component-id:after {
+        display: block;
+    }
+    .radio-button-container-component-id input:checked ~ .radio-button-checkmark-component-id {
+        border-color: #2196F3;
+    }
+    .radio-button-container-component-id input:checked ~ .radio-button-checkmark-component-id:after {
+        background-color: #2196F3;
+    }
+    .radio-button-container-component-id.disabled-component-id  {
+        color: #ccc;
+    }
+    .radio-button-container-component-id.disabled-component-id input ~ .radio-button-checkmark-component-id {
+        border-color: #eee;
+    }
+    .radio-button-container-component-id.disabled-component-id input ~ .radio-button-checkmark-component-id:after {
+        background-color: #eee;
+    }
+</style>

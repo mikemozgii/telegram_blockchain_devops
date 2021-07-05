@@ -1,0 +1,72 @@
+<vue-template>
+    <div class="pagination-info-component-id">
+        <span v-show="countItems > 0 && countOnPage != countItems">{{ firstItem }} - {{ lastItem }} of {{ countItems }}</span>
+        <span v-show="countItems > 0 && countOnPage === countItems">{{ countItems }}</span>
+    </div>
+    <pages
+        v-show="countPages > 1 && countOnPage != countItems"
+        :current-page="currentPage"
+        :count-pages="countPages"
+        :page-size="pageSize"
+        @pagechanged="pageChanged($event)">
+    </pages>
+</vue-template>
+
+<script>
+module.exports = {
+    props: [`currentPage`, `countItems`, `pageSize`, `countOnPage`],
+    data() {
+        return {
+            firstItem: 0,
+            lastItem: 0,
+            countPages: 0
+        }
+    },
+    mounted() {
+        this.calculate();
+    },
+    methods: {
+        calculate() {
+            this.firstItem = (this.currentPage - 1) * this.pageSize;
+            this.lastItem = this.firstItem + this.pageSize;
+            if (this.lastItem > this.countItems) this.lastItem = this.countItems;
+            this.firstItem += 1;
+            this.countPages = Math.ceil(this.countItems / this.pageSize);
+        },
+        pageChanged(page) {
+            this.$emit('pagechanged', page);
+        }
+    },
+    watch: {
+        currentPage (newValue) {
+            this.calculate();
+        },
+        countItems(newValue) {
+            this.calculate();
+        },
+        pageSize(newValue) {
+            this.calculate();
+        }
+    },
+    components: {
+        Pages: staticBasicComponent(`Pages`)
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+}
+.pagination-info-component-id {
+    font-size: 0.8rem;
+    margin-right: 10px;
+    white-space: pre;
+}
+.separator-component-id {
+    flex: 1;
+}
+</style>

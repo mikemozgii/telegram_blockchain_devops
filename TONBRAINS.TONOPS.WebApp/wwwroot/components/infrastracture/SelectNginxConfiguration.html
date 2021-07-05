@@ -1,0 +1,118 @@
+<vue-template>
+    <form-modal
+        title="Edit Configuration"
+        ref="formModal"
+        min-width="500px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout :fields="fields">
+                <text-block
+                    slot="external">
+                    External Nginx
+                </text-block>
+                <select-box
+                    slot="externalinput"
+                    :options="configurations"
+                    v-model="externalConfiguration">
+                </select-box>
+                <text-block
+                    slot="internal">
+                    Internal Nginx
+                </text-block>
+                <select-box
+                    slot="internalinput"
+                    :options="configurations"
+                    v-model="internalConfiguration">
+                </select-box>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :disable-save="false">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                configurations: [],
+                externalConfiguration: null,
+                internalConfiguration: null,
+                moduleId: null,
+                ecosystem: null,
+                fields: [
+                    { labelSlot: "external", inputSlot: "externalinput" },
+                    { labelSlot: "internal", inputSlot: "internalinput" }
+                ]
+            }
+        },
+        methods: {
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            async editObjectConfiguration(internal, external, moduleId, ecosystem) {
+                this.externalConfiguration = external;
+                this.internalConfiguration = internal;
+                this.moduleId = moduleId;
+                this.ecosystem = ecosystem;
+
+                this.fireEvent(`globalBusy`, true);
+
+                const { data: configurations } = await axios.get(`/api/configurationnginx/grid`);
+                this.configurations = configurations.map(
+                    a => {
+                        a.title = a.name;
+                        return a;
+                    }
+                );
+
+                this.fireEvent(`globalBusy`, false);
+
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.fireEvent(`globalBusy`, true);
+
+                await axios.get(
+                    `api/configurationnginx/settomoduletype`,
+                    {
+                        params: {
+                            ecosystem: this.ecosystem,
+                            moduleType: this.moduleId,
+                            id: this.internalConfiguration,
+                            webId: this.externalConfiguration
+                        }
+                    }
+                );
+
+                this.fireEvent(`globalBusy`, false);
+
+                this.$emit(`saved`);
+
+                this.cancel();
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FormModal: staticBasicComponent(`FormModal`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            SelectBox: staticBasicComponent(`SelectBox`)
+        }
+    }
+}
+</script>

@@ -1,0 +1,78 @@
+<vue-template>
+     <div class="element-container-component-id" @click="toggle()" v-bind:class="{'disabled-component-id': disable}">
+         <div>
+             <font-awesome v-if="checked" icon="fa-check-square" size="check-icon-component-id"></font-awesome>
+             <font-awesome v-if="!checked" icon="fa-square" size="uncheck-icon-component-id"></font-awesome>
+         </div>
+         <div v-if="header" class="header-container-component-id">
+            <span>{{ header }}</span>
+         </div>
+     </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: [`header`, `value`, `disable`],
+    data: () => {
+        return {
+            checked: this.value
+        }
+    },
+    created() {
+        if (this.value && this.checked !== this.value) this.checked = this.value;
+    },
+    methods: {
+        toggle () {
+            if (this.disable) return;
+
+            this.checked = !this.checked;
+            this.$emit(`check-clicked`, this.checked);
+        }
+    },
+    watch: {
+        value(newValue) {
+            this.checked = newValue;
+        },
+        checked(newValue) {
+            this.$emit('input', newValue);
+            this.$emit('changed', newValue);
+        }
+    },
+    components: {
+        FontAwesome: staticBasicComponent(`FontAwesomeIcon`)
+    }
+}
+</script>
+
+<style scoped>
+.element-container-component-id {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.header-container-component-id {
+    margin-left: 4px;
+    user-select: none;
+    font-size: 0.8rem;
+    color: gray;
+}
+.check-icon-component-id {
+    color: #ee1c29;
+    font-size: 20px;
+    height: 20px;
+    width: 18px;
+}
+.uncheck-icon-component-id {
+    color: rgb(224, 224, 224);
+    font-size: 20px;
+    height: 20px;
+    width: 18px;
+}
+
+.disabled-component-id{
+    opacity: .5;
+    cursor: default;
+    }
+</style>

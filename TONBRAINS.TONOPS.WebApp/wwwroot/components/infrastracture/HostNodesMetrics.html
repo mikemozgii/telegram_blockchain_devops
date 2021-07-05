@@ -1,0 +1,168 @@
+﻿<vue-template>
+    <flat-data-grid ref="grid"
+                    :settings="settings">
+
+        <short-text slot="dateslot"
+                slot-scope="{ item }"
+                :text="gridDateFormat(item.date, `YYYY-MM-DD HH:mm:ss`, `YYYY-MM-DD HH:mm`)">
+        </short-text>
+
+        <short-text slot="diskslot"
+                    slot-scope="{ item }"
+                    :text="`${item.diskavailible}GB(${(100-item.diskpercent)}%) / ${item.disktotal - item.diskavailible}GB(${item.diskpercent}%)/  ${item.disktotal}GB`">
+        </short-text>
+
+        <!--<short-text slot="diskpercentslot"
+                    slot-scope="{ item }"
+                    :text="`${item.diskavailible}GB (${(100- item.diskpercent)}%)`">
+        </short-text>-->
+
+        <short-text slot="timediffslot"
+                    slot-scope="{ item }"
+                    :text="`${item.timediff}`">
+        </short-text>
+
+        <short-text slot="ramtotalslot"
+                    slot-scope="{ item }"
+                    :text="vramFormat(item)">
+        </short-text>
+        
+        <!--<short-text slot="ramfreeslot"
+                    slot-scope="{ item }"
+                    :text="`${item.ramFree}`">
+        </short-text>-->
+
+        <short-text slot="logsizeslot"
+                    slot-scope="{ item }"
+                    :text="logSizeFormat(item.tonlogsize)">
+        </short-text>
+
+        <short-text v-if="item.config"
+                    slot="configslot"
+                    slot-scope="{ item }"
+                    :is-link="true"
+                    :text="'Link'"
+                    @clicked="showLog(item.config)">
+        </short-text>
+
+        <short-text slot="validatorslot"
+                    slot-scope="{ item }"
+                    :text="item.validatorActive ? `Active` : `Not Active`">
+        </short-text>
+    </flat-data-grid>
+
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+
+    return {
+        props: {
+            nodeId: String,
+            mode: String
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    gridItemActions: [
+                    ],
+                    defaultSortField: `date`,
+                    hideSearchBox: true,
+                    hideToolbar: true,
+                    defaultSortFieldDescending: true,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+            }
+        },
+        async created() {
+            if (this.mode === "network") {
+                this.settings.columns = [
+                    this.addColumn(`Date`, `date`, { slot: `dateslot` }),
+                    this.addColumn(`Disk`, `disktotal`, { slot: `diskslot`, columnPoints: 'px', width: 300 }),
+                    //this.addColumn(`Disk Free`, `diskpercent`, { slot: `diskpercentslot` }),
+                    this.addColumn(`Processes`, `processes`),
+                    this.addColumn(`Ram`, `ramTotal`, { slot: `ramtotalslot`, columnPoints: 'px', width: 300 }),
+                    //this.addColumn(`Ram total`, `ramTotal`, { slot: `ramtotalslot` }),
+                    //this.addColumn(`Ram Free`, `ramfree`, { slot: `ramfreeslot` }),
+                    this.addColumn(`Log`, `logsize`, { slot: `logsizeslot` }),                     
+                    this.addColumn(`Time Diff`, `timediff`, { slot: `timediffslot` }),   
+                    this.addColumn(`Actual Config`, `config`, { slot: `configslot` }),   
+                    this.addColumn(`Validator`, `validator`, { slot: `validatorslot` }),   
+                ]
+            }
+            else {
+                 this.settings.columns = [
+                    this.addColumn(`Date`, `date`, { slot: `dateslot` }),
+                    this.addColumn(`Disk`, `disktotal`, { slot: `diskslot`, columnPoints: 'px', width: 300 }),
+                    //this.addColumn(`Disk Free`, `diskpercent`, { slot: `diskpercentslot` }),
+                    this.addColumn(`Processes`, `processes`),
+                    this.addColumn(`Ram`, `ramTotal`, { slot: `ramtotalslot`, columnPoints: 'px', width: 300 }),
+                    //this.addColumn(`Ram`, `ramTotal`, { slot: `ramtotalslot` }),
+                    //this.addColumn(`Ram Free`, `ramfree`, { slot: `ramfreeslot` }),
+                ]
+            }
+            await this.loadMetrics();
+        },
+        methods: {
+            showLog(config) {
+                this.$emit(`showconfig`, config);
+            },
+            logSizeFormat(tonlogsize) {
+                if (!tonlogsize) return ``;
+                if (tonlogsize > 1024) return `${Math.round(tonlogsize / 1024, 3)}Mb`;
+                if (tonlogsize > 1024 * 1024) return `${Math.round(tonlogsize / 1024 / 1024, 3)}Mb`;
+                return `${tonlogsize}kb`;
+            },
+            vramFormat(item) {
+                //ramTotal  ramFree
+                return `${Math.round(item.ramTotal / 1024, 3)}GB / ${Math.round(item.ramFree / 1024, 3)}GB / ${Math.round((item.ramFree + item.ramTotal) / 1024, 3)}GB}`
+            },
+            async loadMetrics() {
+                const { data: result } = await axios.get(`/api/hosts/nodemetric?id=${this.nodeId}`);
+                this.gridData = result;
+                setTimeout(() => {
+                    this.$refs.grid.reloadData()
+                });
+                //const set = [];
+                //const labels = [];
+                //for (let item of result.diskavailible) {
+                //    set.push(item.value);
+                //    labels.push(item.label);
+                //}
+                //this.diskdataset[$event.id] = [{
+                //    label: `Disk`,
+                //    borderColor: `red`,
+                //    set: set
+                //}];
+                //this.diskLabels[$event.id] = labels;
+                //this.diskData[$event.id] = result.diskavailible;
+            }
+        },
+        mixins: [globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            LineChart: localStaticComponent(`/components/misc/LineChart.html`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+
+        }
+    }
+}
+</script>

@@ -1,0 +1,105 @@
+<template>
+    <div class="panel-component-id" :style="commonStyles">
+        <div
+            class="panel-header-component-id panel-header-custom"
+            :style="headerStyles"
+            v-if="!hideHeader">
+            <slot name="header">
+            </slot>
+        </div>
+        <div
+            :class="{ 'panel-content-component-id': true, 'panel-content-notpaddings-component-id': withoutPaddings, 'panel-contet-custom ': true  }"
+            :style="contentStyles"
+            v-if="!hideContent">
+            <slot name="content">
+            </slot>
+        </div>
+        <div
+            class="panel-footer-component-id"
+            :style="footerStyles"
+            v-if="!hideFooter">
+            <slot name="footer">
+            </slot>
+        </div>
+    </div>
+</template>
+
+<script>
+module.exports = {
+    props: {
+        hideHeader: Boolean,
+        hideContent: Boolean,
+        hideFooter: Boolean,
+        withoutPaddings: Boolean,
+        commonStyles: {
+            type: Object,
+            default: _ => {
+                return {
+                }
+            }
+        },
+        footerStyles: {
+            type: Object,
+            default: _ => {
+                return {
+                };
+            }
+        },
+        contentStyles: {
+            type: Object,
+            default: _ => {
+                return {
+                };
+            }
+        },
+        headerStyles: {
+            type: Object,
+            default: _ => {
+                return {
+                };
+            }
+        }
+    }
+}
+
+</script>
+
+<style scoped>
+.panel-content-notpaddings-component-id{
+    padding: 0px;
+}
+.panel-component-id {
+    background-color: inherit;
+    /* border-radius: 13px;
+    border-color: #fff; */
+    /* border-width: 3px; */
+    /* border-style: solid;
+    box-shadow: 0 0 4px 0 rgba(0, 0, 0, .04); */
+    min-width: 0;
+    word-wrap: break-word;
+    background-clip: border-box;
+    box-sizing: border-box;
+}
+.panel-footer-component-id {
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    background-color: inherit;
+    display: block;
+}
+.panel-content-component-id {
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    background-color: inherit;
+}
+.panel-header-component-id {
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    background-color: #fff;
+}
+</style>

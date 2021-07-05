@@ -1,0 +1,30 @@
+<vue-template>
+    <img
+        :src="path"
+        :alt="comment"
+        @click="runAction()"
+        @load="imageLoaded"
+    />
+</vue-template>
+
+<script>
+module.exports = {
+    props: [`path`, `comment`, `action`],
+    methods: {
+        runAction() {
+            if (this.action) this.action();
+        },
+        imageLoaded() {
+            this.$emit(`avatar-loaded`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id > img {
+    max-width: 32px;
+    max-height: 32px;
+    border-radius: 50%;
+}
+</style>

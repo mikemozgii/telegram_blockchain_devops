@@ -1,0 +1,245 @@
+<vue-template>
+    <black-wall
+        :action="closeModalAction"
+        :visible="visible ? 'visible' : 'collapsed'"
+        :need-centered="modalCentered"
+        :need-overflow="modalOverflow"
+        :always-show-content="alwaysShowContent"
+        :show-body-scroll-after-hide="counterIsEmpty()">
+        <panel
+            :class="{ 'modal-panel-component-id': true, 'panel-component-id-enter-active': isEnter, 'panel-component-id-leave-active': isLeave }"
+            :footer-styles="panelStyles.footerStyles"
+            :content-styles="panelStyles.contentStyles"
+            :hide-footer="true"
+            :hide-header="hideHeader"
+            :without-paddings="withoutPaddings"
+            ref="modalpanel"
+            :style="{'min-height': minheight ? minheight : '', 'min-width': minWidth ? minWidth : ''}">
+            <template slot="header">
+                <slot name="header">
+                    <div class="modal-header-component-id" >
+                        <header-text-block>
+                            <slot name="headerslot">
+                                {{ title }}
+                            </slot>
+                        </header-text-block>
+                        <span class="separator"></span>
+                        <div slot="buttons">
+                            <slot name="buttons"></slot>
+                        </div>
+                    </div>
+                </slot>
+            </template>
+            <div slot="content">
+                <slot name="content"></slot>
+            </div>
+        </panel>
+    </black-wall>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const modalsCounter = await require(`globalMixins/modalsCounter`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            title: String,
+            minheight: String,
+            minWidth: String,
+            openImmediatly: Boolean,
+            lockClose: Boolean,
+            needCentered: {
+                type: Boolean,
+                default: _ => true
+            },
+            autoCentered: {
+                type: Boolean,
+                default: _ => true
+            },
+            needOverflow: {
+                type: Boolean,
+                default: _ => true
+            },
+            hideHeader: {
+                type: Boolean,
+                default: _ => false
+            },
+            withoutPaddings: {
+                type: Boolean,
+                default: _ => false
+            },
+            alwaysShowContent: {
+                type: Boolean,
+                default: _ => false
+            },
+            styles: {
+                type: Object,
+                default: _ => {
+                    return {};
+                }
+            }
+        },
+        data: () => {
+            return {
+                visible: this.openImmediatly,
+                intervalId: null,
+                localNeedOverflow: false,
+                localNeedCentered: true,
+                isEnter: false,
+                isLeave: false,
+                resolveFunc: null,
+                panelStyles: componentStyles.panels.contentPanel
+            }
+        },
+        created() {
+            if (this.openImmediatly !== this.visible) this.visible = this.openImmediatly;
+        },
+        mounted() {
+            this.$emit("component-mounted");
+        },
+        methods: {
+            openModal () {
+                this.isLeave = false;
+                this.visible = true;
+                this.$emit('opened');
+                this.intervalId = setInterval(this.fixCenteredSizes, 800);
+                this.isEnter = true;
+                this.incrementCounter();
+            },
+            openModalAsync() {
+                this.openModal();
+
+                return new Promise((resolve, reject) => {
+                    this.resolveFunc = resolve;
+                });
+            },
+            closeModalAction() {
+                if (this.lockClose) return;
+
+                this.closeModal(false);
+            },
+            closeModal (hasResult) {
+                this.releaseCounter();
+                this.isLeave = true;
+                this.isEnter = false;
+                this.visible = false;
+                this.$emit('closed');
+                if (this.resolveFunc) this.resolveFunc();
+
+                setTimeout(() => {
+                    clearInterval(this.intervalId);
+                });
+            },
+            fixCenteredSizes() {
+                if (!this.autoCentered) return;
+
+                const panel = this.$refs.modalpanel;
+                if (!panel) return;
+
+                const rect = panel.$el.getBoundingClientRect();
+                if (!rect) return;
+
+                const windowHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+                if (rect.height >= windowHeight) {
+                    this.localNeedOverflow = true;
+                    this.localNeedCentered = false;
+                } else {
+                    this.localNeedOverflow = false;
+                    this.localNeedCentered = true;
+                }
+            }
+        },
+        computed: {
+            modalCentered() {
+                if (this.autoCentered) return this.localNeedCentered;
+                return this.needCentered;
+            },
+            modalOverflow() {
+                if (this.autoCentered) return this.localNeedOverflow;
+                return this.needOverflow;
+            }
+        },
+        mixins: [modalsCounter],
+        components: {
+            BlackWall: staticBasicComponent(`BlackWall`),
+            HeaderTextBlock: staticBasicComponent(`HeaderTextBlock`),
+            Panel: staticBasicComponent(`Panel`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.modal-header-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    font-size: 1.1rem;
+
+}
+.modal-header-component-id .separator {
+    margin-left: 1px;
+    margin-right: 1px;
+    flex: 1;
+}
+
+    .modal-panel-component-id {
+        margin-top: 25px;
+        margin-bottom: 25px;
+        border-radius: 0.3125rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,.12);
+    }
+
+        .modal-panel-component-id .panel-header-custom {
+            border-top-left-radius: 0.3125rem;
+            border-top-right-radius: 0.3125rem;
+        }
+
+        .modal-panel-component-id .panel-contet-custom {
+            border-bottom-left-radius: 0.3125rem;
+            border-bottom-right-radius: 0.3125rem;
+        }
+
+
+    .close-button-component-id {
+        cursor: pointer;
+    }
+
+@keyframes zoomin-component-id {
+  from {
+    opacity: 0;
+    -webkit-transform: scale3d(0.3, 0.3, 0.3);
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomout-component-id {
+  from {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+    -webkit-transform: scale3d(0.3, 0.3, 0.3);
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.panel-component-id-enter-active {
+  animation-name: zoomin-component-id;
+  animation-duration: .3s;
+}
+.panel-component-id-leave-active {
+  animation-name: zoomout-component-id;
+  animation-duration: .5s;
+}
+</style>

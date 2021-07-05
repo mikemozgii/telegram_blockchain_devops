@@ -1,0 +1,359 @@
+<vue-template>
+    <font-awesome 
+        :icon="icon"
+        :icon4="icon4"
+        :size="`fa-lg`"
+        :icon4-prefix="icon4Prefix"
+        v-bind:class="{'blue-component-id': blue, 'red-component-id': red, 'green-component-id': green, 'yellow-component-id': yellow, 'cadetblue-component-id': cadetblue,  'silver-component-id': silver}"></font-awesome>
+</vue-template>
+
+<script>
+const iconDictionary = {
+    'history': {
+        icon: `fa-history`,
+        icon4: `fa-history`,
+        color: `red`
+    },
+    'folder': {
+        icon: `fa-folder`,
+        icon4: `fa-folder`
+    },
+    'reject': {
+        icon: `fa-eject`,
+        icon4: `fa-eject`
+    },
+    'zip': {
+        icon: `fa-file-archive`,
+        icon4: `fa-file-archive`
+    },
+    'edit': {
+        icon: `fa-pencil-alt`,
+        icon4: `fa-pencil`,
+        color: `red`
+    },
+    'delete': {
+        icon: `fa-trash`,
+        icon4: `fa-trash`,
+        color: `red`
+    },
+    'add': {
+        icon: `fa-plus`,
+        icon4: `fa-plus`,
+        color: `red`
+    },
+    'show': {
+        icon: `fa-paperclip`,
+        icon4: `fa fa-cloud-download`,
+        color: `cadetblue`
+    },
+    'download': {
+        icon: `fa-cloud-download-alt`,
+        icon4: `fa fa-cloud-download`,
+        color: `cadetblue`
+    },
+    'filedownload': {
+        icon: `fa-download`,
+        icon4: `fa-download`
+    },
+    'build': {
+        icon: `fa-file-alt`,
+        icon4: `fa-file-text-o`
+    },
+    'sign': {
+        icon: `fa-file-signature`,
+        icon4: `fa-file-signature`
+    },
+    'check': {
+        icon: `fa-check`,
+        icon4: `fa-check`,
+        color: 'green'
+    },
+    'times': {
+        icon: `fa-times`,
+        icon4: `fa-times`,
+        color: 'red'
+    },
+    'positive': {
+        icon: `fa-thumbs-up`,
+        icon4: `fa-thumbs-up`,
+        color: `green`
+    },
+    'negative': {
+        icon: `fa-thumbs-down`,
+        icon4: `fa-thumbs-down`,
+        color: `red`
+    },
+    'star-half': {
+        icon: `fa-star-half-alt`,
+        icon4: `fa-star-half-o`,
+        color: `yellow`
+    },
+    'handshake': {
+        icon: `fa-handshake`,
+        icon4: `fa-handshake-o`,
+        color: `green`
+    },
+    'id-badge': {
+        icon: `fa-id-badge`,
+        icon4: `fa-id-badge`
+    },
+    'share': {
+        icon: `fa-share-alt`,
+        icon4: `fa-share-alt`,
+        color: `yellow`
+    },
+    'tasks': {
+        icon: `fa-tasks`,
+        icon4: `fa-tasks`,
+        color: `cadetblue`
+    },
+    'cloud-upload': {
+        icon: `fa-cloud-upload-alt`,
+        icon4: `fa-cloud-upload`
+    },
+    'unlock': {
+        icon: `fa-unlock-alt`,
+        icon4: `fa-unlock-alt`,
+        color: 'red'
+    },
+    'sticky-note': {
+        icon: `fa-sticky-note`,
+        icon4: `fa-sticky-note`,
+        color: `yellow`
+    },
+    'add-comment': {
+        icon: `far fa-comment-alt-plus`,
+        icon4: `far fa-comment-alt-plus`,
+        color: `yellow`
+    },
+    'view': {
+        icon: `far fa-eye`,
+        icon4: `fa fa-eye`
+    },
+    'send':{
+        icon: `fa-envelope-open-text`,
+        icon4: `fa-envelope-open-text`
+    },
+    'code':{
+        icon: `fa-code`,
+        icon4: `fa-code`
+    },
+    'arrow-right': {
+        icon: `fa-arrow-right`,
+        icon4: `fa-arrow-right`
+    },
+    'user-times': {
+        icon: `fa-user-times`,
+        icon4: `fa-user-times`,
+        color: `red`
+    },
+    'check-square': {
+        icon: `fa-check`,
+        icon4: `fa-check-square`,
+        color: `green`
+    },
+    'calendar': {
+        icon: `fa-calendar`,
+        icon4: `fa-calendar`
+    },
+    'question': {
+        icon: `fa-question`,
+        icon4: `fa-question`
+    },
+    'user-check': {
+        icon: `fa-user-check`,
+        icon4: `fa-user-plus`,
+        color: `green`
+    },
+    'edit-task': {
+        icon: `fa-calendar`,
+        icon4: `fa-calendar-o`
+    },
+    'add-task': {
+        icon: `fa-calendar-plus`,
+        icon4: `fa-calendar-plus-o`
+    },
+    'override-quiz': {
+        icon: 'fa-comment-edit',
+        icon4: 'fa-comment-edit',
+    },
+    'override-course': {
+        icon: 'fa-file-edit',
+        icon4: 'fa-file-edit'
+    },
+    'filegriddownload': {
+        icon: 'fa-download',
+        icon4: 'fa-download',
+        color: 'cadetblue'
+    },
+    'file-plus': {
+        icon: 'fa-file-plus',
+        icon4: 'fa-file-plus',
+        color: 'cadetblue'
+    },
+    'approve': {
+        icon: 'fa-calendar-check',
+        icon4: '',
+        color: 'green'
+    },
+    'decline': {
+        icon: 'fa-ban',
+        icon4: '',
+        color: 'red'
+    },
+    'report': {
+        icon: 'fa-file-excel',
+        icon4: '',
+        color: 'green'
+    },
+    'clock': {
+        icon: 'fa-clock',
+        icon4: 'fa-clock'
+    },
+    'chart-area': {
+        icon: 'fa-chart-area'
+    },
+    'cog': {
+        icon: 'fa-cog',
+        icon4: 'fa-cog',
+        color: `red`
+    },
+    'list': {
+        icon: 'fa-list',
+        icon4: 'fa-list',
+        color: `red`
+    },
+    'truck-loading': {
+        icon: 'fa-truck-loading',
+        icon4: 'fa-truck-loading'
+    },
+    'upload': {
+        icon: 'fa-upload',
+        icon4: 'fa-upload'
+    },
+    'sync-alt': {
+        icon: 'fa-sync-alt',
+        icon4: 'fa-sync-alt',
+        color: `red`
+    },
+    'play': {
+        icon: 'fa-play',
+        icon4: 'fa-play',
+        color: `red`
+    },
+    'stop': {
+        icon: 'fa-stop',
+        icon4: 'fa-stop',
+        color: `red`
+    },
+    'laptop-medical': {
+        icon: 'fa-laptop-medical',
+        icon4: 'fa-laptop-medical',
+        color: `red`
+    },
+    'rocket': {
+        icon: 'fa-rocket',
+        icon4: 'fa-rocket',
+        color: `red`
+    },
+    'transfer-from': {
+        icon: 'fa-arrow-alt-from-bottom',
+        color: `red`
+    },
+    'transfer-to': {
+        icon: 'fa-arrow-alt-from-top',
+        color: `red`
+    },
+    'deploy': {
+        icon: 'fa-expand-alt',
+        color: `red`
+    },
+    'browser': {
+        icon: 'fa-browser',
+        color: `red`
+    },
+}
+
+module.exports = {
+    props: {
+        title: String,
+        mode: String,
+        icon4Prefix: {
+            type: String,
+            default: _ => `fas`
+        }
+    },
+    data: function () {
+        return {
+            expand: this.value
+        }
+    },
+    computed: {
+        icon() {
+            return iconDictionary[this.mode].icon;
+        },
+        icon4() {
+            return iconDictionary[this.mode].icon4;
+        },
+        blue() {
+            return !iconDictionary[this.mode].color;
+        },
+        red() {
+            return iconDictionary[this.mode].color === `red`;
+        },
+        green() {
+            return iconDictionary[this.mode].color === `green`;
+        },
+        yellow() {
+            return iconDictionary[this.mode].color === `yellow`;
+        },
+        cadetblue() {
+            return iconDictionary[this.mode].color === `cadetblue`;
+        },
+        silver() {
+            return iconDictionary[this.mode].color === `silver`;
+        }
+    },
+    components: {
+        FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+        ToolTipBox: staticBasicComponent(`ToolTipBox`)
+    }
+}
+    </script>
+
+<style scoped>
+.red-component-id {
+    color: #ee1c29;
+}
+.green-component-id {
+    color: #00B00D;
+}
+
+.blue-component-id {
+    color: #ee1c29;
+}
+
+.tooltip-content-component-id {
+    word-wrap: normal;
+    text-align: center;
+}
+
+.container-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+.yellow-component-id {
+    color: #FFCF82;
+}
+
+.cadetblue-component-id {
+    color: #17a2b8;
+}
+
+.silver-component-id {
+    color: #000;
+}
+</style>
+

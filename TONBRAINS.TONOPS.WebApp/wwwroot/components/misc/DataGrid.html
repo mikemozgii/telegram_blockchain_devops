@@ -1,0 +1,376 @@
+<vue-template>
+    <simple-grid
+        ref="grid"
+        :columns="settings.columns"
+        :url="settings.urls.grid"
+        :default-sort-field="settings.defaultSortField"
+        :default-sort-field-descending="settings.defaultSortFieldDescending"
+        :grid-empty-message="settings.emptyMessage"
+        :source-strategy="settings.sourceStrategy"
+        :expandable="settings.expandable"
+        :row-handler="settings.rowHandler"
+        :hide-toolbar="settings.hideToolbar"
+        :hide-headers="settings.hideHeaders"
+        :hide-page-size="settings.hidePageSize"
+        :hide-search-box="settings.hideSearchBox"
+        :metadata="settings.metadata"
+        :preprocess-data-handler="settings.preprocessDataHandler"
+        :grid-settings="settings.additionalOptions"
+        :filters="settings.filters"
+        :default-page-size="settings.defaultPageSize"
+        grid-default-empty-message="Empty"
+        search-label="Search"
+        :group-field="settings.groupField"
+        :group-field-descending="settings.groupFieldDescending"
+        :sorting-proccessed="settings.sortingProccessed"
+        :not-show-empty="notShowEmpty"
+        :show-headers-empty-grid="showHeadersEmptyGrid"
+        :hide-popup="hidePopup"
+        @selected="selected($event)"
+        @data-loaded="dataLoaded($event)"
+        @completed="completed()"
+        @column-sorted="columnSorted($event)"
+        @before-column-sorting="beforeColumnSorting($event)">
+        <div slot="innerContent" slot-scope="{ item, expand }" class="inner-content-component-id">
+            <slot name="innerContent" :item="item" :expand="expand"></slot>
+        </div>
+        <template slot="groupRow" slot-scope="{ groupId, groupKey }">
+            <slot name="groupRow" :group-id="groupId" :group-key="groupKey"></slot>
+        </template>
+        <div slot="toolbarActions" class="toolbar-actions-component-id">
+            <slot name="toolbar-buttons"></slot>
+            <add-button
+                :action="selectAddAction"
+                v-if="settings.addButtonText && (!settings.addButtonVisibilityHandler || settings.addButtonVisibilityHandler())"
+                :styles="successStyle">
+                <div class="button-with-icon-component-id">
+                    <icon-box :icon="'fa-plus'" :icon4="'fa-plus'" :title="settings.addButtonText"></icon-box>
+                </div>
+            </add-button>
+            <slot name="toolbar-buttons-right"></slot>
+                <div class="filter-button-component-id" @click="showFilters" v-if="settings.showFilters">
+                    <span>
+                        <font-awesome-icon
+                            icon="fa-filter"
+                            :size="`filter-icon-component-id`">
+                        </font-awesome-icon>
+                    </span>
+                </div>
+            <slot name="right-toolbar-buttons"></slot>
+        </div>
+        <template v-for="column in slotColumns" :slot="column.slot" slot-scope="{ column, item }">
+            <slot :name="column.slot" :column="column" :item="item"></slot>
+        </template>
+        <template v-for="column in headerSlotColumns" :slot="column.headerSlot" slot-scope="{ column }">
+            <slot :name="column.headerSlot" :column="column"></slot>
+        </template>
+        <div slot="popup-buttons" slot-scope="{ item, background }">
+            <horizontal-grid-menu 
+                :actions="settings.gridItemActions"
+                @selected="selectAction($event, item)"
+                :action-context="item"
+                :background-color="background">
+                <template v-for="buttonSlot in buttonsSlots" :slot="buttonSlot.slot" slot-scope="{ item }">
+                    <slot :name="buttonSlot.slot" :item="item"></slot>
+                </template>
+            </horizontal-grid-menu>
+        </div>
+        <template slot="leftofsearchcontent">
+            <slot name="leftofsearchcontent"></slot>
+        </template>
+        <template slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </template>
+        <template slot="tableEmpty">
+            <slot name="tableEmpty"></slot>
+        </template>
+    </simple-grid>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            settings: {
+                type: Object
+            },
+            notShowEmpty: {
+                type: Boolean,
+                default: () => false
+            },
+            showHeadersEmptyGrid: {
+                type: Boolean,
+                default: () => false
+            }
+        },
+        data() {
+            return {
+                successStyle: componentStyles.buttons.successButton
+            }
+        },
+        created() {
+			this.register('refresh', this.reloadData);
+            const filterData = this.settings.filterSettings || { filters: [], sortings: [] };
+            if (!filterData.sortings || !filterData.sortings.length) {
+                filterData.sortings = [{
+                    field: this.settings.defaultSortField,
+                    descending: this.settings.defaultSortFieldDescending
+                }];
+            }
+            if (this.settings.filterSettings) {
+                this.filterData = this.settings.filterSettings;
+                this.setFilterData(this.filterData);
+            } else {
+                this.filterData = filterData;
+            }
+
+            if (this.settings && this.settings.additionalOptions && !this.settings.additionalOptions.busyState) {
+                this.settings.additionalOptions.busyState = this.changeBusyState;
+            }
+        },
+        methods: {
+            setExpanderItem(index, hide) {
+                if (!this.$refs.grid) return;
+                this.$refs.grid.setExpanderItem(index, hide);
+            },
+            beforeColumnSorting(sortingColumns) {
+                this.$emit(`before-column-sorting`, sortingColumns);
+            },
+            columnSorted($event) {
+                this.$emit('column-sorted', $event);
+            },
+            getFilterData() {
+                return this.filterData;
+            },
+            setFilterData($event) {
+                this.$set(this.settings, 'filterSettings', $event);
+                if (this.settings.customFiltering) {
+                    this.settings.customFiltering($event);
+                    return;
+                }
+
+                if (!(`filters` in this.settings)) this.$set(this.settings, `filters`, { filter: ``, conditions: {} });
+
+                this.settings.filters.conditions = {};
+
+                const newConditions = {};
+
+                if (this.settings.restoreFilterConditions) this.settings.restoreFilterConditions(newConditions);
+
+                for (const filter of $event.filters) {
+                    const column = this.settings.columns.find(a => a.field === filter.field);
+                    if (column && column.filterHandler) {
+                        newConditions[filter.field] = column.filterHandler;
+                    } else {
+                        newConditions[filter.field] = this.getFilterHandler(filter);
+                    }
+                }
+
+                this.settings.filters.conditions = newConditions;
+                if (this.$refs.grid) {
+                    this.$refs.grid.setSortColumn($event.sortings);
+                } else {
+                    this.settings.defaultSortField = $event.sortings[0].field;
+                    this.settings.defaultSortFieldDescending = $event.sortings[0].descending;
+                }
+
+                this.reloadData();
+            },
+            setSortColumn(sortings) {
+                if (!this.$refs.grid) return;
+                 this.$refs.grid.setSortColumn(sortings);
+            },
+            showFilters() {
+                this.$refs.gridFilters.openModal();
+                this.fireEvent(`globalBusy`, true);
+                setTimeout(() => {
+                    this.fireEvent(`globalBusy`, false);
+                }, 600);
+            },
+            completed() {
+                this.$emit(`completed`);
+            },
+            dataLoaded(count) {
+                this.$emit(`data-loaded`, count);
+            },
+            selected($event) {
+                this.$emit(`selected`, $event);
+            },
+            changeBusyState(newState) {
+                if (!this.fireEvent) return;
+
+                this.fireEvent(`globalBusy`, newState);
+            },
+            selectAction({ id, title }, item) {
+                if (!this.settings.actions) return;
+                if (!(id in this.settings.actions)) return;
+                this.settings.actions[id]({ item, title });
+            },
+            selectAddAction() {
+                this.selectAction({ id: 'add', title: this.settings.addButtonText}, {});
+            },
+            async refreshGrid() {
+                console.warn("refreshGrid is deprecated!!!!!! You need use reloadData!!!!")
+
+                if (!this.$refs.grid) return;
+                await this.$refs.grid.reloadGrid();
+            },
+            async reloadData() {
+                if (!this.$refs.grid) return;
+                await this.$refs.grid.reloadGrid();
+            },
+            async updateItem(item, key) {
+                await this.$refs.grid.updateItem(item, key);
+            },
+            setGroupedField(field) {
+                this.$refs.grid.setGroupedField(field);
+            },
+            getRows() {
+                if (!this.$refs.grid) return [];
+                return this.$refs.grid.getRows();
+            },
+            addItem(item, options) {
+                return this.$refs.grid.addItem(item, options);
+            },
+            deleteItem(item, key) {
+                return this.$refs.grid.deleteItem(item, key);
+            },
+            clearTextFilter() {
+                if (this.$refs.grid) {
+                    this.$refs.grid.clearTextFilter();
+                }
+            },
+            getTextFilter() {
+                if (this.$refs.grid) {
+                    return this.$refs.grid.getTextFilter();
+                }
+            },
+            addOrUpdateItem(item, key) {
+                const propertyVal = item[key];
+                const existedItem = this.findItemByProperty(propertyVal, key);
+                if (existedItem) {
+                    this.updateItem(item, key);
+                }
+                else {
+                    this.addItem(item);
+                }
+                return existedItem;
+            },
+            findItemByProperty(propertyValue, propertyName) {
+                const items = this.getRows();
+                const result = items.find(function (item) {
+                    return item[propertyName] === propertyValue
+                });
+
+                return result;
+            },
+            deleteItemByProperty(propertyValue, propertyName) {
+                const item = this.findItemByProperty(propertyValue, propertyName);
+                if (!item) return;
+
+                this.deleteItem(item);
+            }
+        },
+        beforeDestroy() {
+			this.unregister('refresh', this.reloadData);
+		},
+        computed: {
+            slotColumns() {
+                return this.settings.columns.filter(a => a.slot);
+            },
+            filterSlotColumns() {
+                return this.settings.columns.filter(a => a.filterSlot);
+            },
+            headerSlotColumns() {
+                return this.settings.columns.filter(a => a.headerSlot);
+            },
+            buttonsSlots() {
+                return this.settings.gridItemActions.filter(a => a.slot);
+            },
+            hidePopup() {
+                return this.settings.gridItemActions ? !this.settings.gridItemActions.length : true;
+            }
+        },
+        mixins: [globalObserver],
+        components: {
+            SimpleGrid: staticBasicComponent(`SimpleGrid`),
+            HorizontalGridMenu: staticBasicComponent(`HorizontalGridMenu`),
+            AddButton: staticBasicComponent(`ActionButton`),
+            IconBox: staticBasicComponent(`IconBox`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+.popup-buttons-component-id{
+    display:flex;
+    flex-direction:row;
+    justify-content: center;
+    align-items:center;
+}
+.grid_action_dropdown_icon {
+    color: #667486;
+}
+.toolbar-actions-component-id {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+.toolbar-actions-component-id > * {
+    margin-left: 10px;
+}
+.filter-icon-component-id {
+    font-size: 18px;
+    color: blue;
+    opacity: .7;
+    padding: 5px 5px 5px 5px;
+}
+.filter-button-component-id {
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+}
+.filter-button-component-id:hover .filter-icon-component-id {
+    opacity: 1;
+    background-color: lightgray;
+    border-radius: 25px;
+    -moz-border-radius: 25px;
+    -webkit-border-radius: 25px;
+    -khtml-border-radius: 25px;
+}
+.button-with-icon-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.button-with-icon-component-id > span {
+    margin-left: 5px;
+}
+.refresh-column-header-component-id {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+}
+.refresh-column-container-component-id {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+.icon-component-id {
+    color: rgb(102, 116, 134);
+}
+.inner-content-component-id {
+    margin-left: 42px;
+}
+</style>

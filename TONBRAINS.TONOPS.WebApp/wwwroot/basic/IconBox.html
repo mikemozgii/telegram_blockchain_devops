@@ -1,0 +1,30 @@
+<vue-template>
+    <row-layout>
+        <span v-show="leftTitle" class="spacing-left-component-id ">{{ leftTitle }}</span>
+        <font-awesome :icon="icon" :icon4="icon4" :color="color" :icon4-prefix="prefix" :size="size"></font-awesome>
+        <span class="ellipsis-text-component-id" :style="{ 'margin-left': spacing ? spacing : '5px' }">{{ title }}</span>
+    </row-layout>
+</vue-template>
+
+<script>
+module.exports = {
+    props: ['title', 'icon', 'icon4', 'leftTitle', 'color', 'spacing', 'prefix', 'size'],
+    components: {
+        FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+        RowLayout: staticBasicComponent(`RowLayout`)
+    }
+}
+</script>
+
+<style scoped>
+.spacing-left-component-id {
+    margin-right: 5px;
+}
+
+.ellipsis-text-component-id {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    margin-right: 5px;
+}
+</style>

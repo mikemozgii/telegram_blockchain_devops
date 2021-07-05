@@ -1,0 +1,316 @@
+<vue-template>
+    <grid-header-block
+        :filters="filters"
+        :busy="busy"
+        @pagesizechanged="pageSizeChanged($event)"
+        @filterchanged="filterChanged($event)"
+        class="simple-header-component-id"
+        :hide-page-size="hidePageSize"
+        :hide-search-box="hideSearchBox || (!dataLength && !currentFilter && !showHeadersEmptyGrid && !isReloadData)"
+        :search-label="searchLabel"
+        :default-page-size="defaultPageSize"
+        v-if="!hideToolbar">
+        <template slot="leftofsearchcontent">
+            <slot name="leftofsearchcontent"></slot>
+        </template>
+        <template slot="actions">
+            <slot name="toolbarActions"></slot>
+        </template>
+        <template slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </template>
+         <paginator
+            v-if="pagingScope && pagingScope.showPaging"
+            slot="upperpaginator"
+            class="simple-paging-component-id"
+            :page-size="pagingScope.pageSize"
+            :count-items="pagingScope.countItems"
+            :current-page="pagingScope.currentPage"
+            :count-on-page="pagingScope.countOnPage"
+            @pagechanged="pageChanged($event)">
+        </paginator>
+    </grid-header-block>
+    <basic-grid
+        :columns="columns"
+        :filters="filters"
+        ref="basicgrid"
+        :source="url"
+        :expandable="expandable"
+        :default-sort-field="defaultSortField"
+        :default-sort-field-descending="defaultSortFieldDescending"
+        :source-strategy="sourceStrategy"
+        :hide-headers="hideHeaders"
+        :row-handler="rowHandler"
+        :metadata="metadata"
+        :preprocess-data-handler="preprocessDataHandler"
+        :default-page-size="defaultPageSize"
+        :not-show-empty="notShowEmpty"
+        :settings="gridSettings"
+        :default-group-field="groupField"
+        :default-group-field-descending="groupFieldDescending"
+        :sorting-proccessed="sortingProccessed"
+        :show-headers-empty-grid="showHeadersEmptyGrid"
+        :hide-popup="hidePopup"
+        @data-loaded="dataLoaded($event)"
+        @selected="selected($event)"
+        @completed="completed()"
+        @changepaging="changePaging($event)"
+        @column-sorted="columnSorted($event)"
+        @before-column-sorting="beforeColumnSorting($event)">
+        <template slot="popup-buttons" slot-scope="{ item, background }">
+            <slot name="popup-buttons" :item="item" :background="background">
+
+            </slot>
+        </template>
+        <template v-for="column in slotColumns" :slot="column.slot" slot-scope="{ column, item }">
+            <slot :name="column.slot" :column="column" :item="item"></slot>
+        </template>
+        <template v-for="column in headerSlotColumns" :slot="column.headerSlot" slot-scope="{ column }">
+            <slot :name="column.headerSlot" :column="column"></slot>
+        </template>
+        <template slot="expandRow" slot-scope="{ item, expand }">
+            <slot name="innerContent" :item="item" :expand="expand"></slot>
+        </template>
+        <template slot="groupRow" slot-scope="{ groupId, groupKey }">
+            <slot name="groupRow" :group-id="groupId" :group-key="groupKey"></slot>
+        </template>
+        <template slot="tableEmpty">
+            <slot name="tableEmpty">
+                <div class="simple-grid-table-emptycomponent-id" v-if="!gridEmptyMessage">
+                    {{ gridDefaultEmptyMessage }}
+                </div>
+
+                <div class="simple-grid-table-emptycomponent-id" v-if="gridEmptyMessage">
+                    {{ gridEmptyMessage }}
+                </div>
+            </slot>
+        </template>
+    </basic-grid>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        url: String,
+        columns: {
+            type: Array,
+            default: () => []
+        },
+        filters: {
+            type: Object,
+            default: () => {
+                return {
+                    filter: null
+                }
+            }
+        },
+        gridEmptyMessage: {
+            type: String,
+            default: () => `Grid is empty`
+        },
+        expandable: Boolean,
+        defaultSortField: {
+            type: String,
+            required: true
+        },
+        defaultSortFieldDescending: {
+            type: Boolean,
+            required: true
+        },
+        sourceStrategy: {
+            type: Object,
+            required: false
+        },
+        rowHandler: Function,
+        hideToolbar: {
+            type: Boolean,
+            required: false,
+            default: _ => false
+        },
+        hideHeaders: {
+            type: Boolean,
+            default: _ => false
+        },
+        metadata: [Object, String, Number, Array, Date],
+        hidePageSize: {
+            type: Boolean,
+            default: _ => false
+        },
+        hideSearchBox: {
+            type: Boolean,
+            default: _ => false
+        },
+        preprocessDataHandler: Function,
+        gridSettings: {
+            type: Object,
+            required: false
+        },
+        busy: {
+            type: Boolean,
+            default: _ => false
+        },
+        defaultPageSize: {
+            type: Number,
+            default: _ => 5
+        },
+        searchLabel: {
+            type: String,
+            default: () => `Search`
+        },
+        gridDefaultEmptyMessage: {
+            type: String,
+            default: () => `Empty`
+        },
+        notShowEmpty: {
+            type: Boolean,
+            default: _ => false
+        },
+        groupField: {
+            type: String,
+            default: () => ``
+        },
+        groupFieldDescending: {
+            type: Boolean,
+            default: () => false
+        },
+        showHeadersEmptyGrid: {
+            type: Boolean,
+            default: () => false
+        },
+        sortingProccessed: Function,
+        hidePopup: {
+            type: Boolean,
+            default: _ => false
+        }
+    },
+    data() {
+        return {
+            dataLength: 0,
+            currentFilter: '',
+            pagingScope: null,
+            isReloadData: false
+        }
+    },
+    methods: {
+        setExpanderItem(index, hide) {
+            if (!this.$refs.basicgrid) return;
+            this.$refs.basicgrid.setExpanderItem(index, hide);
+        },
+        columnSorted($event) {
+            this.$emit('column-sorted', $event);
+        },
+        changePaging($event) {
+            this.pagingScope = $event;
+        },
+        completed() {
+            this.$emit(`completed`);
+        },
+        beforeColumnSorting(sortingColumns) {
+            this.$emit(`before-column-sorting`, sortingColumns);
+        },
+        dataLoaded($event) {
+            this.dataLength = $event;
+            this.$emit(`data-loaded`, $event);
+        },
+        selected($event) {
+            this.$emit(`selected`, $event);
+        },
+        async pageSizeChanged(size) {
+            if (!this.$refs.basicgrid) return;
+
+            this.$refs.basicgrid.pageSize = size;
+            await this.$refs.basicgrid.reloadData();
+        },
+        async pageChanged(page) {
+            await this.$refs.basicgrid.loadPage(page);
+        },
+        async filterChanged(filter) {
+            await this.$refs.basicgrid.hidePopUp();
+            this.isReloadData = true;
+            this.currentFilter = filter;
+            await this.$refs.basicgrid.reloadData();
+            this.isReloadData = false;
+        },
+        clearTextFilter() {
+            if (this.$refs.basicgrid) {
+              this.$refs.basicgrid.clearTextFilter();
+            }
+        },
+
+        getTextFilter() {
+            if (this.$refs.basicgrid) {
+              return  this.$refs.basicgrid.getTextFilter();
+            }
+        },
+
+        async reloadGrid() {
+            if (!this.$refs.basicgrid) return;
+            await this.$refs.basicgrid.reloadData();
+        },
+        setGroupedField(field) {
+            this.$refs.basicgrid.setGroupedField(field);
+        },
+        setSortColumn(sortings) {
+            if (!this.$refs.basicgrid) return;
+            this.$refs.basicgrid.setSortColumn(sortings);
+        },
+        updateItem(item, key) {
+            this.$refs.basicgrid.updateItem(item, key);
+        },
+        setDefaultSorting(field, descending) {
+            this.$refs.basicgrid.sortingColumn = field;
+            this.$refs.basicgrid.sortingDescending = descending;
+        },
+        getRows() {
+            return this.$refs.basicgrid.getRows();
+        },
+        addItem(item, options) {
+            this.dataLength = this.$refs.basicgrid.countItems + 1;
+            return this.$refs.basicgrid.addItem(item, options);
+        },
+        deleteItem(item, key) {
+            this.dataLength = this.$refs.basicgrid.countItems - 1;
+            return this.$refs.basicgrid.deleteItem(item, key);
+        }
+    },
+    computed: {
+        slotColumns() {
+            return this.columns.filter(a => a.slot);
+        },
+        headerSlotColumns() {
+            return this.columns.filter(a => a.headerSlot);
+        }
+    },
+    components: {
+        BasicGrid: staticBasicComponent(`BasicGrid`),
+        Paginator: staticBasicComponent(`Paginator`),
+        GridHeaderBlock: staticBasicComponent(`GridHeaderBlock`)
+    }
+}
+</script>
+
+<style scoped>
+.container-component-id {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+.simple-paging-component-id {
+    margin-left: 10px;
+}
+.simple-header-component-id {
+    margin-bottom: 15px;
+    margin-top: 15px;
+    
+}
+.simple-grid-table-emptycomponent-id {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    border-bottom: 0px solid #e7eaf3;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+</style>

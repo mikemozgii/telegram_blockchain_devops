@@ -1,0 +1,201 @@
+<vue-template>
+    <form-modal
+        :title="modalTitle"
+        ref="formModal"
+        min-width="500px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout
+                :fields="fields">
+
+                <text-block-required
+                    slot="name"
+                    :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box 
+                    slot="nameinput"
+                    v-model="model.name"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="location"
+                    :not-valid="locationValidate">
+                    Location
+                </text-block-required>
+                <text-box 
+                    slot="locationinput"
+                    v-model="model.location"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="locationValidate = $event">
+                </text-box>
+
+                <text-block-required
+                    slot="node"
+                    :not-valid="nodeValidate">
+                    Node
+                </text-block-required>
+                <select-box
+                    slot="nodeinput"
+                    v-model="model.nodeId"
+                    :options="nodes"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="nodeValidate = $event">
+                </select-box>
+
+                <text-block-required
+                    slot="port"
+                    :not-valid="portValidate">
+                    Port
+                </text-block-required>
+                <digit-text-box
+                    slot="portinput"
+                    v-model="model.port"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="portValidate = $event">
+                </digit-text-box>
+
+                <text-block
+                    slot="http2">
+                    HTTP/2
+                </text-block>
+                <check-box
+                    slot="http2input"
+                    v-model="model.http2">
+                </check-box>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :delete-action="deleteItem"
+                :delete-visible="false"
+                :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                portValidate: false,
+                nodeValidate: false,
+                locationValidate: false,
+                http2Validate: false,
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "port", inputSlot: "portinput" },
+                    { labelSlot: "node", inputSlot: "nodeinput" },
+                    { labelSlot: "location", inputSlot: "locationinput" }
+                ],
+                moduleNames: getLotusModules(),
+                selectedFile: null,
+                nodes: []
+            }
+        },
+        async created() {
+            const { data: result } = await axios.get(`/api/nodes/nginxnodes`);
+
+            this.nodes = result.map(a => {
+                a.title = a.name;
+                return a;
+            });
+        },
+        methods: {
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            add({ nodeId }) {
+                this.model = {
+                    nodeId,
+                    http2: false
+                };
+                this.modalTitle = `Create Nginx Config`; 
+                this.nameValidate = false;
+                this.portValidate = false;
+                this.nodeValidate = false;
+                this.locationValidate = false;
+                this.http2Validate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/configurationnginx/delete`, { params: { id: item.id }});
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async getModel(id) {
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/configurationnginx/single`, { params: { id: id } });
+                this.fireEvent(`globalBusy`, false);
+                return model;
+            },
+            async edit(item) {
+                this.editedItem = item;
+                this.model = await this.getModel(item.id);
+                this.modalTitle = `Edit Nginx Config`;
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.post(`/api/configurationnginx/addoredit`, this.model);
+                if (this.selectedFile) await this.saveFile(savedItem.id);
+                this.fireEvent(`globalBusy`, false);
+                this.$refs.formModal.closeModal();
+                this.$emit(`saved`, { savedItem, isNew: !this.model.id });
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            TextBox: staticBasicComponent(`TextBox`),
+            CheckBox: staticBasicComponent(`CheckBox`),
+            DigitTextBox: staticBasicComponent(`DigitTextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`)
+        }
+    }
+}
+</script>

@@ -1,0 +1,25 @@
+<vue-template>
+    <span :style="styles">
+        <slot>
+            {{ title }}
+        </slot>
+    </span>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        title: String,
+        styles: {
+            type: Object,
+            default: _ => {
+                return {
+                    "font-size": "20px",
+                    color: "black",
+                    "background-color": "white"
+                }
+            }
+        }
+    }
+}
+</script>

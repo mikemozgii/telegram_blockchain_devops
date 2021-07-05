@@ -1,0 +1,187 @@
+<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <span slot="nameslot" slot-scope="{ item }">
+            {{ getModuleTitle(item.id) }}
+        </span>
+        <div
+            slot="innerContent"
+            slot-scope="{ item, expand }">
+            <tabs-header
+                :items="[{ id: `deployments`, title: `Deployments`}]"
+                v-model="selectedTab">
+            </tabs-header>
+            <node-modules
+                v-if="item && expand"
+                :module-name="item.id"
+                :ecosystem-id="ecosystemId"
+                @gridchanged="gridCompleted()"
+            />
+        </div>
+        <menu-option
+            slot="editmenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="list">
+        </menu-option>
+        <menu-option
+            slot="addmoduleoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="add">
+        </menu-option>
+        <menu-option
+            slot="nginxmenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="list">
+        </menu-option>
+    </flat-data-grid>
+    <select-configuration
+        ref="selectConfiguration">
+    </select-configuration>
+    <select-nginx-configuration
+        ref="selectnginx"
+        :external-id="externalId"
+        :internal-id="internalId"
+        @saved="gridCompleted()">
+    </select-nginx-configuration>
+    <module-card
+        ref="modulecard"
+        :ecosystem-id="ecosystemId"
+        :module-name="moduleName"
+        @saved="gridCompleted()">
+    </module-card>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            ecosystemId: {
+                type: String,
+                required: true
+            }
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { notFilterable: true, slot: `nameslot` }),
+                        this.addColumn(`Deployments`, `count`, { notFilterable: true }),
+                        this.addColumn(`Internal`, `internal`, { notFilterable: true }),
+                        this.addColumn(`External`, `external`, { notFilterable: true })
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Add Deployment`,
+                            id: `addModule`,
+                            slot: `addmoduleoption`,
+                        },
+                        {
+                            title: `Edit Configuration`,
+                            id: `changeConfiguration`,
+                            slot: `editmenuoption`,
+                        },
+                        {
+                            title: `Edit Nginx Configuration`,
+                            id: `changeNginxConfiguration`,
+                            slot: `nginxmenuoption`,
+                        },
+                    ],
+                    addButtonText: ``,
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    expandable: true,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    hideToolbar: true,
+                    addButtonVisibilityHandler: this.isViewOnlyHandler,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                moduleNames: getLotusModules(),
+                moduleName: null,
+                selectedTab: `deployments`,
+                externalId: null,
+                internalId: null,
+                configs: []
+            }
+        },
+        methods: {
+            addModule({ item }) {
+                this.moduleName = item.id;
+                setTimeout(() => {
+                    this.$refs.modulecard.openModal();
+                });
+            },
+            getConfigInfo(config) {
+                return `${config.name}, ${config.ip}:${config.port} - ${config.location}`;
+            },
+            async gridCompleted() {
+                const { data: moduleTypes } = await axios.get(`/api/modules/moduletypes?ecosystemId=${this.ecosystemId}`);
+                const { data: counts } = await axios.get(`api/modules/modulecount?ecosystemId=${this.ecosystemId}`);
+                const { data: configs } = await axios.get(`api/configurationnginx/moduletype?ecosystem=${this.ecosystemId}`);
+
+                for (const moduleType of moduleTypes) {
+                    const countItem = counts.find(a => a.id === moduleType.id);
+                    moduleType.count = countItem ? countItem.count : `-`;
+
+                    const config = configs.find(a => a.moduleTypeId === moduleType.id);
+
+                    moduleType.internal = config.internal ? this.getConfigInfo(config.internal) : ``;
+                    moduleType.external = config.external ? this.getConfigInfo(config.external) : ``;
+                }
+
+                this.configs = configs;
+                this.gridData = moduleTypes;
+                this.$refs.grid.reloadData();
+            },
+            changeNginxConfiguration({ item }) {
+                const config = this.configs.find(a => a.moduleTypeId === item.id);
+                this.$refs.selectnginx.editObjectConfiguration(
+                    config.internal ? config.internal.id : null,
+                    config.external ? config.external.id : null,
+                    item.id,
+                    this.ecosystemId
+                );
+            },
+            changeConfiguration({ item }) {
+                this.$refs.selectConfiguration.editObjectConfiguration(item.id + this.ecosystemId);
+            },
+            getModuleTitle(id) {
+                return this.moduleNames.find(a => a.id === id).title;
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            DefaultButton: staticBasicComponent(`ActionButton`, componentStyles.buttons.default),
+            NodeModules: localStaticComponent(`/components/infrastracture/Modules.html`),
+            SelectConfiguration: localStaticComponent(`/components/infrastracture/SelectConfiguration.html`),
+            SelectNginxConfiguration: localStaticComponent(`/components/infrastracture/SelectNginxConfiguration.html`),
+            ModuleCard: localStaticComponent(`/components/infrastracture/ModuleCard.html`),
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`)
+        }
+    }
+}
+</script>

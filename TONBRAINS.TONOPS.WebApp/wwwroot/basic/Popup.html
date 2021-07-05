@@ -1,0 +1,94 @@
+<vue-template>
+    <transition name="popup-animation-component-id">
+        <div
+            v-if="showed"
+            class="popup-container-component-id"
+            :style="{'left': left ? left + 'px' : '' , 'top': top ? top + 'px' : '', 'right': right ? right + 'px' : '', 'bottom': bottom ? bottom + 'px' : '', 'width': width ? width + 'px' : '', 'height': height ? height + 'px' : '', 'max-width': maxWidth ? maxWidth + 'px' : ''}">
+            <slot></slot>
+        </div>
+    </transition>
+</vue-template>
+
+<script>
+    module.exports = {
+        props: {
+            disablePointerEvents: {
+                type: Boolean,
+                default: _ => false
+            }
+        },
+        data() {
+            return {
+                showed: false,
+                left: '',
+                top: '',
+                right: '',
+                bottom: '',
+                width: '',
+                maxWidth: '',
+                height: '',
+                payload: null
+            }
+        },
+        mounted() {
+            this.$emit(`completed`);
+            if (this.disablePointerEvents) this.$el.style['pointer-events'] = `none`;
+        },
+        methods: {
+            showBasedOnElement(element, payload, leftOffset = 0, topOffset = 0) {
+                this.payload = payload;
+                const rect = element.getBoundingClientRect();
+                this.top = rect.top + rect.height + 2 + topOffset;
+                this.left = rect.left + leftOffset;
+                this.showed = true;
+
+                this.$emit('showed');
+            },
+            showBasedOnPosition(position) {
+                this.left = position.left ? position.left : '';
+                this.right = position.right ? position.right : '';
+                this.bottom = position.bottom ? position.bottom : '';
+                this.top = position.top ? position.top : '';
+                this.width = position.width ? position.width : '';
+                this.maxWidth = position.maxWidth ? position.maxWidth : '';
+                this.height = position.height ? position.height : '';
+
+                this.showed = true;
+
+                this.$emit('showed');
+            },
+            hide() {
+                this.showed = false;
+
+                this.$emit('hided');
+            }
+        }
+    }
+</script>
+
+<style scoped>
+.popup-container-component-id {
+    position: fixed;
+    z-index: 1000;
+}
+@keyframes fadein-component-id {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: .5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+.popup-animation-component-id-enter-active {
+    animation-name: fadein-component-id;
+    animation-duration: .3s;
+}
+.popup-animation-component-id-leave-active {
+    animation-name: fadein-component-id;
+    animation-duration: .1s;
+    animation-direction: reverse;
+}
+</style>

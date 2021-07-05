@@ -1,0 +1,102 @@
+﻿
+//{
+//   "@type" : "engine.validator.config",
+//   "out_port" : 3278,
+//   "addrs" : [
+//      {
+//         "@type" : "engine.addr",
+//         "ip" : -1062731749,
+//         "port" : 30310,
+//         "categories" : [ 0,1,2,3],
+//         "priority_categories" : []
+//      }
+
+//   ],
+//   "adnl" : [
+//      {
+//         "id": "ALwbtibYfxUHrP5GqN1/nPvUULuol+xNA7EYmwZzGx0=",
+//         "category": 0
+//      },
+//      {
+//         "id": "nyHBKMI2Llw4GTJElePcQbi69wPldFcCgAzH5sp43Hc=",
+//         "category": 0
+//      },
+
+//      {
+//         "@type" : "engine.adnl",
+//         "id" : "ds/D3p/m1oBQgOumKfXfUE456ChDkgbv//5rztnPFGQ=",
+//         "category" : 0
+//      },
+//      {
+
+//         "@type" : "engine.adnl",
+//         "id" : "yHjOWp1lSB/2oE/cs02+H484+S7X6tTbnEf7wn/J4cs=",
+//         "category" : 1
+
+//      }
+
+//   ],
+
+//   "dht" : [
+//      {
+//         "@type" : "engine.dht",
+//         "id" : "ds/D3p/m1oBQgOumKfXfUE456ChDkgbv//5rztnPFGQ="
+//      }
+
+//   ],
+//   "validators" : [
+//      {
+//         "id": "wQM4Qjh2GTAw9EXm8lqt3kH6pFfUVIfSmMcLowMsH9U=",
+//         "temp_keys": [
+//            {
+//               "key": "ALwbtibYfxUHrP5GqN1/nPvUULuol+xNA7EYmwZzGx0=",
+//               "expire_at": 1606600722
+//            }
+//         ],
+//         "adnl_addrs": [
+//            {
+//               "id": "nyHBKMI2Llw4GTJElePcQbi69wPldFcCgAzH5sp43Hc=",
+//               "expire_at": 1606600722
+//            }
+//         ],
+//         "expire_at": 1606600722
+//      }
+
+//   ],
+//   "fullnode" : "yHjOWp1lSB/2oE/cs02+H484+S7X6tTbnEf7wn/J4cs=",
+//   "fullnodeslaves" : [
+//   ],
+//   "fullnodemasters" : [],
+//   "liteservers" : [
+//      {
+//         "id": "4x6FWZNJfRKR24hqnk5C2fPNukyQ0kGHDMg/LxqxE1A=",
+//         "port": 3031
+//      }
+
+//   ],
+
+//   "control" : [
+//      {
+//         "id": "wQM4Qjh2GTAw9EXm8lqt3kH6pFfUVIfSmMcLowMsH9U=",
+//         "port": 3030,
+//         "allowed": [
+//            {
+//               "id": "q9ua7Lsr4PzD/ieyYeepc2QMilVXUuuec66tPau2vZU=",
+//               "permissions": 15
+//            }
+//         ]
+//      }
+
+//   ],
+
+//   "gc" : {
+
+//      "@type" : "engine.gc",
+
+//      "ids" : [
+
+//      ]
+
+//   }
+
+//}

@@ -1,0 +1,566 @@
+﻿<vue-template autoclosetag>
+    <header-block ref="headerblock"
+                  :organization="getOrganizationTitle()"
+                  :selected-group="selectedGroup"
+                  :selected-module="selectedModule"
+                  :third-level-text="thirdLevelText"
+                  :hide-border="hideBorder"
+                  :sidebar-action="sidebarAction"
+                  :refresh-func="refreshAction"
+                  @@changeorganization="changeOrganization($event)"
+                  :organizations="[]"
+                  :current-organization="null"
+                  @@click-organization="clickOrganization()"
+                  :translations="{}">
+        <div slot="leftmenu" :style="{ 'width': expanded ? '240px' : '47px' }">
+        </div>
+    </header-block>
+    <fixed-side-bar :expanded="expanded"
+                    style="z-index: 100102;"
+                    ref="sidebar">
+        <div class="menu-item-container-component-id" style="margin-top: 5px;">
+            <div @@click="toggleExpand()" class="top-menu-component-id">
+                <font-awesome-icon icon="fa-bars"
+                                   size="menu-icon-component-id" />
+            </div>
+        </div>
+
+        <nav-sub-menu-popup :select-item-func="selectItemSubMenu"
+                            :selected-link="selectedLink"
+                            ref="navPopup">
+        </nav-sub-menu-popup>
+
+        <popup-item ref="popupitem">
+            <default-panel hide-header="true"
+                           hide-footer="true">
+                <div slot="content"
+                     class="popup-item-component-id">
+                    <span>
+                        {{ sectionItemTitle }}
+                    </span>
+                </div>
+            </default-panel>
+        </popup-item>
+
+        <column-layout :class="{'expanded-component-id': expanded }">
+            <div v-for="section in items"
+                 class="menu-item-container-component-id"
+                 :key="section.id">
+                <div :class="{ 'selected-item-component-id': section === selectedMenuItem }">
+                    <row-layout class="menu-item-component-id"
+                                @@mouseenter.native="mouseEnter(section, $event)"
+                                @@mouseleave.native="mouseLeaves($event)"
+                                @@click.native="selectItem(section)"
+                                align-items="center">
+                        <font-awesome-icon :icon="section.icon"
+                                           size="icon-component-id" />
+                        <span v-if="expanded"
+                              class="item-name-component-id">
+                            {{ section.title }}
+                        </span>
+                        <font-awesome-icon v-if="expanded"
+                                           class="caret-component-id"
+                                           :color="'#fff'"
+                                           :icon="expandedGroupId === section.id ? `fa-caret-up` : `fa-caret-down`" />
+                    </row-layout>
+                </div>
+
+                <div v-if="section.item" v-for="sectionItem in section.links" :key="sectionItem.id">
+                    <default-hyper-link :href="sectionItem.route"
+                                        :title="sectionItem.title"
+                                        @@clicked="selectItem(sectionItem)">
+                        <div slot="content"
+                             v-show="expandedGroupId === section.id"
+                             :class="{'selected-link-item-component-id': sectionItem === selectedLink}"
+                             @@mouseenter="mouseItemEnter($event, sectionItem.title)"
+                             @@mouseleave="mouseItemLeaves($event)">
+                            <row-layout class="menu-item-component-id link-item-component-id">
+                                <font-awesome-icon :icon="sectionItem.icon" size="black-icon-component-id" />
+                                <span v-if="expanded"
+                                      class="item-name-component-id">
+                                    {{ sectionItem.title }}
+                                </span>
+                            </row-layout>
+                        </div>
+                    </default-hyper-link>
+                </div>
+            </div>
+        </column-layout>
+        <div class="expander-component-id"
+             slot="expander"
+             @@click="toggleExpand()">
+            <font-awesome-icon :icon="expanded ? 'fa-angle-double-left' : 'fa-angle-double-right'"
+                               :size="'black-icon-component-id'" />
+        </div>
+    </fixed-side-bar>
+
+    <div ref="pagecontainer"
+         :class="{'page-container-component-id':1,'short-page-container-component-id': shortPage, 'full-page-container-component-id': !shortPage }">
+        <router-view :key="$route.fullPath"></router-view>
+    </div>
+
+    <spinner-container v-if="busyVisible"></spinner-container>
+
+    <file-upload ref="fileupload"
+                 :file-types="fileTypes"
+                 :multi-uploading="fileMultiSelect"
+                 @@selected="uploadFile($event)">
+    </file-upload>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+
+    return {
+        data: function () {
+            return {
+                shortPage: false,
+                expanded: false,
+                hideBorder: false,
+                items: [],
+                selectedMenuItem: null,
+                dragPayload: {
+                    transferKey: "quickaction",
+                    getData: this.getDragPayload
+                },
+                selectedLink: null,
+                expandedGroupId: ``,
+                busyVisible: false,
+                selectedGroup: ``,
+                selectedModule: ``,
+                thirdLevelText: ``,
+                sectionItemTitle: ``,
+                isMobile: false,
+                fileTypes: `*.*`,
+                fileMultiSelect: false,
+                fileCallback: null
+            }
+        },
+        async created() {
+            this.register(`globalBusy`, this.setBusyState);
+            this.register(`pageTitle`, this.setPageTitle);
+            this.register(`signout`, this.signout);
+            this.register(`backendError`, this.backendErrors);
+            this.register(`frontendError`, this.frontendError);
+            this.register(`showToast`, this.showToast);
+            this.register(`selectfile`, this.selectFile);
+
+            this.setupOverflow();
+            window.addEventListener(`resize`, this.setupOverflow);
+
+            interceptorStatus.enable = true;
+        },
+        async mounted() {
+            this.busyVisible = true;
+
+            const { data: menu } = await axios.get(`/api/account/menu`);
+          
+            this.busyVisible = false;
+            this.items = menu;
+            const path = location.pathname;
+            let currentRoute = null;
+            for (let group of this.items) {
+                currentRoute = group.links.find(a => a.groupId && a.route === path)
+                if (currentRoute) {
+                    this.selectedMenuItem = group;
+                    break;
+                }
+            }
+            if (!currentRoute) this.$router.push({ path: `/` });
+        },
+        beforeDestroy() {
+            document.body.style.backgroundColor = '#fff'; //WTF????
+            window.removeEventListener(`resize`, this.setupOverflow);
+            this.unregister(`globalBusy`, this.setBusyState);
+            this.unregister(`pageTitle`, this.setPageTitle);
+            this.unregister(`signout`, this.signout);
+            this.unregister(`backendError`, this.backendErrors);
+            this.unregister(`frontendError`, this.frontendError);
+            this.unregister(`showToast`, this.showToast);
+            this.unregister(`selectfile`, this.selectFile);
+        },
+        methods: {
+            selectFile({ callback, multiselect, fileTypes }) {
+                this.fileCallback = callback;
+                this.fileTypes = fileTypes;
+                this.fileMultiSelect = multiselect;
+                this.$refs.fileupload.openDialog();
+            },
+            uploadFile($event) {
+                this.fileCallback($event);
+            },
+            getOrganizationTitle() {
+                return "org";
+            },
+            setupOverflow() {
+                if (!this.$refs.pagecontainer) return;
+
+                if (window.innerWidth <= 480) {
+                    this.$refs.pagecontainer.style.overflow = "auto";
+                    this.isMobile = true;
+                } else {
+                    this.$refs.pagecontainer.style.overflow = "";
+                    this.isMobile = false;
+                }
+            },
+            showToast(metadata) {
+                this.$refs.toast.show(metadata.message);
+            },
+            async frontendError(info) {
+                if (environment.isDevelopment) return;
+
+                if (this.busyVisible) this.busyVisible = false;
+
+                this.crashModule = this.$route.name;
+                await this.$refs.oppsididitagain.show();
+                location.reload();
+            },
+            async backendErrors(info) {
+                if (environment.isDevelopment) return;
+
+                if (this.busyVisible) this.busyVisible = false;
+
+                this.crashModule = this.$route ? this.$route.name : `Unknown`;
+                await this.$refs.oppsididitagain.show();
+                location.reload();
+            },
+            setPageTitle(titles) {
+                this.selectedGroup = `group` in titles ? titles.group : this.selectedGroup;
+                this.selectedModule = `module` in titles ? titles.module : this.selectedModule;
+                this.thirdLevelText = `thirdLevelText` in titles ? titles.thirdLevelText : this.thirdLevelText;
+            },
+            setBusyState(newState) {
+                this.busyVisible = newState;
+            },
+            mouseEnter(item, event) {
+                if (this.isMobile) return;
+
+                if (!this.$refs.navPopup || item.groupId)
+                    return;
+
+                if (item.id === this.expandedGroupId || this.expanded)
+                    return;
+
+                let sectionToPopup = this.items.find(a => a.id === item.id);
+                if (!sectionToPopup)
+                    return;
+
+                this.$refs.navPopup.show(event.target, sectionToPopup, this.$refs.sidebar.$el);
+            },
+            mouseLeaves(event) {
+                if (!this.$refs.navPopup)
+                    return;
+                this.$refs.navPopup.hideIfNeed(event);
+            },
+            mouseItemEnter(event, title) {
+                if (!this.$refs.popupitem || this.expanded) return;
+                this.sectionItemTitle = title;
+
+                let rect = event.target.getBoundingClientRect();
+                let position = {
+                    left: rect.right,
+                    top: rect.top + 5,
+                };
+                this.$refs.popupitem.showBasedOnPosition(position);
+            },
+            async refreshAction() {
+                this.fireEvent(`refresh`);
+            },
+            mouseItemLeaves() {
+                if (!this.$refs.popupitem) return;
+                this.$refs.popupitem.hide();
+            },
+
+            toggleExpand() {
+                this.expanded = !this.expanded;
+                this.fireEvent(`menuToggle`, this.expanded);
+
+                this.shortPage = this.expanded && window.innerWidth >= 1200;
+
+                if (this.$refs.headerblock) {
+                    let maxWidth = this.expanded ? 1100 : 960;
+                    this.$refs.headerblock.hideTitle = window.innerWidth < maxWidth;
+                }
+
+                if (this.expanded) {
+                    this.expandedGroupId = this.getActiveGroupId();
+                } else {
+                    this.expandedGroupId = ``;
+                }
+            },
+            getActiveGroupId() {
+                const currentPath = window.location.pathname;
+                const activeItem= this.items.find(i => i.route === currentPath);
+
+                if (activeItem) {
+                    return activeItem.groupId;
+                }
+                return ``;
+            },
+            selectItem(item) {
+                if (!item.groupId) {
+                    // Top level item
+                    if (!this.expanded && !this.isMobile) return; // no expand - bug 5921
+
+                    if (this.expandedGroupId === item.id) {
+                        this.expandedGroupId = ``;
+                    }
+                    else {
+                        this.expandedGroupId = item.id;
+                    }
+                }
+                if (item.groupId && (!this.selectedLink || this.selectedLink !== item || this.$router.history.current.path !== item.route)) {
+                    this.expandedGroupId = item.groupId;
+                    this.$refs.navPopup.hide();
+                    this.changeMenuRoute(item.route);
+                }
+            },
+            selectItemSubMenu(item) {
+                if (item.groupId && (!this.selectedLink || this.selectedLink !== item || this.$router.history.current.path !== item.route)) {
+                    this.$refs.navPopup.hide();
+                    if (this.expandedGroupId && this.expandedGroupId !== item.groupId) {
+                        this.expandedGroupId = ``;
+                    }
+                    this.changeMenuRoute(item.route);
+                }
+            },
+            changeMenuRoute(route) {
+                this.$router.push({ path: route });
+            },
+            sidebarAction() {
+                if (!this.$refs.signOutSideBar) return;
+
+                this.$refs.signOutSideBar.toggle();
+            },
+            getDragPayload({ icon, title, route }) {
+                return JSON.stringify({ icon, title, route });
+            }
+        },
+        watch: {
+            $route(to, from) {
+                // Click to home button from another page -> Dashboard (no menu item for the dashboard)
+                if (to.name === `dashboard`) {
+                    this.expandedGroupId = null; // Collapse left menu group
+                    this.selectedMenuItem = null; // Uncheck left menu group
+                    this.selectedLink = null;   // Uncheck left menu item
+                    this.setPageTitle({ group: ``, module: ``, thirdLevelText: `` });
+                    return;
+                }
+                let currentRoute = this.items.find(a => a.groupId && a.route === to.path);
+                if (!currentRoute) {
+                    currentRoute = this.items.find(a => a.groupId && to.path.indexOf(a.route) === 0);
+                }
+                if (!currentRoute) {
+                    this.selectedLink = null;
+                    return;
+                }
+                this.selectedMenuItem = this.items.find(a => a.id === currentRoute.groupId);
+                this.selectedLink = currentRoute;
+            }
+        },
+        mixins: [globalObserver, translateMixin],
+        components: {
+            HeaderBlock: localStaticComponent(`/components/pagecontainer/HeaderBlock.html`),
+            FontAwesomeIcon: staticBasicComponent(`FontAwesomeIcon`),
+            SpinnerContainer: staticBasicComponent(`SpinnerContainer`),
+            FixedSideBar: staticBasicComponent(`FixedSideBar`),
+            ColumnLayout: staticBasicComponent(`ColumnLayout`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            ToolTipBox: staticBasicComponent(`ToolTipBox`),
+            NavSubMenuPopup: localStaticComponent(`/components/pagecontainer/NavigationSubMenuPopup.html`),
+            DefaultHyperLink: staticBasicComponent(`HyperLinkAction`),
+            PopupItem: staticBasicComponent(`Popup`),
+            DefaultPanel: staticBasicComponent(`Panel`),
+            FileUpload: staticBasicComponent(`FileUpload`)
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .page-container-component-id {
+        padding-top: 37px;
+        margin-right: 24px;
+        margin-bottom: 24px;
+    }
+
+    .short-page-container-component-id {
+        margin-left: 265px;
+    }
+
+    .full-page-container-component-id {
+        margin-left: 72px;
+    }
+
+    .menu-icon-component-id {
+        font-size: 18px;
+        color: #1e2022;
+        padding: 5px;
+    }
+
+    .icon-component-id {
+        font-size: 18px;
+        color: #1e2022;
+        opacity: 1;
+        padding: 5px 5px 5px 5px;
+        transition: all 0.2s;
+    }
+
+    .caret-component-id {
+        margin-left: auto;
+        margin-right: 5px;
+    }
+
+    .item-name-component-id {
+        margin-left: 7px;
+        color: #1e2022;
+        transition: all 0.2s;
+    }
+
+    .black-icon-component-id {
+        font-size: 14px;
+        color: #1e2022;
+        padding: 7px;
+        transition: all 0.2s;
+    }
+
+    .menu-item-container-component-id {
+        width: 100%;
+    }
+
+    .top-menu-component-id {
+        padding-left: 4px;
+        height: 34px;
+        border-left: 3px solid transparent;
+      /*  background-color: #ee1c29;*/
+        font-weight: bold;
+    }
+
+        .top-menu-component-id > div {
+            cursor: pointer;
+            padding-right: 5px;
+        }
+
+    .expanded-component-id .menu-item-component-id {
+        cursor: pointer;
+    }
+
+    .expanded-component-id .link-item-component-id {
+        padding-left: 13px;
+        padding-right: 7px;
+    }
+
+    .selected-link-item-component-id {
+        /*border-left: 3px solid black;*/
+        background-color: rgba(238, 28, 41, 0.1);
+    }
+
+        .selected-link-item-component-id .black-icon-component-id {
+            color: #ee1c29;
+        }
+
+        .selected-link-item-component-id .item-name-component-id {
+            color: #ee1c29;
+        }
+
+    .expander-component-id {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-end;
+        border-top: 0px;
+        border-bottom: 0px;
+        border-left: 0px;
+        border-right: 0px;
+        border-color: rgba(0,0,0,.1);
+        border-style: solid;
+        height: 42px;
+        margin-right: 7px;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .menu-item-component-id {
+        padding-left: 4px;
+        min-height: 34px;
+        border-left: 3px solid transparent;
+      /*  background-color: #ee1c29;*/
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+
+        .menu-item-component-id:hover .black-icon-component-id {
+            opacity: 1;
+            /*  background-color: rgba(255, 255, 255, 1);*/
+            /*  border-radius: 25px;
+            -moz-border-radius: 25px;
+            -webkit-border-radius: 25px;
+            -khtml-border-radius: 25px;*/
+            color: #ee1c29;
+        }
+
+
+        .menu-item-component-id:hover .item-name-component-id {
+            color: #ee1c29;
+        }
+
+        .menu-item-component-id:hover {
+            /*background-color: #fff;*/
+        }
+            .menu-item-component-id:hover .icon-component-id {
+                color: #ee1c29;
+            }
+
+
+
+
+    .selected-link-item-component-id .black-icon-component-id {
+        color: #ee1c29;
+    }
+
+    .link-item-component-id {
+        margin-bottom: 0px;
+        cursor: pointer;
+        /*  background-color: #ee1c29;*/
+        border-left: 3px solid lighten(#1e2022, 50%);
+        font-weight: normal;
+    }
+
+
+
+
+    .selected-link-item-component-id .link-item-component-id {
+        border-left: 3px solid #ee1c29;
+        /* background-color: rgba(0, 0, 0, .05);*/
+    }
+
+    .menu-margin-component-id {
+        margin-left: 8px;
+    }
+
+    .properties-component-id {
+        display: flex;
+        flex-direction: column;
+        padding: 4px;
+        font-weight: normal;
+    }
+
+    .full-space-component-id {
+        flex: 1;
+    }
+
+    .right-align-component-id {
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+    }
+
+    .centered-link-component-id {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+    }
+</style>
+

@@ -1,0 +1,76 @@
+<vue-template>
+    <div class="main-component-id">
+        <slot></slot>
+    </div>
+    <div>
+        <slot name="expander"></slot>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        placement: {
+            type: String,
+            default: _ => `left`
+        },
+        expanded: {
+            type: Boolean,
+            default: _ => false
+        }
+    },
+    mounted() {
+        this.update();
+    },
+    methods: {
+        update() {
+
+            this.$el.style[this.placement] = '0';
+            if (this.expanded) {
+                this.$el.style.width = '240px';
+                this.$el.style['max-width'] = '240px';
+            } else {
+                this.$el.style.width = '47px';
+                this.$el.style['max-width'] = '47px';
+            }
+        },
+
+    },
+    watch: {
+        placement() {
+            this.update();
+        },
+        expanded(newValue) {
+            this.update();
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .container-component-id {
+        position: fixed;
+        min-width: 0;
+        width: 47px;
+        max-width: 47px;
+        max-height: 100vh;
+        top: 0px;
+        bottom: 0px;
+        background-color: #f7faff;
+        z-index: 1;
+        /* box-shadow: 0 7px 14px 0 rgba(59,65,94,.1), 0 3px 6px 0 rgba(0,0,0,.07);*/
+        display: flex;
+        flex-direction: column;
+    }
+    .main-component-id {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        flex: 1;
+        background-color: #f7faff;
+        min-height: 0;
+        overflow: auto;
+    }
+.main-component-id::-webkit-scrollbar {
+    width: 0;
+}
+</style>

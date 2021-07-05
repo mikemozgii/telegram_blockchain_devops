@@ -1,0 +1,192 @@
+<vue-template>
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="gridCompleted()">
+        <div slot="leftedgecontent">
+            <slot name="leftedgecontent"></slot>
+        </div>
+        <span slot="nameslot" slot-scope="{ item }">
+            {{ getModuleTitle(item.id) }}
+        </span>
+        <div
+            slot="innerContent"
+            slot-scope="{ item, expand }">
+            <module-versions
+                v-if="item && expand"
+                :module-name="item.id"
+            ></module-versions>
+        </div>
+        <menu-option slot="addversionmenuoption" slot-scope="{ item }" :title="item.title" mode="add"></menu-option>
+        <menu-option slot="addazuredevopsmenuoption" slot-scope="{ item }" :title="item.title" mode="add"></menu-option>
+        <menu-option slot="editmenuoption" slot-scope="{ item }" :title="item.title" :mode="'edit'"></menu-option>
+        <menu-option slot="deletemenuoption" slot-scope="{ item }" :title="item.title" :mode="'delete'"></menu-option>
+    </flat-data-grid>
+
+    <module-type-card
+        ref="card"
+        @saved="saved($event)">
+    </module-type-card>
+
+    <module-version-card
+        ref="cardversion"
+        :module-name="moduleName"
+        @saved="savedFromCards()">
+    </module-version-card>
+
+    <module-version-azure-dev-ops
+        ref="devops"
+        :module-name="moduleName"
+        @saved="savedFromCards()">
+    </module-version-azure-dev-ops>
+
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { notFilterable: true, slot: `nameslot` }),
+                        this.addColumn(`Last Build`, `lastBuild`, { notFilterable: true }),
+                        this.addColumn(`Versions`, `count`, { notFilterable: true })
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Add Version`,
+                            id: `addVersion`,
+                            slot: `addversionmenuoption`,
+                        },
+                        {
+                            title: `Add Azure devops`,
+                            id: `addAzureDevOps`,
+                            slot: `addazuredevopsmenuoption`,
+                        },
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                        }
+                    ],
+                    addButtonText: `Add Module Type`,
+                    defaultSortField: `name`,
+                    defaultSortFieldDescending: false,
+                    expandable: true,
+                    hidePageSize: true,
+                    defaultPageSize: 5,
+                    addButtonVisibilityHandler: this.isViewOnlyHandler,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 500
+                    },
+                    actions: this
+                },
+                moduleValidate: false,
+                modalOpened: false,
+                releaseDescription: ``,
+                devopsReleases: [],
+                devopsRelease: null,
+                releaseModule: null,
+                moduleName: ``,
+            }
+        },
+        methods: {
+            addVersion({ item }) {
+                this.moduleName = item.id;
+                setTimeout(() => {
+                    this.$refs.cardversion.add();
+                });
+            },
+            addAzureDevOps({ item }) {
+                this.moduleName = item.id;
+                setTimeout(() => {
+                    this.$refs.devops.addFromDevOpsReleases();
+                });
+            },
+            savedFromCards() {
+                this.gridCompleted();
+            },
+            async gridCompleted() {
+                const { data: moduleTypes } = await axios.get(`/api/modules/moduletypes`);
+                const { data: counts } = await axios.get(`api/moduleversions/moduletypescount`);
+                const { data: builds } = await axios.get(`api/moduleversions/moduletypeslastbuilds`);
+
+                for (const moduleType of moduleTypes) {
+                    const countItem = counts.find(a => a.id === moduleType.id);
+                    moduleType.count = countItem ? countItem.count : `-`;
+                    moduleType.lastBuild = builds.find(a => a.id === moduleType.id).build;
+                    if (!moduleType.lastBuild) moduleType.lastBuild = '-';
+                }
+
+                this.gridData = moduleTypes;
+                this.$refs.grid.reloadData();
+            },
+            getModuleTitle(id) {
+                return this.gridData.find(a => a.id === id).name;
+            },
+            add() {
+                this.$refs.card.add();
+            },
+            async delete({ item, title }) {
+                this.modalTitle = ``;
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/moduletype/delete`, { params: { id: item.id }});
+
+                await axios.delete(`/api/modules/multidelete`, { params: { moduleType: item.id }});
+
+                this.fireEvent(`globalBusy`, false);
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async edit({ item }) {
+                this.$refs.card.edit(item);
+            },
+            saved() {
+                this.gridCompleted();
+            }
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            DefaultButton: staticBasicComponent(`ActionButton`),
+            ModuleVersions: localStaticComponent(`/components/infrastracture/ModuleVersions.html`),
+            GreenButton: staticBasicComponent(`ActionButton`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            FormModal: staticBasicComponent(`FormModal`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            ModuleTypeCard: localStaticComponent(`/components/configuration/ModuleTypeCard.html`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            ModuleVersionCard: localStaticComponent(`/components/infrastracture/ModuleVersionCard.html`),
+            ModuleVersionAzureDevOps: localStaticComponent(`/components/infrastracture/ModuleVersionAzureDevOps.html`)
+        }
+    }
+}
+</script>

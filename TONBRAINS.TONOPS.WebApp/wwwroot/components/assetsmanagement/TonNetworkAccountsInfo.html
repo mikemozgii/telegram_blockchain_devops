@@ -1,0 +1,804 @@
+﻿<vue-template>
+    <toast-popup
+        ref="toastpopup">
+    </toast-popup>
+
+    <flat-data-grid
+        ref="grid"
+        :settings="settings"
+        v-if="gridData"
+        @completed="fireEvent(`globalBusy`, false)">
+        <slot
+            slot="leftedgecontent"
+            name="leftedgecontent">
+             <tabs-header
+                slot="leftedgecontent"
+                :items="accountTypesItems"
+                v-model="currentAccountType"
+                @selected="gridFilter($event)">
+            </tabs-header>
+        </slot>
+        <div
+            slot="headerbalanceslot"
+            slot-scope="{ column }"
+            class="centered-text-component-id">
+            {{ column.title }}
+        </div>
+        <div
+            slot="headercountslot"
+            slot-scope="{ column }"
+            class="centered-text-component-id">
+            {{ column.title }}
+        </div>
+        <row-layout
+            v-if="!id"
+            slot="toolbar-buttons"
+            :children-space="10">
+            <action-button
+                v-if="!transferMode"
+                :action="generateKeys"
+                :styles="primaryStyle">
+                <icon-box
+                    icon="fa-plus"
+                    title="Generate Keys">
+                </icon-box>
+            </action-button>
+            <action-button
+                v-if="!transferMode"
+                :action="add"
+                :styles="primaryStyle">
+                <icon-box
+                    icon="fa-plus"
+                    title="Add Account">
+                </icon-box>
+            </action-button>
+            <action-button
+                v-if="transferMode"
+                :action="transferCancel"
+                :styles="primaryStyle">
+                <icon-box
+                    icon="fa-times"
+                    title="Cancel">
+                </icon-box>
+            </action-button>
+            <action-button
+                v-if="transferMode"
+                :action="transfer"
+                :styles="primaryStyle"
+                :disable="transferDisable">
+                <icon-box
+                    icon="fa-exchange"
+                    title="Transfer">
+                </icon-box>
+            </action-button>
+        </row-layout>
+        <div
+            slot="transferslot"
+            slot-scope="{ item }">
+            <digit-text-box
+                v-if="item.id !== transferItem.id"
+                v-model="item.newBalance"
+                only-integer
+                only-positive
+                :minimum="0"
+                :maximum="9223372036854775807"
+                :show-clear-button="false"
+                :not-valid="transferMode === `to` && item.newBalance > item.balance"
+                @changed="changedNewBalance()">
+            </digit-text-box>
+            <div
+                v-else
+                class="centered-text-component-id"
+                :style="{'color': item.newBalance < 0 ? '#ee1c29' : ''}">
+                {{ item.newBalance }}
+            </div>
+        </div>
+        <short-text
+            slot="nameslot"
+            slot-scope="{ item }"
+            :text="item.name"
+            :is-link="!id && !transferMode"
+            @clicked="edit({ item: item })">
+        </short-text>
+        <short-text
+            slot="typeslot"
+            slot-scope="{ item }"
+            :text="getTypeName(item.typeId)">
+        </short-text>
+        <row-layout
+            slot="addressslot"
+            slot-scope="{ item }">
+            <div @click="copyToClipboard(item.address)">
+                <font-awesome
+                    icon="fa-copy"
+                    icon-set="far"
+                    class="copy-component-id">
+                </font-awesome>
+            </div>
+            <short-text
+                class="small-font-component-id"
+                :text="item.address"
+                :is-link="false">
+            </short-text>
+        </row-layout>
+        <short-text
+            slot="contractnameslot"
+            slot-scope="{ item }"
+            :text="item.contractName"
+            :is-link="false">
+        </short-text>
+        <row-layout
+            slot="networkslot"
+            slot-scope="{ item }">
+            <row-layout
+                v-if="item.networks && item.networks.length"
+                v-for="network in item.networks"
+                :key="network.id">
+                <font-awesome
+                    icon="fa-circle"
+                    class="status-network-component-id"
+                    :style="{'color': network.active ? 'forestgreen' : '#ee1c29'}">
+                </font-awesome>
+                <short-text
+                    class="network-component-id"
+                    :text="network.network + ` ` + network.balance + ` ` + network.status"
+                    :is-link="false">
+                </short-text>
+            </row-layout>
+        </row-layout>
+        <div
+            slot="balanceslot"
+            slot-scope="{ item }"
+            class="centered-text-component-id">
+            {{ item.balance }}
+        </div>
+        <div
+            slot="countslot"
+            slot-scope="{ item }"
+            class="centered-text-component-id">
+            {{ item.countKeys }}
+        </div>
+        <menu-option
+            slot="smartcontractmenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="override-course">
+        </menu-option>
+        <menu-option
+            slot="transferfrommenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="transfer-from">
+        </menu-option>
+        <menu-option
+            slot="transfertomenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="transfer-to">
+        </menu-option>
+        <menu-option
+            slot="editmenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="edit">
+        </menu-option>
+        <menu-option
+            slot="deletemenuoption"
+            slot-scope="{ item }"
+            :title="item.title"
+            mode="delete">
+        </menu-option>
+        <div
+            slot="innerContent"
+            slot-scope="{ item, expand }"
+            v-if="item && item.id && expand">
+            <smart-account-keys
+                :id="item.id"
+                :smart-types="types"
+                v-show="currentTabs[item.id] === `keys`">
+                <tabs-header
+                    slot="leftedgecontent"
+                    :items="tabsItems"
+                    v-model="currentTabs[item.id]"
+                    @selected="changeTab(item.id, $event.id)">
+                </tabs-header>
+            </smart-account-keys>
+            <smart-account-networks
+                :id="item.id"
+                v-show="currentTabs[item.id] === `infoes`">
+                <tabs-header
+                    slot="leftedgecontent"
+                    :items="tabsItems"
+                    v-model="currentTabs[item.id]"
+                    @selected="changeTab(item.id, $event.id)">
+                </tabs-header>
+            </smart-account-networks>
+        </div>
+    </flat-data-grid>
+
+    <form-modal
+        :title="modalTitle"
+        ref="formModal"
+        min-width="700px">
+        <div
+            slot="content"
+            class="form-container-component-id local-size"
+            slot-scope="{ validation }">
+            <form-fields-layout
+                :fields="fields">
+                <text-block-required
+                    slot="name"
+                    :not-valid="nameValidate">
+                    Name
+                </text-block-required>
+                <text-box
+                    slot="nameinput"
+                    v-model="model.name"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="nameValidate = $event">
+                </text-box>
+
+                <text-block
+                    slot="type">
+                    Type
+                </text-block>
+                <select-box
+                    slot="typeinput"
+                    v-model="model.typeId"
+                    :options="types"
+                    :show-clear-button="false">
+                </select-box>
+
+                <text-block
+                    slot="wc">
+                    wc
+                </text-block>
+                <select-box
+                    slot="wcinput"
+                    v-model="model.wc"
+                    :options="wcOptions"
+                    :disable="!isNew"
+                    :show-clear-button="false">
+                </select-box>
+
+                <text-block
+                    slot="description"
+                    :not-valid="true">
+                    Description
+                </text-block>
+                <div slot="descriptioninput">
+                    <multi-line
+                        v-model="model.description">
+                    </multi-line>
+                </div>
+
+                <text-block-required
+                    slot="network"
+                    :not-valid="networkValidate">
+                    Networks ({{ model.networkIds ? model.networkIds.length : 0 }})
+                </text-block-required>
+                <multi-select-box
+                    slot="networkinput"
+                    v-model="model.networkIds"
+                    :options="networkOptions"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="networkValidate = $event">
+                </multi-select-box>
+
+                <text-block-required
+                    slot="contract"
+                    :not-valid="contractValidate">
+                    Smart Contract
+                </text-block-required>
+                <select-box
+                    slot="contractinput"
+                    v-model="model.smartContractId"
+                    :options="contractOptions"
+                    :disable="!isNew"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="contractValidate = $event"
+                    @selected="selectedContract($event)">
+                </select-box>
+
+                <text-block-required
+                    slot="key"
+                    :not-valid="keyValidate">
+                    Keys ({{ model.smartKeyIds ? model.smartKeyIds.length : 0 }})
+                </text-block-required>
+                <multi-select-box
+                    slot="keyinput"
+                    v-model="model.smartKeyIds"
+                    :options="keyFilteredOptions"
+                    :disable="!model.smartContractId"
+                    :validate="[`required`]"
+                    :validatecontext="validation"
+                    @validate-changed="keyValidate = $event">
+                </multi-select-box>
+            </form-fields-layout>
+        </div>
+        <div slot="buttons" slot-scope="{ validation, summary }">
+            <modal-control-buttons
+                :save="save"
+                :cancel="cancel"
+                :delete-action="deleteItem"
+                :delete-visible="model && model.id"
+                :disable-save="!summary">
+            </modal-control-buttons>
+        </div>
+    </form-modal>
+
+    <form-modal
+        title="Select Network"
+        ref="selectnetworkmodal"
+        min-width="700px">
+        <form-fields-layout
+            :fields="selectnetworkfields"
+            slot="content"
+            class="form-container-component-id local-size">
+            <text-block
+                slot="network">
+                Network
+            </text-block>
+            <select-box
+                slot="networkinput"
+                v-model="networkId"
+                :options="networkOptions"
+                :show-clear-button="false">
+            </select-box>
+        </form-fields-layout>
+        <modal-control-buttons
+            slot="buttons"
+            save-translation="Ok"
+            :save="selectNetwork"
+            :cancel="cancelSelectNetwork"
+            :delete-visible="false">
+        </modal-control-buttons>
+    </form-modal>
+
+    <delete-confirm-modal
+        ref="deleteConfirm">
+    </delete-confirm-modal>
+
+    <generate-keys-dialog
+        ref="generatekeys"
+        :wc-options="wcOptions"
+        :smart-types="types"
+        @add-item="addItem">
+    </generate-keys-dialog>
+
+    <smart-contract-dialog
+        ref="smartcontractdialog">
+    </smart-contract-dialog>
+</vue-template>
+
+<script>
+module.exports = async function () {
+    const axios = await require(`axios`);
+    const gridHelperMixin = await require(`globalMixins/gridHelpers`);
+    const globalObserver = await require(`globalMixins/globalObserver`);
+    const translateMixin = await require(`globalMixins/translations`);
+    const componentStyles = await require(`componentStyles`);
+
+    return {
+        props: {
+            id: {
+                type: String,
+                default: _ => ``
+            },
+            mode: {
+                type: String,
+                default: _ => ``
+            },
+            smartTypes: {
+                type: Array,
+                default: _ => []
+            }
+        },
+        data() {
+            return {
+                settings: {
+                    columns: [
+                        this.addColumn(`Name`, `name`, { slot: `nameslot`, width: 125 }),
+                        this.addColumn(`Type`, `type_id`, { slot: `typeslot`, width: 50 }),
+                        this.addColumn(`Transfer`, `id`, { slot: `transferslot`, width: 50, notVisible: true, notSortable: true }),
+                        this.addColumn(`Address`, `address`, { slot: `addressslot`, width: 125 }),
+                        this.addColumn(`Contract Name`, `contractName`, { slot: `contractnameslot`, width: 125, notVisible: this.mode === `smartcontracts` }),
+                        this.addColumn(`Networks`, `networks`, { slot: `networkslot`, width: 125 }),
+                        this.addColumn(`Balance`, `balance`, { slot: `balanceslot`, headerSlot: `headerbalanceslot`, width: 25, notVisible: true }),
+                        this.addColumn(`Keys`, `countKeys`, { slot: `countslot`, headerSlot: `headercountslot`, width: 25, notVisible: this.mode === `smartkeys` }),
+                    ],
+                    emptyMessage: null,
+                    urls: {
+                        grid: `-`,
+                    },
+                    filters: {
+                        conditions: {
+                            "typeId": this.typeFiltering,
+                        }
+                    },
+                    gridItemActions: [
+                        {
+                            title: `Smart Contract`,
+                            id: `openSmartContractDialog`,
+                            slot: `smartcontractmenuoption`,
+                            activeHandler: this.activeHandler
+                        },
+                        {
+                            title: `Transfer From`,
+                            id: `transferFrom`,
+                            slot: `transferfrommenuoption`,
+                            activeHandler: this.activeHandler
+                        },
+                        {
+                            title: `Transfer To`,
+                            id: `transferTo`,
+                            slot: `transfertomenuoption`,
+                            activeHandler: this.activeHandler
+                        },
+                        {
+                            title: `Edit`,
+                            id: `edit`,
+                            slot: `editmenuoption`,
+                            activeHandler: this.activeHandler
+                        },
+                        {
+                            title: `Delete`,
+                            id: `delete`,
+                            slot: `deletemenuoption`,
+                            activeHandler: this.activeHandler
+                        }
+                    ],
+                    defaultSortField:`name`,
+                    defaultSortFieldDescending: false,
+                    expandable: this.mode !== `smartkeys`,
+                    hidePageSize: true,
+                    defaultPageSize: 50,
+                    sourceStrategy: this.getLocalStrategy(false,``,null),
+                    additionalOptions: {
+                        minimumLimitAllItems: 50
+                    },
+                    actions: this
+                },
+                model: {},
+                modalTitle: ``,
+                nameValidate: false,
+                keyValidate: false,
+                networkValidate: false,
+                contractValidate: false,
+                fields: [
+                    { labelSlot: "name", inputSlot: "nameinput" },
+                    { labelSlot: "type", inputSlot: "typeinput" },
+                    { labelSlot: "wc", inputSlot: "wcinput" },
+                    { labelSlot: "description", inputSlot: "descriptioninput", alignToTop: true },
+                    { labelSlot: "network", inputSlot: "networkinput" },
+                    { labelSlot: "contract", inputSlot: "contractinput" },
+                    { labelSlot: "key", inputSlot: "keyinput", showHandler: this.isNewCheck },
+                ],
+                selectnetworkfields: [
+                    { labelSlot: "network", inputSlot: "networkinput" },
+                ],
+                isNew: false,
+                wcOptions: [],
+                types: [],
+                keyOptions: [],
+                keyFilteredOptions: [],
+                contractOptions: [],
+                contractKeys: {},
+                networkOptions: [],
+                gridData: null,
+                tabsItems: [
+                    { title: `Keys`, id: `keys` },
+                    { title: `Infoes`, id: `infoes` },
+                ],
+                currentTabs: {},
+                primaryStyle: componentStyles.buttons.primaryButton,
+                transferMode: ``,
+                transferItem: null,
+                transferDisable: false,
+                networkId: ``,
+                oldGridData: [],
+                accountTypesItems: [
+                    { title: `Validator`, id: `validator` },
+                    { title: `Elector`, id: `elector` },
+                    { title: `System`, id: `system` },
+                ],
+                currentAccountType: `validator`,
+            }
+        },
+        created() {
+            this.fireEvent(`globalBusy`, true);
+            this.prepareData();
+        },
+        methods: {
+            gridFilter($event) {
+                this.currentAccountType = $event.id;
+                this.$refs.grid.reloadData();
+            },
+            typeFiltering(item, field) {
+                return item[field].toLowerCase().indexOf(this.currentAccountType) > -1;
+            },
+            async prepareData() {
+                this.wcOptions = [
+                    { id: 0, title: `0`},
+                    { id: 1, title: `1`},
+                ];
+
+                this.types = this.smartTypes;
+                if (!this.id || !this.types.length) {
+                    const { data: data } = await axios.get(`/api/smartaccounts/data`);
+
+                    this.types = data.types;
+                    this.keyOptions = data.keyOptions;
+                    this.contractOptions = data.contractOptions;
+                    this.contractKeys = data.contractKeys;
+                    this.networkOptions = data.networkOptions;
+                }
+
+                const { data: result } = await axios.get(`/api/smartaccounts/grid`, { params: { id: this.id, mode: this.mode } });
+                this.gridData = result;
+
+                this.gridData.forEach((item) => {
+                    this.currentTabs[item.id] = `keys`;
+                });
+            },
+            openSmartContractDialog({ item }) {
+                this.$refs.smartcontractdialog.open(item.contractId);
+            },
+            selectNetwork() {
+                this.oldGridData = this.gridData;
+
+                this.gridData = this.gridData.filter(i => i.networkIds.includes(this.networkId));
+
+                this.gridData.forEach(row => {
+                    row.balance = row.networks.find(i => i.id === this.networkId).balance;
+                    row.newBalance = null;
+                });
+
+                this.settings.columns.find(i => i.field === `id`).notVisible = false;
+                this.settings.columns.find(i => i.field === `balance`).notVisible = false;
+                this.settings.columns.find(i => i.field === `networks`).notVisible = true;
+                this.$refs.selectnetworkmodal.closeModal();
+
+                this.$refs.grid.reloadData();
+                setTimeout(() => {
+                    this.transferItem = this.$refs.grid.getRows().find(i => i.id === this.transferItem.id);
+                    this.transferItem.newBalance = this.transferItem.balance;
+                }, 1000);
+            },
+            cancelSelectNetwork() {
+                this.transferMode = ``;
+                this.$refs.selectnetworkmodal.closeModal();
+            },
+            getTypeName(typeId) {
+                if (!typeId || !this.types) return ``;
+
+                const type = this.types.find(i => i.id === typeId);
+                return type ? type.title : ``;
+            },
+            changedNewBalance() {
+                if (this.transferMode === `from`) {
+                    const rows = this.$refs.grid.getRows().filter(i => i.newBalance && i.id !== this.transferItem.id).map(i => i.newBalance);
+                    const summ = rows.reduce((a, b) => a + b, 0);
+                    this.transferItem.newBalance = this.transferItem.balance - summ;
+                    this.transferDisable = this.transferItem.newBalance < 0;
+                }
+                else if (this.transferMode === `to`) {
+                    const rows = this.$refs.grid.getRows().filter(i => i.newBalance && i.id !== this.transferItem.id).map(i => i.newBalance);
+                    const summ = rows.reduce((a, b) => a + b, 0);
+                    this.transferItem.newBalance = this.transferItem.balance + summ;
+                    this.transferDisable = !!rows.filter(i => i.newBalance > i.balance).length;
+                }
+            },
+            async transfer() {
+                if (this.transferItem.newBalance < 0) return;
+
+                this.fireEvent(`globalBusy`, true);
+
+                let rows = this.$refs.grid.getRows().filter(i => i.newBalance);
+                let balances = {};
+                rows.forEach(i => balances[i.id] = i.newBalance);
+
+                this.gridData = null;
+                const { data: result } = await axios.post(
+                    `/api/smartaccounts/transfer`, balances, { params: { id: this.transferItem.id, networkId: this.networkId, mode: this.transferMode } }
+                );
+                this.gridData = result;
+                this.transferCancel(true);
+
+                this.gridData.forEach((item) => {
+                    this.currentTabs[item.id] = `keys`;
+                });
+                await this.$refs.grid.reloadData();
+                this.fireEvent(`globalBusy`, false);
+            },
+            transferCancel(transfer = false) {
+                this.settings.columns.find(i => i.field === `id`).notVisible = true;
+                this.settings.columns.find(i => i.field === `balance`).notVisible = true;
+                this.settings.columns.find(i => i.field === `networks`).notVisible = false;
+
+                this.transferMode = ``;
+                this.transferDisable = false;
+
+                if (!transfer) {
+                    this.gridData = this.oldGridData;
+                    this.$refs.grid.reloadData();
+                }
+            },
+            transferFrom({ item }) {
+                this.transferItem = item;
+                this.transferMode = `from`;
+                this.networkId = this.networkOptions[0].id;
+                this.$refs.selectnetworkmodal.openModal();
+            },
+            transferTo({ item }) {
+                this.transferItem = item;
+                this.transferMode = `to`;
+                this.networkId = this.networkOptions[0].id;
+                this.$refs.selectnetworkmodal.openModal();
+            },
+            changeTab(id, tabId) {
+                let currentTabs = this.currentTabs;
+                this.currentTabs = [];
+                currentTabs[id] = tabId;
+                this.networkId = this.networkOptions[0].id;
+                this.currentTabs = currentTabs;
+            },
+            copyToClipboard(text) {
+                var el = document.createElement('textarea');
+                el.value = text;
+                el.setAttribute('readonly', '');
+                el.style = { position: 'absolute', left: '-9999px' };
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                this.$refs.toastpopup.show(`Text copied to clipboard`);
+            },
+            activeHandler() {
+                return !this.id && !this.transferMode;
+            },
+            addItem($event) {
+                this.$refs.grid.addItem($event);
+                this.currentTabs[$event.id] = `keys`;
+            },
+            generateKeys() {
+                this.$refs.generatekeys.open();
+            },
+            selectedContract($event) {
+                const contractKeys = this.contractKeys.hasOwnProperty($event) ? this.contractKeys[$event].map(q => q.smartKeyId) : [];
+                this.keyFilteredOptions = this.keyOptions.filter(q => !contractKeys.includes(q.id));
+                this.model.smartKeyIds = this.model.smartKeyIds.filter(q => !contractKeys.includes(q));
+            },
+            isNewCheck() {
+                return this.isNew;
+            },
+            cancel() {
+                this.$refs.formModal.closeModal();
+            },
+            add() {
+                this.isNew = true;
+                this.hasPhrase = false;
+
+                this.model = {
+                    wc: 0,
+                    networkIds: [],
+                    smartKeyIds: [],
+                    typeId: 'system'
+                };
+                this.modalTitle = `Add Account`;
+
+                this.nameValidate = false;
+                this.keyValidate = false;
+                this.networkValidate = false;
+                this.contractValidate = false;
+
+                this.$refs.formModal.openModal();
+            },
+            async edit({ item }) {
+                this.isNew = false;
+                this.hasPhrase = false;
+
+                this.editedItem = item;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: model } = await axios.get(`/api/smartaccounts/single`, { params: { id: item.id } });
+                this.fireEvent(`globalBusy`, false);
+
+                this.model = model;
+                this.modalTitle = `Edit Account`;
+                this.$refs.formModal.openModal();
+            },
+            async save() {
+                const url = !this.model.id ? `/api/smartaccounts/add` : `/api/smartaccounts/edit`
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: savedItem } = await axios.post(url, this.model);
+                this.fireEvent(`globalBusy`, false);
+
+                this.$refs.formModal.closeModal();
+
+                if (!savedItem) {
+                    this.$refs.toastpopup.show(`Error generating address`, `#ee1c29`);
+                    return;
+                }
+
+                if (!this.model.id) {
+                    this.$refs.grid.addItem(savedItem);
+                    this.currentTabs[savedItem.id] = `keys`;
+                } else {
+                    this.$refs.grid.updateItem(savedItem, `id`);
+                }
+            },
+            async delete({ item }) {
+                const result = await this.$refs.deleteConfirm.showConfirm();
+                if (!result) return;
+
+                this.fireEvent(`globalBusy`, true);
+                const { data: deleteResult } = await axios.delete(`/api/smartaccounts/soft-delete`, { params: { id: item.id }});
+                this.fireEvent(`globalBusy`, false);
+
+                if (deleteResult) this.$refs.grid.deleteItem(item);
+                return deleteResult;
+            },
+            async deleteItem() {
+                const result = await this.delete({ item: this.editedItem });
+                if (result) this.$refs.formModal.closeModal();
+            },
+        },
+        mixins: [translateMixin, globalObserver, gridHelperMixin],
+        components: {
+            SmartContractDialog: localStaticComponent(`/components/assetsmanagement/SmartContractDialog.html`),
+            GenerateKeysDialog: localStaticComponent(`/components/assetsmanagement/GenerateKeysDialog.html`),
+            SmartAccountKeys: localStaticComponent(`/components/assetsmanagement/SmartAccountKeys.html`),
+            SmartAccountNetworks: localStaticComponent(`/components/assetsmanagement/SmartAccountNetworks.html`),
+            FlatDataGrid: localStaticComponent(`/components/misc/DataGrid.html`),
+            DeleteConfirmModal: localStaticComponent(`/components/misc/DeleteConfirmModal.html`),
+            ModalControlButtons: localStaticComponent(`/components/misc/ModalControlButtons.html`),
+            MenuOption: staticBasicComponent(`MenuOption`),
+            ShortText: staticBasicComponent(`ShortTextWithTooltip`),
+            TextBox: staticBasicComponent(`TextBox`),
+            TextBlock: staticBasicComponent(`TextBlock`),
+            TextBlockRequired: staticBasicComponent(`ValidateLabelBox`),
+            FormModal: staticBasicComponent(`FormModal`),
+            MultiLine: staticBasicComponent(`MultiLineTextBox`),
+            FormFieldsLayout: staticBasicComponent(`FormFieldsLayout`),
+            SelectBox: staticBasicComponent(`SelectBox`),
+            MultiSelectBox: staticBasicComponent(`MultiSelectBox`),
+            FontAwesome: staticBasicComponent(`FontAwesomeIcon`),
+            ToastPopup: staticBasicComponent(`Toast`),
+            TabsHeader: staticBasicComponent(`TabsHeaderBlock`),
+            ActionButton: staticBasicComponent(`ActionButton`),
+            IconBox: staticBasicComponent(`IconBox`),
+            RowLayout: staticBasicComponent(`RowLayout`),
+            DigitTextBox: staticBasicComponent(`DigitTextBox`),
+        }
+    }
+}
+</script>
+
+<style scoped>
+    .copy-component-id {
+        cursor: pointer;
+        color: #ee1c29;
+        margin-right: 5px;
+    }
+    .small-font-component-id {
+        font-size: 11px;
+    }
+    .centered-text-component-id {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+    .status-network-component-id {
+        font-size: 8px;
+        margin-right: 1px;
+    }
+    .network-component-id {
+        font-size: 11px;
+        margin-right: 5px;
+    }
+</style>

@@ -1,0 +1,167 @@
+<vue-template>
+    <slot name="leftedgecontent"></slot>
+    <div class="separator-component-id"></div>
+
+    <div class="header-block-component-id">
+        <div class="actions-component-id">
+            <slot name="actions-top"></slot>
+        </div>
+
+        <div class="search-box-actions-wrapper-component-id">
+            <slot name="leftofsearchcontent"></slot>
+            <div class="search-box-component-id" v-if="!hideSearchBox">
+                <text-box
+                    :show-clear-button="true"
+                    ref="textinput"
+                    v-model="filters.filter"
+                    :watermark="searchLabel"
+                    @changed="changeFilter($event)">
+                </text-box>
+            </div>
+            <div class="actions-container-component-id">
+                <slot name="actions"></slot>
+            </div>
+
+            <div class="paginator-container-component-id">
+                <slot name="upperpaginator"></slot>
+            </div>
+            <slot name="actions-right"></slot>
+        </div>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        filters: {
+            type: Object,
+            required: true
+        },
+        hidePageSize: {
+            type: Boolean,
+            required: false,
+            default: _ => false
+        },
+        hideSearchBox: {
+            type: Boolean,
+            required: false,
+            default: _ => false
+        },
+        busy: {
+            type: Boolean,
+            default: _ => false
+        },
+        defaultPageSize: {
+            type: Number,
+            default: _ => 5
+        },
+        searchLabel: {
+            type: String,
+            default: () => `Search`
+        },
+    },
+    data() {
+        return {
+            pageSizes: [{title: '5', id: 5}, {title: '10', id: 10}, {title: '50', id: 50}, {title: '100', id: 100}],
+            selectedPageSize: this.defaultPageSize,
+            timerId: null
+        }
+    },
+    mounted() {
+        this.pageSizeChanged(this.selectedPageSize);
+    },
+    methods: {
+        pageSizeChanged(page) {
+            this.$emit('pagesizechanged', page);
+        },
+        changeFilter(value) {
+            if (this.timerId) clearTimeout(this.timerId);
+            this.timerId = setTimeout(() => {
+                this.filters.filter = value;
+                setTimeout(() => {
+                    if (this.$refs.textinput) {
+                        this.$refs.textinput.focus();
+                    }
+                }, 800);
+            }, 500);
+        }
+    },
+    watch: {
+        selectedPageSize(page) {
+            this.pageSizeChanged(page);
+        },
+        "filters.filter"(filter) {
+            this.$emit('filterchanged', filter);
+        }
+    },
+    components: {
+        SelectBox: staticBasicComponent(`SelectBox`),
+        TextBox: staticBasicComponent(`TextBox`)
+    }
+}
+</script>
+
+<style scoped>
+.search-box-actions-wrapper-component-id{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-height: 32px !important;
+    margin-left: 16px;
+}
+
+.container-component-id {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+}
+.page-sizes-container-component-id {
+    display: inline-flex;
+    align-items: center;
+    flex: 1;
+    font-size: 0.8rem;
+}
+.page-sizes-container-component-id span {
+    margin-right: 5px;
+    margin-left: 5px;
+}
+.separator-component-id {
+    flex: 1;
+}
+.page-sizes-component-id {
+    max-width: 80px;
+}
+.actions-container-component-id > * {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+}
+.search-box-component-id {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 5px;
+}
+.paginator-container-component-id {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+.search-label-component-id {
+    font-size: 0.8rem;
+    margin-right: 5px;
+    margin-left: 5px;
+}
+.header-block-component-id {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+}
+.actions-component-id {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+</style>
+

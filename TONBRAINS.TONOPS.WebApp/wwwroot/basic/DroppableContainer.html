@@ -1,0 +1,64 @@
+<vue-template>
+    <div
+        @dragover.prevent
+        @dragenter="onDropEnter()"
+        @dragleave="dropEnter = false"
+        @drop.prevent="drop($event)">
+        <slot></slot>
+    </div>
+</vue-template>
+
+<script>
+module.exports = {
+    props: {
+        payloadName: {
+            type: String,
+            required: true
+        },
+        disable: {
+            type: Boolean,
+            default: false
+        }
+    },
+    data() {
+        return {
+            dropEnter: false
+        }
+    },
+    methods: {
+        onDropEnter() {
+            if (this.disable) return;
+            this.dropEnter = true;
+        },
+        drop($event) {
+            this.dropEnter = false;
+
+            const imgWeight = $event.target.clientWidth;
+            const imgHeight = $event.target.clientHeight;
+
+            const payload = $event.dataTransfer.getData(this.payloadName);
+            if (!payload) return;
+
+            let element = JSON.parse(payload);
+
+            const halfWidth = element.width / 2;
+            const halfHeight = element.height / 2;
+
+            element.left = $event.offsetX;
+            if (element.left + halfWidth > imgWeight) element.left = imgWeight - element.width;
+            if (element.left - halfWidth < 0) element.left = 0;
+
+            element.top = $event.offsetY;
+            if (element.top + halfHeight > imgHeight ) element.top = imgHeight - element.height;
+            if (element.top - halfHeight < 0 ) element.top = 0;
+
+            this.$emit(`dropped`, element);
+        }
+    },
+    watch: {
+        disable(newValue) { //watch need for immediatly reaction on changing disable field.
+            if (!newValue) this.dropEnter = false;
+        }
+    }
+}
+</script>
